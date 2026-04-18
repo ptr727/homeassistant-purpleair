@@ -1,4 +1,4 @@
-"""Adds config flow for Blueprint."""
+"""Adds config flow for PurpleAir."""
 
 from __future__ import annotations
 
@@ -11,16 +11,16 @@ from homeassistant.loader import async_get_loaded_integration
 from slugify import slugify
 
 from .api import (
-    IntegrationBlueprintApiClient,
-    IntegrationBlueprintApiClientAuthenticationError,
-    IntegrationBlueprintApiClientCommunicationError,
-    IntegrationBlueprintApiClientError,
+    PurpleAirApiClient,
+    PurpleAirApiClientAuthenticationError,
+    PurpleAirApiClientCommunicationError,
+    PurpleAirApiClientError,
 )
 from .const import DOMAIN, LOGGER
 
 
-class BlueprintFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for Blueprint."""
+class PurpleAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+    """Config flow for PurpleAir."""
 
     VERSION = 1
 
@@ -36,13 +36,13 @@ class BlueprintFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     username=user_input[CONF_USERNAME],
                     password=user_input[CONF_PASSWORD],
                 )
-            except IntegrationBlueprintApiClientAuthenticationError as exception:
+            except PurpleAirApiClientAuthenticationError as exception:
                 LOGGER.warning(exception)
                 _errors["base"] = "auth"
-            except IntegrationBlueprintApiClientCommunicationError as exception:
+            except PurpleAirApiClientCommunicationError as exception:
                 LOGGER.error(exception)
                 _errors["base"] = "connection"
-            except IntegrationBlueprintApiClientError as exception:
+            except PurpleAirApiClientError as exception:
                 LOGGER.exception(exception)
                 _errors["base"] = "unknown"
             else:
@@ -90,7 +90,7 @@ class BlueprintFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_credentials(self, username: str, password: str) -> None:
         """Validate credentials."""
-        client = IntegrationBlueprintApiClient(
+        client = PurpleAirApiClient(
             username=username,
             password=password,
             session=async_create_clientsession(self.hass),

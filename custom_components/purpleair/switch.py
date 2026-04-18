@@ -1,4 +1,4 @@
-"""Switch platform for integration_blueprint."""
+"""Switch platform for purpleair."""
 
 from __future__ import annotations
 
@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 
-from .entity import IntegrationBlueprintEntity
+from .entity import PurpleAirEntity
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .coordinator import BlueprintDataUpdateCoordinator
-    from .data import IntegrationBlueprintConfigEntry
+    from .coordinator import PurpleAirDataUpdateCoordinator
+    from .data import PurpleAirConfigEntry
 
 ENTITY_DESCRIPTIONS = (
     SwitchEntityDescription(
-        key="integration_blueprint",
-        name="Integration Switch",
+        key="purpleair",
+        name="PurpleAir Switch",
         icon="mdi:format-quote-close",
     ),
 )
@@ -26,12 +26,12 @@ ENTITY_DESCRIPTIONS = (
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001 Unused function argument: `hass`
-    entry: IntegrationBlueprintConfigEntry,
+    entry: PurpleAirConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the switch platform."""
     async_add_entities(
-        IntegrationBlueprintSwitch(
+        PurpleAirSwitch(
             coordinator=entry.runtime_data.coordinator,
             entity_description=entity_description,
         )
@@ -39,12 +39,12 @@ async def async_setup_entry(
     )
 
 
-class IntegrationBlueprintSwitch(IntegrationBlueprintEntity, SwitchEntity):
-    """integration_blueprint switch class."""
+class PurpleAirSwitch(PurpleAirEntity, SwitchEntity):
+    """purpleair switch class."""
 
     def __init__(
         self,
-        coordinator: BlueprintDataUpdateCoordinator,
+        coordinator: PurpleAirDataUpdateCoordinator,
         entity_description: SwitchEntityDescription,
     ) -> None:
         """Initialize the switch class."""

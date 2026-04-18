@@ -1,0 +1,23 @@
+{
+    "folders": [
+        {
+            "name": "PurpleAir Integration",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.extraPaths": [
+            "./custom_components"
+        ]
+    },
+    "extensions": {
+        "recommendations": [
+            "charliermarsh.ruff",
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "ms-azuretools.vscode-docker",
+            "ms-vscode-remote.remote-containers"
+        ]
+    }
+}
