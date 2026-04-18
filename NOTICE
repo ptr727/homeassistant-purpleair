@@ -1,0 +1,11 @@
+homeassistant-purpleair
+Copyright 2026 Pieter Viljoen
+
+This product includes software developed by the Home Assistant project
+(https://www.home-assistant.io/), licensed under the Apache License, Version 2.0.
+
+Portions of the code in this repository, specifically the contents of
+custom_components/purpleair/ and tests/components/purpleair/, were ported from
+the Home Assistant core project at https://github.com/home-assistant/core,
+based on pull request #140901 (https://github.com/home-assistant/core/pull/140901)
+authored by @ptr727.

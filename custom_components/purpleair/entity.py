@@ -1,28 +1,64 @@
-"""PurpleAirEntity class."""
+"""The PurpleAir integration."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any, Final
+
+from aiopurpleair.models.sensors import SensorModel
+
+from homeassistant.const import ATTR_LATITUDE, ATTR_LONGITUDE, CONF_SHOW_ON_MAP
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTRIBUTION
-from .coordinator import PurpleAirDataUpdateCoordinator
+from .const import DOMAIN
+from .coordinator import PurpleAirConfigEntry, PurpleAirDataUpdateCoordinator
+
+MANUFACTURER: Final[str] = "PurpleAir, Inc."
 
 
 class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
-    """PurpleAirEntity class."""
+    """Define a base PurpleAir entity."""
 
-    _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
 
-    def __init__(self, coordinator: PurpleAirDataUpdateCoordinator) -> None:
+    def __init__(
+        self,
+        entry: PurpleAirConfigEntry,
+        sensor_index: int,
+    ) -> None:
         """Initialize."""
-        super().__init__(coordinator)
-        self._attr_unique_id = coordinator.config_entry.entry_id
+        super().__init__(entry.runtime_data)
+
+        self._sensor_index = sensor_index
+
         self._attr_device_info = DeviceInfo(
-            identifiers={
-                (
-                    coordinator.config_entry.domain,
-                    coordinator.config_entry.entry_id,
-                ),
-            },
+            configuration_url=self.coordinator.async_get_map_url(sensor_index),
+            hw_version=self.sensor_data.hardware,
+            identifiers={(DOMAIN, str(sensor_index))},
+            manufacturer=MANUFACTURER,
+            model=self.sensor_data.model,
+            name=self.sensor_data.name,
+            sw_version=self.sensor_data.firmware_version,
         )
+        self._entry = entry
+
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any]:
+        """Return entity specific state attributes."""
+        attrs: dict[str, Any] = {}
+        if self.sensor_data.latitude is None or self.sensor_data.longitude is None:
+            # If either latitude or longitude is missing, do not include location
+            # attributes even if show_on_map is enabled; sensor location is required.
+            return attrs
+
+        if self._entry.options.get(CONF_SHOW_ON_MAP, False):
+            attrs[ATTR_LATITUDE] = self.sensor_data.latitude
+            attrs[ATTR_LONGITUDE] = self.sensor_data.longitude
+
+        return attrs
+
+    @property
+    def sensor_data(self) -> SensorModel:
+        """Define a property to get this entity's SensorModel object."""
+        return self.coordinator.data.data[self._sensor_index]
