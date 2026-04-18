@@ -1,6 +1,12 @@
 {
     "name": "ptr727/homeassistant-purpleair",
     "image": "mcr.microsoft.com/devcontainers/base:debian",
+    "runArgs": [
+        "--security-opt",
+        "seccomp=unconfined",
+        "--security-opt",
+        "apparmor=unconfined"
+    ],
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
         8123
