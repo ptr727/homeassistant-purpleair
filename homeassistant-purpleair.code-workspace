@@ -9,7 +9,13 @@
         "python.defaultInterpreterPath": "/usr/local/python/current/bin/python",
         "python.analysis.extraPaths": [
             "./custom_components"
-        ]
+        ],
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": [
+            "tests"
+        ],
+        "python.analysis.typeCheckingMode": "off"
     },
     "extensions": {
         "recommendations": [
