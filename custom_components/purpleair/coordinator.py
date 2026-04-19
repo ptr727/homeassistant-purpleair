@@ -135,7 +135,16 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         entry = registry.async_get(entity_id)
         if entry is None or entry.config_entry_id != self.config_entry.entry_id:
             return
-        self.hass.async_create_task(self.async_request_refresh())
+        # Pin the scheduled refresh to the config entry so unloading the
+        # integration cancels any in-flight refresh kicked off by a registry
+        # toggle. Using hass.async_create_task directly would leave an
+        # untracked task (RUF006 doesn't catch HA helpers, but the lifecycle
+        # concern is real).
+        self.config_entry.async_create_task(
+            self.hass,
+            self.async_request_refresh(),
+            name=f"{DOMAIN} refresh after entity registry update ({entity_id})",
+        )
 
     def async_get_map_url(self, sensor_index: int) -> str:
         """Get map URL."""

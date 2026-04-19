@@ -67,8 +67,15 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        currently_available = self._is_sensor_healthy()
+        """Handle updated data from the coordinator.
+
+        The availability predicate here must match the ``available`` property
+        exactly — otherwise we can end up logging a "back online" transition
+        without having previously logged the "unavailable" side (or vice
+        versa) when a coordinator-level failure coincides with healthy
+        stale-cached sensor data.
+        """
+        currently_available = super().available and self._is_sensor_healthy()
         if not currently_available:
             if not self._unavailable_logged:
                 LOGGER.info(

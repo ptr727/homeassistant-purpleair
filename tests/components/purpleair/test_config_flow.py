@@ -390,30 +390,28 @@ async def test_create_from_map(
     assert result[CONF_STEP_ID] == CONF_ADD_MAP_LOCATION
 
     # Map location
-    with patch.object(api, "sensors.async_get_nearby_sensors"):
-        result = await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_LOCATION: {
-                    CONF_LATITUDE: TEST_LATITUDE,
-                    CONF_LONGITUDE: TEST_LONGITUDE,
-                    CONF_RADIUS: TEST_RADIUS,
-                }
-            },
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_LOCATION: {
+                CONF_LATITUDE: TEST_LATITUDE,
+                CONF_LONGITUDE: TEST_LONGITUDE,
+                CONF_RADIUS: TEST_RADIUS,
+            }
+        },
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_STEP_ID] == CONF_SELECT_SENSOR
 
     # Select and create
-    with patch.object(api, "sensors.async_get_sensors"):
-        result = await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_SENSOR_INDEX: str(TEST_SENSOR_INDEX1),
-            },
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_SENSOR_INDEX: str(TEST_SENSOR_INDEX1),
+        },
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
     assert result[CONF_DATA] == {CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1}
 
@@ -439,15 +437,14 @@ async def test_create_from_index(
     assert result[CONF_STEP_ID] == CONF_ADD_SENSOR_INDEX
 
     # Enter index and create
-    with patch.object(api, "sensors.async_get_sensors"):
-        result = await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
-                CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
-            },
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+            CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+        },
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
     assert result[CONF_DATA] == {
         CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
@@ -481,15 +478,14 @@ async def test_duplicate_sensor(
     assert result[CONF_STEP_ID] == CONF_ADD_SENSOR_INDEX
 
     # Enter index and create
-    with patch.object(api, "sensors.async_get_sensors"):
-        result = await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
-                CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
-            },
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+            CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+        },
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_ERRORS] == {CONF_SENSOR_INDEX: CONF_ALREADY_CONFIGURED}
 
@@ -590,18 +586,17 @@ async def test_create_from_map_select_errors(
     assert result[CONF_STEP_ID] == CONF_ADD_MAP_LOCATION
 
     # Map location
-    with patch.object(api, "sensors.async_get_nearby_sensors"):
-        result = await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_LOCATION: {
-                    CONF_LATITUDE: TEST_LATITUDE,
-                    CONF_LONGITUDE: TEST_LONGITUDE,
-                    CONF_RADIUS: TEST_RADIUS,
-                }
-            },
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_LOCATION: {
+                CONF_LATITUDE: TEST_LATITUDE,
+                CONF_LONGITUDE: TEST_LONGITUDE,
+                CONF_RADIUS: TEST_RADIUS,
+            }
+        },
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_STEP_ID] == CONF_SELECT_SENSOR
 
@@ -636,15 +631,14 @@ async def test_add_second_subentry(
     result = await hass.config_entries.subentries.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_NEXT_STEP_ID: CONF_ADD_SENSOR_INDEX}
     )
-    with patch.object(api, "sensors.async_get_sensors"):
-        result = await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_SENSOR_INDEX: 567890,
-                CONF_SENSOR_READ_KEY: "",
-            },
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_SENSOR_INDEX: 567890,
+            CONF_SENSOR_READ_KEY: "",
+        },
+    )
+    await hass.async_block_till_done()
 
     assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
     assert len(config_entry.subentries) == 2
@@ -664,15 +658,14 @@ async def test_read_key_is_forwarded_to_coordinator(
     result = await hass.config_entries.subentries.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_NEXT_STEP_ID: CONF_ADD_SENSOR_INDEX}
     )
-    with patch.object(api, "sensors.async_get_sensors"):
-        await hass.config_entries.subentries.async_configure(
-            result[CONF_FLOW_ID],
-            user_input={
-                CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
-                CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
-            },
-        )
-        await hass.async_block_till_done()
+    await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+            CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+        },
+    )
+    await hass.async_block_till_done()
 
     # After the subentry is added, the next scheduled refresh carries the read_key.
     api.sensors.async_get_sensors.reset_mock()
