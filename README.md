@@ -53,7 +53,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
 - **Map search.** Pick from public sensors near a latitude/longitude/radius.
 - **Manual entry.** Enter the sensor **Index** plus optional **Read Key**.
   - The Read Key is **required for private sensors** that are not shown on the public sensor map.
-  - The Read Key is **required for no cost API uage** of your own sensors (the Read Key is sent via email during sensor registration). Refer to [PurpleAir community: API points for sensor owners](https://community.purpleair.com/t/api-points-for-sensor-owners/7525).
+  - The Read Key is **required for no cost API usage** of your own sensors (the Read Key is sent via email during sensor registration). Refer to [PurpleAir community: API points for sensor owners](https://community.purpleair.com/t/api-points-for-sensor-owners/7525).
 
 ## Sensor behaviour and calibration
 

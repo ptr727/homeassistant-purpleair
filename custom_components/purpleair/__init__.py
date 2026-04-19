@@ -127,7 +127,12 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 api_key
             ] or entry.options.get(CONF_SHOW_ON_MAP, False)
 
-        if entry.version != 1 or entry.disabled_by is None:
+        # Process every v1 entry (enabled or disabled). Earlier revisions of
+        # this function only processed disabled siblings, on the assumption
+        # that enabled entries would be migrated later by async_migrate_entry.
+        # That left two enabled v1 entries sharing an API key ending up with
+        # duplicate unique_ids after independent per-entry migration.
+        if entry.version != 1:
             continue
 
         sensor_indices: list[int] | None = entry.options.get(CONF_LEGACY_SENSOR_INDICES)

@@ -313,6 +313,69 @@ async def test_async_migrate_integration_merges_sibling_entries(
     assert sensor_indices == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
 
 
+async def test_async_migrate_integration_merges_enabled_siblings(
+    hass: HomeAssistant,
+) -> None:
+    """Two ENABLED v1 entries sharing an API key are merged under one parent.
+
+    Regression: an earlier revision of async_migrate_integration skipped
+    enabled v1 entries on the assumption that async_migrate_entry would
+    handle them one at a time. That left the second of a duplicate-API-key
+    pair migrating independently to v2 with the same unique_id, producing
+    two v2 entries that both claim the same API key.
+    """
+    parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="parent",
+    )
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX2],
+            CONF_SHOW_ON_MAP: True,
+        },
+        title="sibling",
+    )
+    parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
+
+    device_registry = mock_device_registry(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="TEST_SENSOR_INDEX1",
+    )
+    device_registry.async_get_or_create(
+        config_entry_id=sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+        name="TEST_SENSOR_INDEX2",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(entries) == 1, "enabled v1 siblings must be merged, not left separate"
+    survivor = entries[0]
+    assert survivor.entry_id == parent.entry_id
+    assert survivor.version == SCHEMA_VERSION
+    assert survivor.unique_id == TEST_API_KEY
+    assert survivor.options[CONF_SHOW_ON_MAP] is True  # OR across siblings
+    sensor_indices = {
+        int(sub.data[CONF_SENSOR_INDEX]) for sub in survivor.subentries.values()
+    }
+    assert sensor_indices == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
+
+
 async def test_async_migrate_integration_noop_when_no_v1(
     hass: HomeAssistant,
 ) -> None:

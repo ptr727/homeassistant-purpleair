@@ -43,8 +43,13 @@ _STATIC_MODEL_ATTRS: Final[tuple[str, ...]] = (
 
 
 def _empty_response() -> GetSensorsResponse:
-    """Construct an empty response for the no-subentry case."""
-    now = datetime.now(UTC).replace(tzinfo=None)
+    """Construct an empty response for the no-subentry case.
+
+    Keeps the datetime tz-aware; a naive UTC datetime's ``.timestamp()`` is
+    interpreted in the host's local time and yields a wrong epoch on any
+    non-UTC system.
+    """
+    epoch = int(datetime.now(UTC).timestamp())
     return GetSensorsResponse.model_validate(
         {
             "fields": [],
@@ -52,8 +57,8 @@ def _empty_response() -> GetSensorsResponse:
             "api_version": "",
             "firmware_default_version": "",
             "max_age": 0,
-            "data_time_stamp": int(now.timestamp()),
-            "time_stamp": int(now.timestamp()),
+            "data_time_stamp": epoch,
+            "time_stamp": epoch,
         }
     )
 
