@@ -2,7 +2,7 @@
 
 A standalone Home Assistant custom integration for [PurpleAir](https://www.purpleair.com/) air-quality sensors, packaged for installation via [HACS](https://hacs.xyz/).
 
-This repository ships the changes from upstream PR [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) — by the same author ([@ptr727](https://github.com/ptr727)) — without waiting for that PR to merge into Home Assistant core.
+This repository contains the changes from upstream PR [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) (made by the by the same author), without waiting for that PR to merge into Home Assistant core.
 
 ## What's different from Home Assistant's built-in PurpleAir integration
 
@@ -11,13 +11,13 @@ This repository ships the changes from upstream PR [home-assistant/core#140901](
 - **Sensor selection from a map.** Selection of a sensor from a map showing nearby public sensors.
 - **Automatic v1 → v2 migration.** If you already use the built-in PurpleAir integration, this custom version shadows it on the `purpleair` domain and migrates your existing entries to the subentry layout on first load. Entity IDs, devices, and history are preserved.
 
-Once #140901 merges upstream, the built-in integration will be functionally equivalent and this custom component will no longer be needed.
+If #140901 merges upstream, the built-in integration will be functionally equivalent and this custom component would no longer be needed.
 
 ## Why private sensor support matters
 
-PurpleAir's API uses a points/credits model. A new account starts with ~1,000,000 free points; the integration consumes roughly 30,000 points/day, so a fresh account lasts about a month before you must buy more points or the API stops returning data.
+**PurpleAir uses a points for data access model**, see [PurpleAir Community: API Pricing](https://community.purpleair.com/t/api-pricing/4523) for details. New accounts start with enough points to run for about a month using this integration, before more points may need to be purchased.
 
-**Sensor owners can access data for their own sensors free of charge** — see [PurpleAir community: API points for sensor owners](https://community.purpleair.com/t/api-points-for-sensor-owners/7525). The Read Key (delivered via email when you registered the sensor) is what unlocks this. Adding your own sensors via private Read Key allows you to run this integration long-term at no cost.
+**Sensor owners can access data for their own sensors free of charge**, see [PurpleAir community: API points for sensor owners](https://community.purpleair.com/t/api-points-for-sensor-owners/7525). To run this integration long-term at no cost for your own sensors, use the Read Key that was provided via email during sensor registration.
 
 ## Installation
 
