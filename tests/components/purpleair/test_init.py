@@ -154,6 +154,56 @@ async def test_migrate_entry(hass: HomeAssistant) -> None:
     assert sub2.unique_id == str(TEST_SENSOR_INDEX2)
 
 
+async def test_migrate_entry_matches_core_v1_schema(hass: HomeAssistant) -> None:
+    """Migration succeeds against the exact schema the built-in integration writes.
+
+    The upgrade path from HA core's built-in ``purpleair`` integration relies on
+    the built-in's v1 config-entry shape matching what our migration expects.
+    This test pins that contract so a silent drift in core's schema (before
+    home-assistant/core#140901 ships) breaks the build loudly.
+
+    v1 shape sourced from ``homeassistant/components/purpleair/__init__.py``
+    and ``config_flow.py`` on the ``dev`` branch:
+      - entry.data: {"api_key": <string>}
+      - entry.options: {"sensor_indices": [<int>, ...], "show_on_map": <bool>}
+      - entry.version: 1 (unspecified in manifest → HA default)
+    The literal string keys below are deliberate; do NOT substitute the local
+    constants. If core renames the options key, this test must fail.
+    """
+    core_v1_data = {"api_key": TEST_API_KEY}
+    core_v1_options = {
+        "sensor_indices": [TEST_SENSOR_INDEX1],
+        "show_on_map": True,
+    }
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data=core_v1_data,
+        options=core_v1_options,
+        title="core-v1",
+    )
+    entry.add_to_hass(hass)
+
+    device_registry = mock_device_registry(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="Sensor from core",
+    )
+    await hass.async_block_till_done()
+
+    assert await async_migrate_entry(hass, entry) is True
+    await hass.async_block_till_done()
+
+    assert entry.version == SCHEMA_VERSION
+    assert entry.unique_id == TEST_API_KEY
+    assert entry.data == {CONF_API_KEY: TEST_API_KEY}
+    assert entry.options == {CONF_SHOW_ON_MAP: True}
+    assert len(entry.subentries) == 1
+    sub = next(iter(entry.subentries.values()))
+    assert sub.data == {CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1}
+
+
 async def test_migrate_entry_current_schema(hass: HomeAssistant) -> None:
     """Entries already on the current schema are a no-op."""
     entry = MockConfigEntry(

@@ -1,6 +1,6 @@
 {
   "domain": "purpleair",
-  "name": "PurpleAir",
+  "name": "PurpleAir (custom)",
   "codeowners": ["@ptr727"],
   "config_flow": true,
   "documentation": "https://github.com/ptr727/homeassistant-purpleair",

@@ -1,6 +1,8 @@
-# PurpleAir for Home Assistant (HACS)
+# PurpleAir for Home Assistant (custom integration)
 
-A Home Assistant custom integration for [PurpleAir](https://www.purpleair.com/) air-quality sensors, distributed via [HACS](https://hacs.xyz/).
+A Home Assistant [custom integration](https://developers.home-assistant.io/docs/creating_integration_file_structure/) for [PurpleAir](https://www.purpleair.com/) air-quality sensors. Distributed via [HACS](https://hacs.xyz/) or installed manually by copying into `<config>/custom_components/`.
+
+> **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in and migrates existing config entries forward — the upgrade is automatic and preserves entity IDs and history. **The downgrade is not:** if you later remove this custom integration, the built-in cannot read the migrated v2 entries until [core PR #140901](https://github.com/home-assistant/core/pull/140901) ships. See [Migration from the built-in integration](#migration-from-the-built-in-integration) for details. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ## What it provides beyond Home Assistant's built-in PurpleAir integration
 
@@ -282,10 +284,29 @@ The original core PR will not be kept in lockstep with these changes, and may be
 - New diagnostic entities (disabled by default): Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, and PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
 - New derived entities (disabled by default): **PM2.5 EPA mass concentration** (US EPA piecewise humidity correction applied in code) and **PM2.5 air quality index** (US EPA AQI from the 24-hour average, using the 2024 NAAQS breakpoints). See [Sensor behaviour and calibration](#sensor-behaviour-and-calibration) for the formulas and references.
 - Config flow now rejects WRITE keys and disabled keys with targeted error messages; wrong `read_key` is distinguished from "sensor not found."
+- **Known limitation:** the v1→v2 migration from the built-in integration is one-way until [core PR #140901](https://github.com/home-assistant/core/pull/140901) merges. Removing this custom integration after migration requires manually deleting and re-creating the PurpleAir config entry; long-term-statistics history for the old entity IDs is lost if you do. See [Migration from the built-in integration](#migration-from-the-built-in-integration).
 
 ## Migration from the built-in integration
 
-On first load this integration will detect any existing v1 PurpleAir config entries (the layout used by HA's built-in integration), convert them to the subentry layout, and rehome existing devices/entities to the new subentries. No manual reconfiguration is needed.
+### Upgrade: built-in → custom
+
+1. Install this custom integration via [HACS](https://hacs.xyz/) or by copying `custom_components/purpleair/` into your Home Assistant config directory.
+2. Restart Home Assistant. The installation has no effect until HA restarts — integrations are loaded once at startup.
+3. On startup, HA's loader prefers the custom integration over the built-in one (they share the `purpleair` domain). Your existing PurpleAir config entry stays in place in `.storage/core.config_entries` and is migrated to the subentry layout. Entity IDs, devices, and long-term statistics are preserved. **You do not need to remove the built-in integration first — it is part of core, not a separate installation.**
+4. You will see `We found a custom integration purpleair which has not been tested by Home Assistant` in the log. That warning is emitted by HA for every custom integration and is not a problem.
+
+If migration fails, the entry is marked `SETUP_ERROR`. Check **Settings → System → Repairs** and the log; empty v1 entries raise a targeted repair issue.
+
+### Downgrade: custom → built-in — **requires manual work**
+
+This custom integration uses config-entry schema **version 2** (one subentry per sensor). The built-in integration in Home Assistant core is still on schema **version 1**. If you simply delete `custom_components/purpleair/` and restart, the built-in cannot read v2 entries and the integration will fail to set up with `Config entry for purpleair is from a future version`.
+
+Two recovery options:
+
+- **Wait for [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) to merge.** That PR moves the built-in to schema v2 with the same subentry layout, at which point the downgrade works automatically.
+- **Rebuild the entry manually.** In Home Assistant go to **Settings → Devices & Services → PurpleAir → … → Delete**, then remove `custom_components/purpleair/`, restart, and re-add the built-in integration from scratch. Long-term-statistics history tied to the migrated entity IDs is lost.
+
+There is no in-place downgrade until the core PR merges. Plan accordingly before installing.
 
 ## Status & credits
 
