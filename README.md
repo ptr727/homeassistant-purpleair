@@ -347,3 +347,38 @@ Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/t
 | `scripts/fix`   | **Fix: ruff format + check --fix** | Tasks: Run Task                        |
 | `scripts/lint`  | **Lint: ruff + mypy (verify)**    | `Ctrl+Shift+B` (default build task)    |
 | `pytest`        | **Test: pytest**                  | Tasks: Run Test Task (default test)    |
+
+### Devcontainer signing prerequisites
+
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts two files from the host so commits made inside the container are signed with your existing SSH signing key:
+
+| Host path | Mounted at | Purpose |
+|---|---|---|
+| `~/.ssh/id_ed25519.pub` | `/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH commit-signing key |
+| `~/.config/git/allowed_signers` | `/home/vscode/.config/git/allowed_signers` (read-only) | Git's `allowed_signers` file listing which public keys are accepted as valid signers |
+
+**Both files must exist on the host before you reopen the folder in the devcontainer, otherwise the container build will fail with a bind-mount error.**
+
+First-time setup on the host:
+
+```sh
+# 1. Generate (or reuse) an SSH signing key pair.
+#    Skip this if you already use ~/.ssh/id_ed25519 for signing.
+ssh-keygen -t ed25519 -C "you@example.com" -f ~/.ssh/id_ed25519
+
+# 2. Create the allowed_signers file. Replace the email and key material with
+#    your own — the second/third fields are the contents of id_ed25519.pub.
+mkdir -p ~/.config/git
+printf '%s %s\n' "you@example.com" "$(cat ~/.ssh/id_ed25519.pub)" \
+    > ~/.config/git/allowed_signers
+
+# 3. Tell git to use SSH for signing (one-time, global).
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519.pub
+git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
+git config --global commit.gpgsign true
+```
+
+After those files exist, open the repo in VS Code and **Reopen in Container** — the devcontainer will build and every commit from inside will be signed with the host's key.
+
+If you do not sign commits and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before reopening (or simply don't use the devcontainer).

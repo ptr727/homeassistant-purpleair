@@ -29,9 +29,7 @@ rules:
   unique-config-entry: done
 
   # Silver
-  action-exceptions:
-    status: exempt
-    comment: The integration exposes no services.
+  # (action-exceptions listed under Bronze above — it's a shared rule.)
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done
