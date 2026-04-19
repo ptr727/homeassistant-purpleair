@@ -5,3 +5,24 @@ set -e
 cd "$(dirname "$0")/.."
 
 python3 -m pip install --requirement requirements.txt
+
+# Install go2rtc — required by HA's default_config. The HA Docker image bundles
+# it; bare dev environments must install it manually. Keep GO2RTC_VERSION in
+# sync with RECOMMENDED_VERSION in homeassistant/components/go2rtc/const.py.
+GO2RTC_VERSION=1.9.14
+installed_version="$(go2rtc --version 2>/dev/null | head -n1 || true)"
+if [ "$installed_version" = "go2rtc version $GO2RTC_VERSION" ]; then
+    echo "go2rtc $GO2RTC_VERSION already installed, skipping."
+else
+    case "$(uname -m)" in
+        x86_64)  arch=amd64 ;;
+        aarch64) arch=arm64 ;;
+        armv7l)  arch=arm ;;
+        *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+    esac
+    url="https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${arch}"
+    echo "Installing go2rtc $GO2RTC_VERSION from $url"
+    sudo curl -fsSL "$url" -o /usr/local/bin/go2rtc
+    sudo chmod +x /usr/local/bin/go2rtc
+    echo "Installed: $(go2rtc --version | head -n1)"
+fi
