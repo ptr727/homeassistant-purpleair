@@ -275,16 +275,23 @@ The original core PR will not be kept in lockstep with these changes, and may be
 
 ## Release notes
 
-### Unreleased / v0.4.0 (breaking)
+### v0.1.0 — initial release
 
-- **Breaking:** removed `device_class=aqi` from the VOC sensor. PurpleAir's `voc` field is [Bosch static IAQ units](https://api.purpleair.com/#api-sensors-get-sensor-data) — a different scale from the EPA AQI. If you had the VOC sensor enabled on v0.2.0/v0.3.0, long-term-statistics history for that entity may be dropped on upgrade. The upstream core PR #140901 is being amended to match.
-- VOC sensor is now **disabled by default** (experimental + only returns data on BME680-equipped hardware).
-- API fields are now requested dynamically based on **enabled entities** — disabled diagnostic sensors cost zero API points.
-- Availability now considers `confidence`, `channel_state`, and `last_seen` (see "Availability signals" above).
-- New diagnostic entities (disabled by default): Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, and PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
-- New derived entities (disabled by default): **PM2.5 EPA mass concentration** (US EPA piecewise humidity correction applied in code) and **PM2.5 air quality index** (US EPA AQI from the 24-hour average, using the 2024 NAAQS breakpoints). See [Sensor behaviour and calibration](#sensor-behaviour-and-calibration) for the formulas and references.
-- Config flow now rejects WRITE keys and disabled keys with targeted error messages; wrong `read_key` is distinguished from "sensor not found."
-- **Known limitation:** the v1→v2 migration from the built-in integration is one-way until [core PR #140901](https://github.com/home-assistant/core/pull/140901) merges. Removing this custom integration after migration requires manually deleting and re-creating the PurpleAir config entry; long-term-statistics history for the old entity IDs is lost if you do. See [Migration from the built-in integration](#migration-from-the-built-in-integration).
+Requires Home Assistant 2026.4.0 or newer.
+
+Highlights over the built-in PurpleAir integration:
+
+- **Private sensor support** via per-sensor read keys (free API points when querying your own sensors).
+- **Subentry layout** — one subentry per sensor; automatic v1 → v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
+- **Cost-aware field selection** — only fields backing enabled entities are requested, and static device-info fields are fetched once per day. Roughly 37 % fewer field-fetches per day than a naive implementation for a default install.
+- **Quality-aware availability** — entities go unavailable on `confidence < 50`, `channel_state == 0` ("No PM"), or a stale `last_seen`.
+- **Sensor selection from a map.** Pick nearby public sensors from a radius-filtered map picker.
+- **Derived entities (disabled by default):** PM2.5 EPA mass concentration (US EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI from the 24-hour average, 2024 NAAQS breakpoints).
+- **Diagnostic entities (disabled by default):** Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, and PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
+- **Clear config-flow errors** — WRITE API keys, disabled keys, and wrong per-sensor read keys each surface a targeted error on the right field.
+- **Gold-tier** quality-scale compliance (`parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, exception translations, ≥ 97 % test coverage, `mypy --strict` clean).
+
+Known limitation: the v1 → v2 migration is one-way until [core PR #140901](https://github.com/home-assistant/core/pull/140901) merges. Uninstalling this custom integration after migration requires manually deleting and re-creating the PurpleAir config entry (long-term-statistics for the old entity IDs are lost). See [Migration from the built-in integration](#migration-from-the-built-in-integration) for the upgrade and downgrade procedures.
 
 ## Migration from the built-in integration
 

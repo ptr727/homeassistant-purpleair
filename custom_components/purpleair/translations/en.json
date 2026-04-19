@@ -8,7 +8,9 @@
     "error": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "invalid_api_key": "[%key:common::config_flow::error::invalid_api_key%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]"
+      "key_disabled": "This API key has been disabled. Please contact PurpleAir support.",
+      "unknown": "[%key:common::config_flow::error::unknown%]",
+      "wrong_key_type": "Use your PurpleAir READ key, not the WRITE key."
     },
     "step": {
       "api_key": {
@@ -36,12 +38,14 @@
   },
   "config_subentries": {
     "sensor": {
+      "entry_type": "PurpleAir sensor",
       "abort": {
         "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
       },
       "error": {
         "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
         "invalid_api_key": "[%key:common::config_flow::error::invalid_api_key%]",
+        "invalid_read_key": "That sensor read key does not match the sensor. Check the key from the PurpleAir registration and try again.",
         "no_sensor_found": "Sensors not found",
         "no_sensors_found": "No sensors found in search area",
         "unknown": "[%key:common::config_flow::error::unknown%]"
@@ -86,6 +90,33 @@
   },
   "entity": {
     "sensor": {
+      "channel_flags": {
+        "name": "Channel flags",
+        "state": {
+          "normal": "Normal",
+          "a_downgraded": "Channel A downgraded",
+          "b_downgraded": "Channel B downgraded",
+          "a_b_downgraded": "Both channels downgraded"
+        }
+      },
+      "channel_state": {
+        "name": "Channel state",
+        "state": {
+          "no_pm": "No PM sensor",
+          "pm_a": "PM sensor on channel A",
+          "pm_b": "PM sensor on channel B",
+          "pm_a_pm_b": "PM sensor on both channels"
+        }
+      },
+      "confidence": {
+        "name": "Confidence"
+      },
+      "humidity_internal": {
+        "name": "Internal humidity"
+      },
+      "last_seen": {
+        "name": "Last seen"
+      },
       "pm0_3_count_concentration": {
         "name": "PM0.3 count concentration"
       },
@@ -101,17 +132,50 @@
       "pm2_5_count_concentration": {
         "name": "PM2.5 count concentration"
       },
+      "pm2_5_10minute": {
+        "name": "PM2.5 10-minute average"
+      },
+      "pm2_5_1week": {
+        "name": "PM2.5 1-week average"
+      },
+      "pm2_5_24hour": {
+        "name": "PM2.5 24-hour average"
+      },
+      "pm2_5_30minute": {
+        "name": "PM2.5 30-minute average"
+      },
+      "pm2_5_60minute": {
+        "name": "PM2.5 60-minute average"
+      },
+      "pm2_5_6hour": {
+        "name": "PM2.5 6-hour average"
+      },
+      "pm2_5_alt_mass_concentration": {
+        "name": "PM2.5 ALT mass concentration"
+      },
+      "pm2_5_aqi": {
+        "name": "PM2.5 air quality index"
+      },
+      "pm2_5_epa_mass_concentration": {
+        "name": "PM2.5 EPA mass concentration"
+      },
       "pm5_0_count_concentration": {
         "name": "PM5.0 count concentration"
+      },
+      "pressure_internal": {
+        "name": "Internal pressure"
       },
       "rssi": {
         "name": "RSSI"
       },
+      "temperature_internal": {
+        "name": "Internal temperature"
+      },
       "uptime": {
         "name": "Uptime"
       },
-      "voc_aqi": {
-        "name": "Volatile organic compounds air quality index"
+      "voc_iaq": {
+        "name": "Volatile organic compounds (IAQ)"
       }
     }
   },
@@ -123,6 +187,20 @@
         },
         "title": "Settings"
       }
+    }
+  },
+  "issues": {
+    "legacy_migration_no_sensors": {
+      "title": "No sensors configured for {title}",
+      "description": "The PurpleAir integration migrated a legacy config entry that had no sensors configured. Remove the entry or add a sensor to it to silence this warning."
+    }
+  },
+  "exceptions": {
+    "invalid_api_key": {
+      "message": "The PurpleAir API key is invalid."
+    },
+    "update_failed": {
+      "message": "Error fetching PurpleAir sensor data: {error}"
     }
   }
 }

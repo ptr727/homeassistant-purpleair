@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_API_KEY, CONF_SHOW_ON_MAP, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import (
+    config_validation as cv,
     device_registry as dr,
     entity_registry as er,
     issue_registry as ir,
@@ -26,6 +27,12 @@ from .const import (
 from .coordinator import PurpleAirConfigEntry, PurpleAirDataUpdateCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+# This integration only supports config-entry setup; it does not accept any
+# YAML configuration. The helper below tells hassfest + HA's config_validation
+# machinery that presence of `purpleair:` in configuration.yaml is not allowed
+# (required for the CONFIG_SCHEMA hassfest check since we implement async_setup).
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 ISSUE_LEGACY_MIGRATION_NO_SENSORS = "legacy_migration_no_sensors"
 

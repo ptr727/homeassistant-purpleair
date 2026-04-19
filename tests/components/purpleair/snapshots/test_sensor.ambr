@@ -1,182 +1,9 @@
 # serializer version: 1
-# name: test_sensor_snapshot[sensor.test_sensor-entry]
+# name: test_sensor_snapshot[sensor.test_sensor_channel_flags-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': None,
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': None,
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'voc_iaq',
-    'unique_id': '123456-voc',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'friendly_name': 'Test Sensor',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_2-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_2',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': None,
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': None,
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'confidence',
-    'unique_id': '123456-confidence',
-    'unit_of_measurement': '%',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_2-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'friendly_name': 'Test Sensor',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': '%',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_2',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_3-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'options': list([
-        'no_pm',
-        'pm_a',
-        'pm_b',
-        'pm_a_pm_b',
-      ]),
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_3',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': None,
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.ENUM: 'enum'>,
-    'original_icon': None,
-    'original_name': None,
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'channel_state',
-    'unique_id': '123456-channel_state',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_3-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'enum',
-      'friendly_name': 'Test Sensor',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'options': list([
-        'no_pm',
-        'pm_a',
-        'pm_b',
-        'pm_a_pm_b',
-      ]),
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_3',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_4-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'options': list([
@@ -193,7 +20,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_4',
+    'entity_id': 'sensor.test_sensor_channel_flags',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -201,12 +28,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': None,
+    'object_id_base': 'Channel flags',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.ENUM: 'enum'>,
     'original_icon': None,
-    'original_name': None,
+    'original_name': 'Channel flags',
     'platform': 'purpleair',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -216,11 +43,11 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_4-state]
+# name: test_sensor_snapshot[sensor.test_sensor_channel_flags-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'device_class': 'enum',
-      'friendly_name': 'Test Sensor',
+      'friendly_name': 'Test Sensor Channel flags',
       'latitude': 51.5285582,
       'longitude': -0.2416796,
       'options': list([
@@ -231,17 +58,84 @@
       ]),
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_4',
+    'entity_id': 'sensor.test_sensor_channel_flags',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_air_quality_index-entry]
+# name: test_sensor_snapshot[sensor.test_sensor_channel_state-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'options': list([
+        'no_pm',
+        'pm_a',
+        'pm_b',
+        'pm_a_pm_b',
+      ]),
     }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.test_sensor_channel_state',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Channel state',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.ENUM: 'enum'>,
+    'original_icon': None,
+    'original_name': 'Channel state',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'channel_state',
+    'unique_id': '123456-channel_state',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_channel_state-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'enum',
+      'friendly_name': 'Test Sensor Channel state',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'options': list([
+        'no_pm',
+        'pm_a',
+        'pm_b',
+        'pm_a_pm_b',
+      ]),
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_channel_state',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_confidence-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -252,8 +146,8 @@
     'device_id': <ANY>,
     'disabled_by': None,
     'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_air_quality_index',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.test_sensor_confidence',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -261,32 +155,32 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'Air quality index',
+    'object_id_base': 'Confidence',
     'options': dict({
     }),
-    'original_device_class': <SensorDeviceClass.AQI: 'aqi'>,
+    'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Air quality index',
+    'original_name': 'Confidence',
     'platform': 'purpleair',
     'previous_unique_id': None,
     'suggested_object_id': None,
     'supported_features': 0,
-    'translation_key': 'pm2_5_aqi',
-    'unique_id': '123456-pm2.5_aqi',
-    'unit_of_measurement': None,
+    'translation_key': 'confidence',
+    'unique_id': '123456-confidence',
+    'unit_of_measurement': '%',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_air_quality_index-state]
+# name: test_sensor_snapshot[sensor.test_sensor_confidence-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'aqi',
-      'friendly_name': 'Test Sensor Air quality index',
+      'friendly_name': 'Test Sensor Confidence',
       'latitude': 51.5285582,
       'longitude': -0.2416796,
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': '%',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_air_quality_index',
+    'entity_id': 'sensor.test_sensor_confidence',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
@@ -295,8 +189,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_humidity-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -349,10 +244,11 @@
     'state': '13.0',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_humidity_2-entry]
+# name: test_sensor_snapshot[sensor.test_sensor_internal_humidity-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -364,7 +260,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_humidity_2',
+    'entity_id': 'sensor.test_sensor_internal_humidity',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -372,12 +268,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'Humidity',
+    'object_id_base': 'Internal humidity',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.HUMIDITY: 'humidity'>,
     'original_icon': None,
-    'original_name': 'Humidity',
+    'original_name': 'Internal humidity',
     'platform': 'purpleair',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -387,28 +283,202 @@
     'unit_of_measurement': '%',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_humidity_2-state]
+# name: test_sensor_snapshot[sensor.test_sensor_internal_humidity-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'device_class': 'humidity',
-      'friendly_name': 'Test Sensor Humidity',
+      'friendly_name': 'Test Sensor Internal humidity',
       'latitude': 51.5285582,
       'longitude': -0.2416796,
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
       'unit_of_measurement': '%',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_humidity_2',
+    'entity_id': 'sensor.test_sensor_internal_humidity',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '13.0',
   })
 # ---
+# name: test_sensor_snapshot[sensor.test_sensor_internal_pressure-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.test_sensor_internal_pressure',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Internal pressure',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 2,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.PRESSURE: 'pressure'>,
+    'original_icon': None,
+    'original_name': 'Internal pressure',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pressure_internal',
+    'unique_id': '123456-pressure_internal',
+    'unit_of_measurement': <UnitOfPressure.MBAR: 'mbar'>,
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_internal_pressure-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pressure',
+      'friendly_name': 'Test Sensor Internal pressure',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': <UnitOfPressure.MBAR: 'mbar'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_internal_pressure',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '1000.74',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_internal_temperature-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.test_sensor_internal_temperature',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Internal temperature',
+    'options': dict({
+      'sensor': dict({
+        'suggested_display_precision': 1,
+      }),
+    }),
+    'original_device_class': <SensorDeviceClass.TEMPERATURE: 'temperature'>,
+    'original_icon': None,
+    'original_name': 'Internal temperature',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'temperature_internal',
+    'unique_id': '123456-temperature_internal',
+    'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_internal_temperature-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'temperature',
+      'friendly_name': 'Test Sensor Internal temperature',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_internal_temperature',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '27.7777777777778',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_last_seen-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.test_sensor_last_seen',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Last seen',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': None,
+    'original_name': 'Last seen',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'last_seen',
+    'unique_id': '123456-last_seen',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_last_seen-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'timestamp',
+      'friendly_name': 'Test Sensor Last seen',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_last_seen',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm0_3_count_concentration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -462,8 +532,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm0_5_count_concentration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -517,8 +588,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm1-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -573,8 +645,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm10-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -629,8 +702,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm10_0_count_concentration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -684,8 +758,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm1_0_count_concentration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -739,8 +814,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm2_5-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -793,10 +869,11 @@
     'state': '0.0',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_2-entry]
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_10_minute_average-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -808,7 +885,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_2',
+    'entity_id': 'sensor.test_sensor_pm2_5_10_minute_average',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -816,124 +893,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'PM2.5',
+    'object_id_base': 'PM2.5 10-minute average',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
     'original_icon': None,
-    'original_name': 'PM2.5',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pm2_5_alt_mass_concentration',
-    'unique_id': '123456-pm2.5_alt_mass_concentration',
-    'unit_of_measurement': 'μg/m³',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_2-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'μg/m³',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_2',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_3-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_3',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'PM2.5',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
-    'original_icon': None,
-    'original_name': 'PM2.5',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pm2_5_epa_mass_concentration',
-    'unique_id': '123456-pm2.5_epa_mass_concentration',
-    'unit_of_measurement': 'μg/m³',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_3-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'μg/m³',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_3',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '4.6294',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_4-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_4',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'PM2.5',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
-    'original_icon': None,
-    'original_name': 'PM2.5',
+    'original_name': 'PM2.5 10-minute average',
     'platform': 'purpleair',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -943,28 +908,29 @@
     'unit_of_measurement': 'μg/m³',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_4-state]
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_10_minute_average-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
+      'friendly_name': 'Test Sensor PM2.5 10-minute average',
       'latitude': 51.5285582,
       'longitude': -0.2416796,
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
       'unit_of_measurement': 'μg/m³',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_4',
+    'entity_id': 'sensor.test_sensor_pm2_5_10_minute_average',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_5-entry]
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_1_week_average-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -976,7 +942,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_5',
+    'entity_id': 'sensor.test_sensor_pm2_5_1_week_average',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -984,236 +950,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'PM2.5',
+    'object_id_base': 'PM2.5 1-week average',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
     'original_icon': None,
-    'original_name': 'PM2.5',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pm2_5_30minute',
-    'unique_id': '123456-pm2.5_30minute',
-    'unit_of_measurement': 'μg/m³',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_5-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'μg/m³',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_5',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_6-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_6',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'PM2.5',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
-    'original_icon': None,
-    'original_name': 'PM2.5',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pm2_5_60minute',
-    'unique_id': '123456-pm2.5_60minute',
-    'unit_of_measurement': 'μg/m³',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_6-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'μg/m³',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_6',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_7-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_7',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'PM2.5',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
-    'original_icon': None,
-    'original_name': 'PM2.5',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pm2_5_6hour',
-    'unique_id': '123456-pm2.5_6hour',
-    'unit_of_measurement': 'μg/m³',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_7-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'μg/m³',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_7',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_8-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_8',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'PM2.5',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
-    'original_icon': None,
-    'original_name': 'PM2.5',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pm2_5_24hour',
-    'unique_id': '123456-pm2.5_24hour',
-    'unit_of_measurement': 'μg/m³',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_8-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'μg/m³',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_8',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_9-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': None,
-    'entity_id': 'sensor.test_sensor_pm2_5_9',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'PM2.5',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
-    'original_icon': None,
-    'original_name': 'PM2.5',
+    'original_name': 'PM2.5 1-week average',
     'platform': 'purpleair',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -1223,18 +965,359 @@
     'unit_of_measurement': 'μg/m³',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_9-state]
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_1_week_average-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'device_class': 'pm25',
-      'friendly_name': 'Test Sensor PM2.5',
+      'friendly_name': 'Test Sensor PM2.5 1-week average',
       'latitude': 51.5285582,
       'longitude': -0.2416796,
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
       'unit_of_measurement': 'μg/m³',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pm2_5_9',
+    'entity_id': 'sensor.test_sensor_pm2_5_1_week_average',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_24_hour_average-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_24_hour_average',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 24-hour average',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 24-hour average',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_24hour',
+    'unique_id': '123456-pm2.5_24hour',
+    'unit_of_measurement': 'μg/m³',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_24_hour_average-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pm25',
+      'friendly_name': 'Test Sensor PM2.5 24-hour average',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'μg/m³',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_24_hour_average',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_30_minute_average-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_30_minute_average',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 30-minute average',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 30-minute average',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_30minute',
+    'unique_id': '123456-pm2.5_30minute',
+    'unit_of_measurement': 'μg/m³',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_30_minute_average-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pm25',
+      'friendly_name': 'Test Sensor PM2.5 30-minute average',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'μg/m³',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_30_minute_average',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_60_minute_average-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_60_minute_average',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 60-minute average',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 60-minute average',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_60minute',
+    'unique_id': '123456-pm2.5_60minute',
+    'unit_of_measurement': 'μg/m³',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_60_minute_average-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pm25',
+      'friendly_name': 'Test Sensor PM2.5 60-minute average',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'μg/m³',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_60_minute_average',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_6_hour_average-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_6_hour_average',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 6-hour average',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 6-hour average',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_6hour',
+    'unique_id': '123456-pm2.5_6hour',
+    'unit_of_measurement': 'μg/m³',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_6_hour_average-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pm25',
+      'friendly_name': 'Test Sensor PM2.5 6-hour average',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'μg/m³',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_6_hour_average',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_air_quality_index-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_air_quality_index',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 air quality index',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.AQI: 'aqi'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 air quality index',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_aqi',
+    'unique_id': '123456-pm2.5_aqi',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_air_quality_index-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'aqi',
+      'friendly_name': 'Test Sensor PM2.5 air quality index',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_air_quality_index',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_alt_mass_concentration-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_alt_mass_concentration',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 ALT mass concentration',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 ALT mass concentration',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_alt_mass_concentration',
+    'unique_id': '123456-pm2.5_alt_mass_concentration',
+    'unit_of_measurement': 'μg/m³',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_alt_mass_concentration-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pm25',
+      'friendly_name': 'Test Sensor PM2.5 ALT mass concentration',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'μg/m³',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_alt_mass_concentration',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
@@ -1243,8 +1326,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm2_5_count_concentration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -1296,10 +1380,68 @@
     'state': '0.0',
   })
 # ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_epa_mass_concentration-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_pm2_5_epa_mass_concentration',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'PM2.5 EPA mass concentration',
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.PM25: 'pm25'>,
+    'original_icon': None,
+    'original_name': 'PM2.5 EPA mass concentration',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pm2_5_epa_mass_concentration',
+    'unique_id': '123456-pm2.5_epa_mass_concentration',
+    'unit_of_measurement': 'μg/m³',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_pm2_5_epa_mass_concentration-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'pm25',
+      'friendly_name': 'Test Sensor PM2.5 EPA mass concentration',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'μg/m³',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_pm2_5_epa_mass_concentration',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '4.6294',
+  })
+# ---
 # name: test_sensor_snapshot[sensor.test_sensor_pm5_0_count_concentration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -1353,8 +1495,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_pressure-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -1410,69 +1553,11 @@
     'state': '1000.74',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_pressure_2-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_pressure_2',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Pressure',
-    'options': dict({
-      'sensor': dict({
-        'suggested_display_precision': 2,
-      }),
-    }),
-    'original_device_class': <SensorDeviceClass.PRESSURE: 'pressure'>,
-    'original_icon': None,
-    'original_name': 'Pressure',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'pressure_internal',
-    'unique_id': '123456-pressure_internal',
-    'unit_of_measurement': <UnitOfPressure.MBAR: 'mbar'>,
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_pressure_2-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'pressure',
-      'friendly_name': 'Test Sensor Pressure',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': <UnitOfPressure.MBAR: 'mbar'>,
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_pressure_2',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '1000.74',
-  })
-# ---
 # name: test_sensor_snapshot[sensor.test_sensor_rssi-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -1527,8 +1612,9 @@
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_temperature-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
@@ -1584,121 +1670,11 @@
     'state': '27.7777777777778',
   })
 # ---
-# name: test_sensor_snapshot[sensor.test_sensor_temperature_2-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_temperature_2',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Temperature',
-    'options': dict({
-      'sensor': dict({
-        'suggested_display_precision': 1,
-      }),
-    }),
-    'original_device_class': <SensorDeviceClass.TEMPERATURE: 'temperature'>,
-    'original_icon': None,
-    'original_name': 'Temperature',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'temperature_internal',
-    'unique_id': '123456-temperature_internal',
-    'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_temperature_2-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'temperature',
-      'friendly_name': 'Test Sensor Temperature',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_temperature_2',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '27.7777777777778',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_timestamp-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': None,
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.test_sensor_timestamp',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Timestamp',
-    'options': dict({
-    }),
-    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
-    'original_icon': None,
-    'original_name': 'Timestamp',
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'last_seen',
-    'unique_id': '123456-last_seen',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_sensor_snapshot[sensor.test_sensor_timestamp-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'timestamp',
-      'friendly_name': 'Test Sensor Timestamp',
-      'latitude': 51.5285582,
-      'longitude': -0.2416796,
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.test_sensor_timestamp',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
 # name: test_sensor_snapshot[sensor.test_sensor_uptime-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.TOTAL_INCREASING: 'total_increasing'>,
@@ -1752,5 +1728,60 @@
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '13788',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_volatile_organic_compounds_iaq-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.test_sensor_volatile_organic_compounds_iaq',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Volatile organic compounds (IAQ)',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Volatile organic compounds (IAQ)',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'voc_iaq',
+    'unique_id': '123456-voc',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_snapshot[sensor.test_sensor_volatile_organic_compounds_iaq-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Test Sensor Volatile organic compounds (IAQ)',
+      'latitude': 51.5285582,
+      'longitude': -0.2416796,
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.test_sensor_volatile_organic_compounds_iaq',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
   })
 # ---

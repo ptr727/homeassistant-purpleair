@@ -38,6 +38,7 @@
   },
   "config_subentries": {
     "sensor": {
+      "entry_type": "PurpleAir sensor",
       "abort": {
         "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
       },

@@ -1,4 +1,4 @@
 -r requirements.txt
 aiopurpleair==2025.08.1
-pytest-homeassistant-custom-component==0.13.318
+pytest-homeassistant-custom-component==0.13.324
 mypy>=1.11

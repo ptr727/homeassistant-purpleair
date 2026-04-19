@@ -22,10 +22,14 @@ jobs:
       matrix:
         include:
           # Minimum supported HA version — must match hacs.json["homeassistant"]
-          # and the pin in requirements.txt.
+          # and the pin in requirements.txt. Bumped to 2026.4.0 because the
+          # entity registry's `aliases` field changed shape in 2026.4
+          # (set[str] → list[AliasEntry] with COMPUTED_NAME sentinel) and our
+          # snapshot tests can't satisfy both pre- and post-2026.4 formats
+          # from a single snapshot file.
           - python-version: "3.14"
-            ha-version: "2026.3.2"
-            pytest-hacc-version: "0.13.318"
+            ha-version: "2026.4.0"
+            pytest-hacc-version: "0.13.324"
           # Latest HA release — bump both versions together when HA publishes.
           - python-version: "3.14"
             ha-version: "2026.4.3"
