@@ -31,10 +31,23 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: PurpleAirConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
+    coordinator = entry.runtime_data
+    data_dump: dict[str, Any] | None = (
+        coordinator.data.model_dump() if coordinator.data is not None else None
+    )
     return async_redact_data(
         {
             "entry": entry.as_dict(),
-            "data": entry.runtime_data.data.model_dump(),
+            "coordinator": {
+                "last_update_success": coordinator.last_update_success,
+                "last_exception": (
+                    repr(coordinator.last_exception)
+                    if coordinator.last_exception is not None
+                    else None
+                ),
+                "update_interval": str(coordinator.update_interval),
+            },
+            "data": data_dump,
         },
         TO_REDACT,
     )

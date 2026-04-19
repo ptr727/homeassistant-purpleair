@@ -3,52 +3,86 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Final
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_API_KEY, CONF_SHOW_ON_MAP, Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN, LOGGER, SCHEMA_VERSION, TITLE
+from .const import (
+    CONF_LEGACY_SENSOR_INDICES,
+    CONF_SENSOR,
+    CONF_SENSOR_INDEX,
+    DOMAIN,
+    LOGGER,
+    SCHEMA_VERSION,
+    TITLE,
+)
 from .coordinator import PurpleAirConfigEntry, PurpleAirDataUpdateCoordinator
 
-PLATFORMS: Final[list[str]] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+ISSUE_LEGACY_MIGRATION_NO_SENSORS = "legacy_migration_no_sensors"
 
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up PurpleAir."""
-    # _config is required by the platform interface but not used here
-    # since we only handle config entry setup via async_setup_entry
     await async_migrate_integration(hass)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> bool:
     """Set up PurpleAir config entry."""
-    coordinator = PurpleAirDataUpdateCoordinator(
-        hass,
-        entry,
-    )
+    coordinator = PurpleAirDataUpdateCoordinator(hass, entry)
     entry.runtime_data = coordinator
 
-    if len(entry.subentries) > 0:
-        await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_setup()
+    await coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     return True
 
 
+async def async_update_listener(
+    hass: HomeAssistant, entry: PurpleAirConfigEntry
+) -> None:
+    """Reload the entry when its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: PurpleAirConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Allow device removal if the user has deleted the upstream PurpleAir sensor."""
+    configured_indices = {
+        str(subentry.data[CONF_SENSOR_INDEX])
+        for subentry in config_entry.subentries.values()
+    }
+    device_indices = {
+        identifier[1]
+        for identifier in device_entry.identifiers
+        if identifier[0] == DOMAIN
+    }
+    # Allow removal when the device no longer backs any configured subentry.
+    return device_indices.isdisjoint(configured_indices)
+
+
 async def async_migrate_integration(hass: HomeAssistant) -> None:
-    """Migrate integration entry."""
+    """Migrate integration entries."""
     # v1 schema:
     #   Sensor indices in options as a list of integers, duplicates are allowed and
     #   will not be removed during migration
     #   API key in data as a string, no duplicate API keys allowed
-    CONF_SENSOR_INDICES: Final[str] = "sensor_indices"
-
     # v2 schema:
     #   One or more config subentries, each subentry has a single sensor index,
     #   no duplicate sensors allowed
@@ -89,13 +123,10 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
         if entry.version != 1 or entry.disabled_by is None:
             continue
 
-        sensor_indices: list[int] | None = entry.options.get(CONF_SENSOR_INDICES)
+        sensor_indices: list[int] | None = entry.options.get(CONF_LEGACY_SENSOR_INDICES)
         if not sensor_indices:
-            LOGGER.warning("No sensors registered in configuration")
-            hass.config_entries.async_update_entry(
-                entry,
-                version=SCHEMA_VERSION,
-            )
+            _raise_legacy_no_sensors_issue(hass, entry)
+            hass.config_entries.async_update_entry(entry, version=SCHEMA_VERSION)
             continue
 
         parent_entry, all_disabled = api_key_entries[api_key]
@@ -139,11 +170,7 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                         entity_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
                         and not all_disabled
                     ):
-                        entity_disabled_by = (
-                            er.RegistryEntryDisabler.DEVICE
-                            if device
-                            else er.RegistryEntryDisabler.USER
-                        )
+                        entity_disabled_by = er.RegistryEntryDisabler.DEVICE
 
                     entity_registry.async_update_entity(
                         entity_entry.entity_id,
@@ -221,11 +248,6 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                     parent_entry,
                     options=desired_options,
                 )
-            continue
-
-        if parent_entry.version == 1 and parent_entry.disabled_by is None:
-            # Enabled entries are migrated by async_migrate_entry
-            continue
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> bool:
@@ -239,25 +261,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) 
 
     LOGGER.info("Migrating schema version from %s to %s", entry.version, SCHEMA_VERSION)
 
-    # v1 schema:
-    #   Sensor indices in options as a list of integers, duplicates are allowed and
-    #   will not be removed during migration
-    #   API key in data as a string, no duplicate API keys allowed
-    CONF_SENSOR_INDICES: Final[str] = "sensor_indices"
+    index_list: list[int] | None = entry.options.get(CONF_LEGACY_SENSOR_INDICES)
 
-    # v2 schema:
-    #   One or more config subentries, each subentry has a single sensor index,
-    #   no duplicate sensors allowed
-    #   API key in data as a string, no duplicate API keys allowed
-
-    index_list: list[int] | None = entry.options.get(CONF_SENSOR_INDICES)
-
-    if not index_list or len(index_list) == 0:
-        LOGGER.warning("No sensors registered in configuration")
-        return hass.config_entries.async_update_entry(
-            entry,
-            version=SCHEMA_VERSION,
-        )
+    if not index_list:
+        _raise_legacy_no_sensors_issue(hass, entry)
+        return hass.config_entries.async_update_entry(entry, version=SCHEMA_VERSION)
 
     dev_reg = dr.async_get(hass)
     dev_list = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
@@ -270,18 +278,18 @@ async def async_migrate_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) 
         sensor_index = next(identifiers, None)
 
         if sensor_index is None:
-            LOGGER.warning("Device %s is missing a PurpleAir identifier", device.id)
+            LOGGER.debug("Device %s is missing a PurpleAir identifier", device.id)
             continue
 
         if sensor_index not in index_list:
-            LOGGER.warning(
+            LOGGER.debug(
                 "Device %s sensor index %s not found in options; skipping",
                 device.id,
                 sensor_index,
             )
             continue
 
-        # Remove the old entry and then re-add as a subentry
+        # Remove the old device entry; a new one is recreated under the subentry.
         dev_reg.async_remove_device(device.id)
 
         # Keep subentry logic in sync with config_flow.py:async_step_select_sensor()
@@ -313,9 +321,18 @@ async def async_migrate_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) 
     )
 
 
-async def async_reload_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> None:
-    """Reload config entry."""
-    await hass.config_entries.async_reload(entry.entry_id)
+@callback
+def _raise_legacy_no_sensors_issue(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Raise a repair issue when a v1 entry had no configured sensors."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        f"{ISSUE_LEGACY_MIGRATION_NO_SENSORS}_{entry.entry_id}",
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_LEGACY_MIGRATION_NO_SENSORS,
+        translation_placeholders={"title": entry.title},
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> bool:

@@ -23,7 +23,17 @@
             }
         },
         {
-            "label": "Lint: ruff format + check --fix",
+            "label": "Fix: ruff format + check --fix",
+            "type": "shell",
+            "command": "scripts/fix",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Lint: ruff + mypy (verify)",
             "type": "shell",
             "command": "scripts/lint",
             "group": {

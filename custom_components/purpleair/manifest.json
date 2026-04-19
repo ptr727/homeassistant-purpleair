@@ -7,7 +7,8 @@
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ptr727/homeassistant-purpleair/issues",
-  "quality_scale": "silver",
+  "loggers": ["aiopurpleair"],
+  "quality_scale": "platinum",
   "requirements": ["aiopurpleair==2025.08.1"],
-  "version": "0.2.0"
+  "version": "0.4.0"
 }

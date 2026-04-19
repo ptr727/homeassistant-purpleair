@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.errors import InvalidApiKeyError, PurpleAirError
+from aiopurpleair.models.keys import GetKeysResponse
 import pytest
 
 from custom_components.purpleair.const import (
@@ -11,6 +12,8 @@ from custom_components.purpleair.const import (
     CONF_ADD_SENSOR_INDEX,
     CONF_ALREADY_CONFIGURED,
     CONF_INVALID_API_KEY,
+    CONF_INVALID_READ_KEY,
+    CONF_KEY_DISABLED,
     CONF_NO_SENSOR_FOUND,
     CONF_NO_SENSORS_FOUND,
     CONF_REAUTH_CONFIRM,
@@ -23,6 +26,7 @@ from custom_components.purpleair.const import (
     CONF_SENSOR_READ_KEY,
     CONF_SETTINGS,
     CONF_UNKNOWN,
+    CONF_WRONG_KEY_TYPE,
     DOMAIN,
     TITLE,
 )
@@ -71,10 +75,9 @@ async def test_user_init(hass: HomeAssistant, mock_aiopurpleair, api) -> None:
     assert result[CONF_STEP_ID] == CONF_API_KEY
 
     # API key
-    with patch.object(api, "async_check_api_key"):
-        result = await hass.config_entries.flow.async_configure(
-            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
-        )
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
     await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
     assert result[CONF_DATA] == {
@@ -97,10 +100,9 @@ async def test_user_init(hass: HomeAssistant, mock_aiopurpleair, api) -> None:
     assert result[CONF_STEP_ID] == CONF_API_KEY
 
     # Different API key for second entry
-    with patch.object(api, "async_check_api_key"):
-        result = await hass.config_entries.flow.async_configure(
-            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
-        )
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+    )
     await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
     assert result[CONF_DATA] == {
@@ -139,11 +141,10 @@ async def test_reconfigure(
     assert result[CONF_ERRORS] == {CONF_API_KEY: CONF_INVALID_API_KEY}
 
     # API key
-    with patch.object(api, "async_check_api_key"):
-        result = await hass.config_entries.flow.async_configure(
-            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.ABORT
     assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
 
@@ -158,34 +159,123 @@ async def test_reauth(
     mock_aiopurpleair,
     api,
 ) -> None:
-    """Test reauth."""
-    # Reauth
+    """Reauth must keep the same API key — the unique ID is derived from it."""
     result = await config_entry.start_reauth_flow(hass)
     await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_STEP_ID] == CONF_REAUTH_CONFIRM
 
-    # Bad API key
+    # Bad API key — surfaces as a form error, not an abort.
     with patch.object(
         api, "async_check_api_key", AsyncMock(side_effect=InvalidApiKeyError)
     ):
         result = await hass.config_entries.flow.async_configure(
-            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
         )
         await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_ERRORS] == {CONF_API_KEY: CONF_INVALID_API_KEY}
 
-    # API key
-    with patch.object(api, "async_check_api_key"):
-        result = await hass.config_entries.flow.async_configure(
-            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
-        )
-        await hass.async_block_till_done()
+    # Same key re-validated — reauth succeeds.
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.ABORT
     assert result[CONF_REASON] == CONF_REAUTH_SUCCESSFUL
+    assert config_entry.data[CONF_API_KEY] == TEST_API_KEY
 
-    assert config_entry.data[CONF_API_KEY] == TEST_NEW_API_KEY
+
+@pytest.mark.parametrize(
+    ("key_type", "expected_error_key"),
+    [
+        ("WRITE", CONF_WRONG_KEY_TYPE),
+        ("READ_DISABLED", CONF_KEY_DISABLED),
+        ("WRITE_DISABLED", CONF_KEY_DISABLED),
+        ("UNKNOWN", CONF_UNKNOWN),
+    ],
+)
+async def test_user_init_rejects_bad_key_type(
+    hass: HomeAssistant,
+    mock_aiopurpleair,
+    api,
+    key_type: str,
+    expected_error_key: str,
+) -> None:
+    """A non-READ api_key_type must be rejected with a targeted error."""
+    api.async_check_api_key = AsyncMock(
+        return_value=GetKeysResponse.model_validate(
+            {
+                "api_version": "V1.0.11-0.0.41",
+                "time_stamp": 1668985817,
+                "api_key_type": key_type,
+            }
+        )
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    if expected_error_key == CONF_UNKNOWN:
+        assert result[CONF_ERRORS] == {CONF_BASE: CONF_UNKNOWN}
+    else:
+        assert result[CONF_ERRORS] == {CONF_API_KEY: expected_error_key}
+
+
+async def test_subentry_invalid_read_key(
+    hass: HomeAssistant,
+    config_entry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Wrong read_key must surface a targeted error on the read-key field."""
+    result = await hass.config_entries.subentries.async_init(
+        (config_entry.entry_id, CONF_SENSOR), context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_NEXT_STEP_ID: CONF_ADD_SENSOR_INDEX}
+    )
+    with patch.object(
+        api.sensors,
+        "async_get_sensors",
+        AsyncMock(side_effect=PurpleAirError("InvalidDataReadKeyError: nope")),
+    ):
+        result = await hass.config_entries.subentries.async_configure(
+            result[CONF_FLOW_ID],
+            user_input={
+                CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+                CONF_SENSOR_READ_KEY: "wrong",
+            },
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_ERRORS] == {CONF_SENSOR_READ_KEY: CONF_INVALID_READ_KEY}
+
+
+async def test_reauth_rejects_different_key(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """A reauth with a different API key must abort — identity would change."""
+    result = await config_entry.start_reauth_flow(hass)
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_ALREADY_CONFIGURED
 
 
 async def test_duplicate_api_key(
@@ -206,11 +296,10 @@ async def test_duplicate_api_key(
     assert result[CONF_STEP_ID] == CONF_API_KEY
 
     # API key
-    with patch.object(api, "async_check_api_key"):
-        result = await hass.config_entries.flow.async_configure(
-            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
-        )
-        await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_ERRORS] == {CONF_API_KEY: CONF_ALREADY_CONFIGURED}
 
@@ -530,6 +619,68 @@ async def test_create_from_map_select_errors(
 
     hass.config_entries.subentries.async_abort(result[CONF_FLOW_ID])
     await hass.async_block_till_done()
+
+
+async def test_add_second_subentry(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Adding a second sensor to an existing entry works."""
+    result = await hass.config_entries.subentries.async_init(
+        (config_entry.entry_id, CONF_SENSOR), context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_NEXT_STEP_ID: CONF_ADD_SENSOR_INDEX}
+    )
+    with patch.object(api, "sensors.async_get_sensors"):
+        result = await hass.config_entries.subentries.async_configure(
+            result[CONF_FLOW_ID],
+            user_input={
+                CONF_SENSOR_INDEX: 567890,
+                CONF_SENSOR_READ_KEY: "",
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert len(config_entry.subentries) == 2
+
+
+async def test_read_key_is_forwarded_to_coordinator(
+    hass: HomeAssistant,
+    config_entry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """A sensor added with a read_key must cause the coordinator to send it."""
+    result = await hass.config_entries.subentries.async_init(
+        (config_entry.entry_id, CONF_SENSOR), context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_NEXT_STEP_ID: CONF_ADD_SENSOR_INDEX}
+    )
+    with patch.object(api, "sensors.async_get_sensors"):
+        await hass.config_entries.subentries.async_configure(
+            result[CONF_FLOW_ID],
+            user_input={
+                CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+                CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+            },
+        )
+        await hass.async_block_till_done()
+
+    # After the subentry is added, the next scheduled refresh carries the read_key.
+    api.sensors.async_get_sensors.reset_mock()
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    call = api.sensors.async_get_sensors.await_args
+    assert call.kwargs["sensor_indices"] == [TEST_SENSOR_INDEX1]
+    assert call.kwargs["read_keys"] == [TEST_SENSOR_READ_KEY]
 
 
 @pytest.mark.parametrize(

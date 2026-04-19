@@ -6,6 +6,7 @@ TEST_API_KEY: Final[str] = "abcde12345"
 TEST_NEW_API_KEY: Final[str] = "new_api_key"
 TEST_SENSOR_INDEX1: Final[int] = 123456
 TEST_SENSOR_INDEX2: Final[int] = 567890
+TEST_SENSOR_INDEX_NO_LOCATION: Final[int] = 678901
 TEST_SENSOR_READ_KEY: Final[str] = "ACDEF123"
 TEST_LATITUDE: Final[float] = 51.5285582
 TEST_LONGITUDE: Final[float] = -0.2416796

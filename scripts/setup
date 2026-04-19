@@ -26,3 +26,12 @@ else
     sudo chmod +x /usr/local/bin/go2rtc
     echo "Installed: $(go2rtc --version | head -n1)"
 fi
+
+# Install HACS — https://www.hacs.xyz/ — into the HA config's custom_components.
+# The official installer reads HA_CONFIG to locate custom_components/.
+if [ -f config/custom_components/hacs/manifest.json ]; then
+    echo "HACS already installed, skipping."
+else
+    echo "Installing HACS"
+    HA_CONFIG="$PWD/config" bash -c "$(curl -fsSL https://get.hacs.xyz)"
+fi

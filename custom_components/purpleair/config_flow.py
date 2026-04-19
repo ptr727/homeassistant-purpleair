@@ -50,11 +50,14 @@ from homeassistant.helpers.selector import (
 from homeassistant.util.unit_conversion import DistanceConverter
 
 from .const import (
+    BASE_FIELDS,
     CONF_ADD_MAP_LOCATION,
     CONF_ADD_OPTIONS,
     CONF_ADD_SENSOR_INDEX,
     CONF_ALREADY_CONFIGURED,
     CONF_INVALID_API_KEY,
+    CONF_INVALID_READ_KEY,
+    CONF_KEY_DISABLED,
     CONF_NO_SENSOR_FOUND,
     CONF_NO_SENSORS_FOUND,
     CONF_REAUTH_CONFIRM,
@@ -67,10 +70,14 @@ from .const import (
     CONF_SENSOR_READ_KEY,
     CONF_SETTINGS,
     CONF_UNKNOWN,
+    CONF_WRONG_KEY_TYPE,
     DOMAIN,
+    KEY_TYPE_READ,
+    KEY_TYPE_READ_DISABLED,
+    KEY_TYPE_WRITE,
+    KEY_TYPE_WRITE_DISABLED,
     LOGGER,
     SCHEMA_VERSION,
-    SENSOR_FIELDS_ALL,
     TITLE,
 )
 
@@ -99,7 +106,9 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             title = f"{TITLE} ({len(config_list)})"
         return title
 
-    async def _async_validate_api_key(self) -> bool:
+    async def _async_validate_api_key(
+        self, *, current_entry: ConfigEntry | None = None
+    ) -> bool:
         """Validate API key."""
         self._errors = {}
 
@@ -109,8 +118,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         try:
             keys_response: GetKeysResponse = await api.async_check_api_key()
-        except InvalidApiKeyError as err:
-            LOGGER.error("InvalidApiKeyError: %s", err)
+        except InvalidApiKeyError:
             self._errors[CONF_API_KEY] = CONF_INVALID_API_KEY
             return False
         except (
@@ -122,10 +130,8 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
-        except Exception as err:  # noqa: BLE001
-            # Catch broad exceptions in config flow for user experience.
-            # Any unexpected error should show a generic error message.
-            LOGGER.exception("Unexpected error checking API key: %s", err)
+        except Exception:  # noqa: BLE001 — surface any unexpected error to the user as a generic form error rather than crashing the flow.
+            LOGGER.exception("Unexpected error checking API key")
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
 
@@ -133,12 +139,29 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
 
-        if str(self._flow_data[CONF_API_KEY]) in (
-            str(config_entry.data[CONF_API_KEY])
-            for config_entry in self.hass.config_entries.async_loaded_entries(DOMAIN)
-        ):
-            self._errors[CONF_API_KEY] = CONF_ALREADY_CONFIGURED
+        key_type = keys_response.api_key_type
+        if key_type in (KEY_TYPE_READ_DISABLED, KEY_TYPE_WRITE_DISABLED):
+            self._errors[CONF_API_KEY] = CONF_KEY_DISABLED
             return False
+        if key_type == KEY_TYPE_WRITE:
+            self._errors[CONF_API_KEY] = CONF_WRONG_KEY_TYPE
+            return False
+        if key_type != KEY_TYPE_READ:
+            self._errors[CONF_BASE] = CONF_UNKNOWN
+            return False
+
+        # Reject duplicates across any other entry — reauth/reconfigure pass the
+        # current entry so changing _its_ key to the same value is allowed.
+        api_key = str(self._flow_data[CONF_API_KEY])
+        for config_entry in self.hass.config_entries.async_entries(DOMAIN):
+            if (
+                current_entry is not None
+                and config_entry.entry_id == current_entry.entry_id
+            ):
+                continue
+            if str(config_entry.data.get(CONF_API_KEY)) == api_key:
+                self._errors[CONF_API_KEY] = CONF_ALREADY_CONFIGURED
+                return False
 
         return True
 
@@ -215,17 +238,16 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the re-auth step."""
+        reauth_entry = self._get_reauth_entry()
         if user_input is None:
-            self._flow_data[CONF_API_KEY] = self._get_reauth_entry().data.get(
-                CONF_API_KEY
-            )
+            self._flow_data[CONF_API_KEY] = reauth_entry.data.get(CONF_API_KEY)
             return self.async_show_form(
                 step_id=CONF_REAUTH_CONFIRM,
                 data_schema=self.api_key_schema,
             )
 
         self._flow_data[CONF_API_KEY] = str(user_input[CONF_API_KEY])
-        if not await self._async_validate_api_key():
+        if not await self._async_validate_api_key(current_entry=reauth_entry):
             return self.async_show_form(
                 step_id=CONF_REAUTH_CONFIRM,
                 data_schema=self.api_key_schema,
@@ -233,10 +255,10 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         await self.async_set_unique_id(self._flow_data[CONF_API_KEY])
-        self._abort_if_unique_id_configured()
+        self._abort_if_unique_id_mismatch(reason=CONF_ALREADY_CONFIGURED)
 
         return self.async_update_reload_and_abort(
-            self._get_reauth_entry(),
+            reauth_entry,
             data_updates={CONF_API_KEY: self._flow_data[CONF_API_KEY]},
             reason=CONF_REAUTH_SUCCESSFUL,
         )
@@ -246,17 +268,16 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: Mapping[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle reconfiguration."""
+        reconfigure_entry = self._get_reconfigure_entry()
         if user_input is None:
-            self._flow_data[CONF_API_KEY] = self._get_reconfigure_entry().data.get(
-                CONF_API_KEY
-            )
+            self._flow_data[CONF_API_KEY] = reconfigure_entry.data.get(CONF_API_KEY)
             return self.async_show_form(
                 step_id=CONF_RECONFIGURE,
                 data_schema=self.api_key_schema,
             )
 
         self._flow_data[CONF_API_KEY] = str(user_input[CONF_API_KEY])
-        if not await self._async_validate_api_key():
+        if not await self._async_validate_api_key(current_entry=reconfigure_entry):
             return self.async_show_form(
                 step_id=CONF_RECONFIGURE,
                 data_schema=self.api_key_schema,
@@ -267,7 +288,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
 
         return self.async_update_reload_and_abort(
-            self._get_reconfigure_entry(),
+            reconfigure_entry,
             data_updates={CONF_API_KEY: self._flow_data[CONF_API_KEY]},
             reason=CONF_RECONFIGURE_SUCCESSFUL,
         )
@@ -347,8 +368,7 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
                 ),
                 limit_results=LIMIT_RESULTS,
             )
-        except InvalidApiKeyError as err:
-            LOGGER.error("InvalidApiKeyError: %s", err)
+        except InvalidApiKeyError:
             self._errors[CONF_BASE] = CONF_INVALID_API_KEY
             return False
         except (
@@ -360,10 +380,8 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
-        except Exception as err:  # noqa: BLE001
-            # Catch broad exceptions in config flow for user experience.
-            # Any unexpected error should show a generic error message.
-            LOGGER.exception("Unexpected error validating location: %s", err)
+        except Exception:  # noqa: BLE001 — surface any unexpected error to the user as a generic form error rather than crashing the flow.
+            LOGGER.exception("Unexpected error validating location")
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
 
@@ -392,12 +410,11 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
         )
         try:
             sensors_response: GetSensorsResponse = await api.sensors.async_get_sensors(
-                SENSOR_FIELDS_ALL,
+                BASE_FIELDS,
                 sensor_indices=index_list,
                 read_keys=read_key_list,
             )
-        except InvalidApiKeyError as err:
-            LOGGER.error("InvalidApiKeyError: %s", err)
+        except InvalidApiKeyError:
             self._errors[CONF_BASE] = CONF_INVALID_API_KEY
             return False
         except (
@@ -406,13 +423,18 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             NotFoundError,
             PurpleAirError,
         ) as err:
+            # aiopurpleair collapses a few 400 codes into PurpleAirError. The
+            # API returns a dedicated `InvalidDataReadKeyError` code when the
+            # per-sensor read_key is wrong; distinguish it by message until
+            # the library gains a proper exception class.
+            if "InvalidDataReadKey" in str(err):
+                self._errors[CONF_SENSOR_READ_KEY] = CONF_INVALID_READ_KEY
+                return False
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
-        except Exception as err:  # noqa: BLE001
-            # Catch broad exceptions in config flow for user experience.
-            # Any unexpected error should show a generic error message.
-            LOGGER.exception("Unexpected error validating sensor: %s", err)
+        except Exception:  # noqa: BLE001 — surface any unexpected error to the user as a generic form error rather than crashing the flow.
+            LOGGER.exception("Unexpected error validating sensor")
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
 

@@ -6,9 +6,12 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 from aiopurpleair.endpoints.sensors import NearbySensorResult
+from aiopurpleair.models.keys import GetKeysResponse
 from aiopurpleair.models.sensors import GetSensorsResponse
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, load_fixture
+from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from syrupy import SnapshotAssertion
 
 from custom_components.purpleair.const import (
     CONF_SENSOR,
@@ -25,11 +28,49 @@ from homeassistant.core import HomeAssistant
 from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 
 
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Return snapshot assertion fixture with the Home Assistant extension."""
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
+
+
+@pytest.fixture(name="get_keys_response")
+def get_keys_response_fixture() -> GetKeysResponse:
+    """Return a valid GetKeysResponse with api_key_type=READ."""
+    return GetKeysResponse.model_validate(
+        {
+            "api_version": "V1.0.11-0.0.41",
+            "time_stamp": 1668985817,
+            "api_key_type": "READ",
+        }
+    )
+
+
 @pytest.fixture(name="api")
-def api_fixture(get_sensors_response: GetSensorsResponse) -> Mock:
-    """Define a fixture to return a mocked aiopurpleair API object."""
+def api_fixture(
+    get_sensors_response: GetSensorsResponse, get_keys_response: GetKeysResponse
+) -> Mock:
+    """Define a fixture to return a mocked aiopurpleair API object.
+
+    ``async_get_sensors`` filters by the ``sensor_indices`` kwarg so it mimics
+    the real endpoint: the server only returns sensors you asked for.
+    Otherwise tests that rely on cache membership see all three fixture
+    sensors after the very first refresh.
+    """
+
+    async def _filtered_get_sensors(*_args, **kwargs):
+        indices = kwargs.get("sensor_indices")
+        if not indices:
+            return get_sensors_response
+        filtered = {
+            idx: sensor
+            for idx, sensor in get_sensors_response.data.items()
+            if idx in indices
+        }
+        return get_sensors_response.model_copy(update={"data": filtered})
+
     return Mock(
-        async_check_api_key=AsyncMock(),
+        async_check_api_key=AsyncMock(return_value=get_keys_response),
         get_map_url=Mock(return_value="http://example.com"),
         sensors=Mock(
             async_get_nearby_sensors=AsyncMock(
@@ -38,7 +79,7 @@ def api_fixture(get_sensors_response: GetSensorsResponse) -> Mock:
                     for sensor in get_sensors_response.data.values()
                 ]
             ),
-            async_get_sensors=AsyncMock(return_value=get_sensors_response),
+            async_get_sensors=AsyncMock(side_effect=_filtered_get_sensors),
         ),
     )
 
@@ -46,8 +87,8 @@ def api_fixture(get_sensors_response: GetSensorsResponse) -> Mock:
 @pytest.fixture(name="config_entry")
 def config_entry_fixture(
     hass: HomeAssistant,
-    config_entry_data,
-    config_entry_options,
+    config_entry_data: dict[str, Any],
+    config_entry_options: dict[str, Any],
 ) -> MockConfigEntry:
     """Define a config entry fixture."""
     entry = MockConfigEntry(
@@ -65,9 +106,7 @@ def config_entry_fixture(
 @pytest.fixture(name="config_entry_data")
 def config_entry_data_fixture() -> dict[str, Any]:
     """Define a config entry data fixture."""
-    return {
-        CONF_API_KEY: TEST_API_KEY,
-    }
+    return {CONF_API_KEY: TEST_API_KEY}
 
 
 @pytest.fixture(name="config_subentry_data")
@@ -82,9 +121,7 @@ def config_subentry_data_fixture() -> dict[str, Any]:
 @pytest.fixture(name="config_entry_options")
 def config_entry_options_fixture() -> dict[str, Any]:
     """Define a config entry options fixture."""
-    return {
-        CONF_SHOW_ON_MAP: True,
-    }
+    return {CONF_SHOW_ON_MAP: True}
 
 
 @pytest.fixture(name="config_subentry")
@@ -92,15 +129,16 @@ def config_subentry_fixture(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry_data: dict[str, Any],
-) -> bool:
-    """Define a config subentry fixture."""
+) -> ConfigSubentry:
+    """Define a config subentry fixture and attach it to the entry."""
     subentry = ConfigSubentry(
         data=MappingProxyType(config_subentry_data),
         subentry_type=CONF_SENSOR,
         title=f"TEST_SENSOR_INDEX1 ({TEST_SENSOR_INDEX1})",
         unique_id=str(TEST_SENSOR_INDEX1),
     )
-    return hass.config_entries.async_add_subentry(config_entry, subentry)
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    return subentry
 
 
 @pytest.fixture(name="get_sensors_response", scope="package")

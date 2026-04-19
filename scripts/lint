@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
+# Verify-only linter. Exits non-zero if anything is wrong — mirrors the CI
+# workflow so "green locally" matches "green on GitHub". To apply
+# auto-fixes run scripts/fix instead.
 
 set -e
 
 cd "$(dirname "$0")/.."
 
-ruff format .
-ruff check . --fix
+ruff format . --check
+ruff check .
+# Platinum quality-scale rule "strict-typing" requires a clean mypy --strict run.
+mypy --strict --follow-imports=silent custom_components/purpleair/
