@@ -43,7 +43,9 @@
             "ms-python.vscode-pylance",
             "ms-azuretools.vscode-docker",
             "ms-vscode-remote.remote-containers",
-            "ryanluker.vscode-coverage-gutters"
+            "ryanluker.vscode-coverage-gutters",
+            "anthropic.claude-code",
+            "openai.chatgpt"
         ]
     }
 }

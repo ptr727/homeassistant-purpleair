@@ -33,30 +33,39 @@ python3 -m pip install --requirement requirements-test.txt
 # editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/bachya-aiopurpleair.git
-AIOPURPLEAIR_BRANCH=develop
+AIOPURPLEAIR_BRANCH=dev
+USE_EDITABLE_AIOPURPLEAIR=true
 
 if [ ! -d "$AIOPURPLEAIR_DIR" ]; then
     echo "Cloning $AIOPURPLEAIR_REPO ($AIOPURPLEAIR_BRANCH) into $AIOPURPLEAIR_DIR"
-    git clone --branch "$AIOPURPLEAIR_BRANCH" "$AIOPURPLEAIR_REPO" "$AIOPURPLEAIR_DIR"
+    if ! git clone --branch "$AIOPURPLEAIR_BRANCH" "$AIOPURPLEAIR_REPO" "$AIOPURPLEAIR_DIR"; then
+        echo "Warning: Failed to clone $AIOPURPLEAIR_REPO. Continuing without editable aiopurpleair checkout." >&2
+        USE_EDITABLE_AIOPURPLEAIR=false
+    fi
 else
     echo "$AIOPURPLEAIR_DIR already exists, skipping clone."
 fi
 
-python3 -m pip install --editable "$AIOPURPLEAIR_DIR"
+if [ "$USE_EDITABLE_AIOPURPLEAIR" = true ] && [ -d "$AIOPURPLEAIR_DIR" ]; then
+    python3 -m pip install --editable "$AIOPURPLEAIR_DIR"
 
-python3 <<'PYEOF'
+    python3 <<'PYEOF'
 import json, pathlib
 from importlib.metadata import version
+from packaging.version import Version
 manifest = json.loads(pathlib.Path("custom_components/purpleair/manifest.json").read_text())
 req = next(r for r in manifest["requirements"] if r.startswith("aiopurpleair"))
 expected = req.split("==", 1)[1]
 installed = version("aiopurpleair")
-assert installed == expected, (
+assert Version(installed) == Version(expected), (
     f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
     f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
 )
 print(f"aiopurpleair editable install verified at version {installed}")
 PYEOF
+else
+    echo "Skipping editable aiopurpleair install and editable-version assertion."
+fi
 
 # --- go2rtc ---------------------------------------------------------------
 # Required by HA's default_config. The HA Docker image bundles it; bare dev
