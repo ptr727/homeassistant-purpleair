@@ -29,7 +29,9 @@ jobs:
           # from a single snapshot file.
           - python-version: "3.14"
             ha-version: "2026.4.0"
-            pytest-hacc-version: "0.13.324"
+            # pytest-homeassistant-custom-component pins `homeassistant==X.Y.Z`
+            # per release; 0.13.321 is the release that targets HA 2026.4.0.
+            pytest-hacc-version: "0.13.321"
           # Latest HA release — bump both versions together when HA publishes.
           - python-version: "3.14"
             ha-version: "2026.4.3"
