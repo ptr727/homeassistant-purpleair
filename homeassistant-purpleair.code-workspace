@@ -6,28 +6,44 @@
         },
         {
             "name": "aiopurpleair Library",
-            "path": "../bachya-aiopurpleair"
+            "path": "./aiopurpleair"
         }
     ],
     "settings": {
+        "editor.tabSize": 4,
+        "editor.formatOnPaste": true,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": false,
+        "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        },
+        "files.eol": "\n",
+        "files.trimTrailingWhitespace": true,
         "python.defaultInterpreterPath": "/usr/local/python/current/bin/python",
         "python.analysis.extraPaths": [
             "./custom_components"
         ],
+        "python.analysis.typeCheckingMode": "basic",
+        "python.analysis.autoImportCompletions": true,
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
         "python.testing.pytestArgs": [
             "tests"
-        ],
-        "python.analysis.typeCheckingMode": "off"
+        ]
     },
     "extensions": {
         "recommendations": [
             "charliermarsh.ruff",
+            "github.vscode-pull-request-github",
             "ms-python.python",
             "ms-python.vscode-pylance",
             "ms-azuretools.vscode-docker",
-            "ms-vscode-remote.remote-containers"
+            "ms-vscode-remote.remote-containers",
+            "ryanluker.vscode-coverage-gutters"
         ]
     }
 }

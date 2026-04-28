@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install dev requirements for this repo:
 #   1. Python base + test requirements (requirements.txt, requirements-test.txt).
-#   2. Sibling editable checkout of aiopurpleair at /workspaces/bachya-aiopurpleair,
+#   2. Editable checkout of aiopurpleair at ./aiopurpleair (gitignored),
 #      replacing the pinned PyPI install with your local fork for in-container dev.
 #   3. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
@@ -19,16 +19,19 @@ cd "$(dirname "$0")/.."
 python3 -m pip install --requirement requirements.txt
 python3 -m pip install --requirement requirements-test.txt
 
-# --- aiopurpleair sibling checkout ---------------------------------------
-# Local editable install of the aiopurpleair fork at /workspaces/bachya-aiopurpleair,
-# sibling to this repo. Edits to the library flow through to both `scripts/develop`
-# (HA runtime) and pytest without round-tripping through PyPI.
+# --- aiopurpleair checkout ------------------------------------------------
+# Local editable install of the aiopurpleair fork inside the repo root (gitignored).
+# Edits to the library flow through to both `scripts/develop` (HA runtime) and
+# pytest without round-tripping through PyPI.
+#
+# Lives inside the repo (not /workspaces/) because /workspaces is root-owned in
+# devcontainers and `vscode` can't create siblings there.
 #
 # The version assertion below trips loudly if your fork's pyproject.toml version
 # diverges from the manifest.json pin -- otherwise HA's package check would silently
 # reinstall aiopurpleair==<pinned> from PyPI at integration load, overwriting the
 # editable install.
-AIOPURPLEAIR_DIR=/workspaces/bachya-aiopurpleair
+AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/bachya-aiopurpleair.git
 AIOPURPLEAIR_BRANCH=develop
 

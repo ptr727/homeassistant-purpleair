@@ -1,0 +1,38 @@
+name: Test pull request action
+
+on:
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+
+  test-release:
+    name: Test release job
+    uses: ./.github/workflows/test-release-task.yml
+    secrets: inherit
+
+  # Wire branch protection's "required status check" to this single job.
+  # When test-release-task contains multiple sibling jobs, the calling
+  # workflow only sees one aggregated `result` per `uses:` invocation —
+  # `success` iff every child job in the called workflow succeeded.
+  # https://github.com/orgs/community/discussions/12395#discussioncomment-12970019
+  check-workflow-status:
+    name: Check pull request workflow status
+    runs-on: ubuntu-latest
+    needs: [test-release]
+    if: always()
+    steps:
+      - name: Check workflow results step
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.test-release.result }}" != "success" ]]; then
+              echo "Job 'test-release' result: ${{ needs.test-release.result }}"
+              exit 1
+          fi

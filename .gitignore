@@ -15,3 +15,6 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# aiopurpleair editable checkout (cloned by scripts/setup)
+aiopurpleair/
