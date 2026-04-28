@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Install dev requirements for this repo:
-#   1. Python requirements (requirements.txt).
-#   2. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
-#   3. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
+#   1. Python base + test requirements (requirements.txt, requirements-test.txt).
+#   2. Sibling editable checkout of aiopurpleair at /workspaces/bachya-aiopurpleair,
+#      replacing the pinned PyPI install with your local fork for in-container dev.
+#   3. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
+#   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
@@ -15,6 +17,43 @@ set -e
 cd "$(dirname "$0")/.."
 
 python3 -m pip install --requirement requirements.txt
+python3 -m pip install --requirement requirements-test.txt
+
+# --- aiopurpleair sibling checkout ---------------------------------------
+# Local editable install of the aiopurpleair fork at /workspaces/bachya-aiopurpleair,
+# sibling to this repo. Edits to the library flow through to both `scripts/develop`
+# (HA runtime) and pytest without round-tripping through PyPI.
+#
+# The version assertion below trips loudly if your fork's pyproject.toml version
+# diverges from the manifest.json pin -- otherwise HA's package check would silently
+# reinstall aiopurpleair==<pinned> from PyPI at integration load, overwriting the
+# editable install.
+AIOPURPLEAIR_DIR=/workspaces/bachya-aiopurpleair
+AIOPURPLEAIR_REPO=https://github.com/ptr727/bachya-aiopurpleair.git
+AIOPURPLEAIR_BRANCH=develop
+
+if [ ! -d "$AIOPURPLEAIR_DIR" ]; then
+    echo "Cloning $AIOPURPLEAIR_REPO ($AIOPURPLEAIR_BRANCH) into $AIOPURPLEAIR_DIR"
+    git clone --branch "$AIOPURPLEAIR_BRANCH" "$AIOPURPLEAIR_REPO" "$AIOPURPLEAIR_DIR"
+else
+    echo "$AIOPURPLEAIR_DIR already exists, skipping clone."
+fi
+
+python3 -m pip install --editable "$AIOPURPLEAIR_DIR"
+
+python3 <<'PYEOF'
+import json, pathlib
+from importlib.metadata import version
+manifest = json.loads(pathlib.Path("custom_components/purpleair/manifest.json").read_text())
+req = next(r for r in manifest["requirements"] if r.startswith("aiopurpleair"))
+expected = req.split("==", 1)[1]
+installed = version("aiopurpleair")
+assert installed == expected, (
+    f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
+    f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
+)
+print(f"aiopurpleair editable install verified at version {installed}")
+PYEOF
 
 # --- go2rtc ---------------------------------------------------------------
 # Required by HA's default_config. The HA Docker image bundles it; bare dev

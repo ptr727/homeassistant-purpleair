@@ -3,6 +3,10 @@
         {
             "name": "PurpleAir Integration",
             "path": "."
+        },
+        {
+            "name": "aiopurpleair Library",
+            "path": "../bachya-aiopurpleair"
         }
     ],
     "settings": {

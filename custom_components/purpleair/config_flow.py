@@ -448,9 +448,11 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             return False
 
         # No duplicate sensor indices allowed across all config entries and subentries
+        # (including disabled/ignored entries -- otherwise re-enabling a disabled entry
+        # could surface a duplicate that this flow let through).
         if sensor_index in (
             int(subentry.data[CONF_SENSOR_INDEX])
-            for config_entry in self.hass.config_entries.async_loaded_entries(DOMAIN)
+            for config_entry in self.hass.config_entries.async_entries(DOMAIN)
             for subentry in config_entry.subentries.values()
         ):
             self._errors[CONF_SENSOR_INDEX] = CONF_ALREADY_CONFIGURED
