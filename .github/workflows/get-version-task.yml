@@ -41,9 +41,12 @@ jobs:
           VERSION=$(jq -e -r '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"))' custom_components/purpleair/manifest.json)
           echo "SemVer2=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Tag=$VERSION" >> "$GITHUB_OUTPUT"
-          # SemVer: a '-' only appears in the prerelease segment; build
-          # metadata is '+'-introduced and irrelevant to release status.
-          if [[ "$VERSION" == *-* ]]; then
+          # SemVer: prerelease is the segment after the first '-' and before
+          # any '+...' build metadata. Strip build metadata first so that a
+          # stable version with a hyphenated build tag (e.g. 1.0.0+build-1)
+          # isn't misclassified as prerelease.
+          VERSION_NO_BUILD="${VERSION%%+*}"
+          if [[ "$VERSION_NO_BUILD" == *-* ]]; then
               PRERELEASE=true
           else
               PRERELEASE=false

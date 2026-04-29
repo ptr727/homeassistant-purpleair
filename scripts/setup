@@ -12,7 +12,7 @@
 # hard-coded here. Regenerate with:
 #   curl -fsSL <asset-url> | sha256sum
 
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
