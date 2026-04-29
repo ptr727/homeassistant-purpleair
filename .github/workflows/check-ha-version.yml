@@ -1,0 +1,113 @@
+name: Check Home Assistant version action
+
+on:
+  schedule:
+    # Mondays at 06:00 UTC. HA releases land mid-month so weekly cadence is
+    # plenty; workflow_dispatch is available for urgent bumps.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  check:
+    name: Check pytest-homeassistant-custom-component for newer HA pin job
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Generate GitHub App token step
+        # Use the codegen App so the resulting PR is App-authored: that triggers
+        # PR workflows (PRs from GITHUB_TOKEN do not) and lets merge-bot pick
+        # it up via the actor guard. `client-id` replaces the deprecated
+        # `app-id` per actions/create-github-app-token v3+.
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
+
+      - name: Checkout the repository step
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: develop
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Resolve latest pytest-hacc and pinned HA version step
+        id: resolve
+        # pytest-homeassistant-custom-component pins a specific HA version per
+        # release; using it as the source of truth for "what HA is testable"
+        # avoids the case where HA stable lands but no compatible pytest-hacc
+        # release exists yet.
+        run: |
+          set -euo pipefail
+          PYPI=$(curl -fsSL https://pypi.org/pypi/pytest-homeassistant-custom-component/json)
+          HACC_VERSION=$(echo "$PYPI" | jq -r .info.version)
+          HA_VERSION=$(echo "$PYPI" | jq -r '.info.requires_dist[]?
+                                              | select(test("^homeassistant=="))
+                                              | sub("^homeassistant=="; "")
+                                              | sub(";.*$"; "")
+                                              | gsub("[[:space:]]"; "")')
+          if [ -z "$HA_VERSION" ] || [ -z "$HACC_VERSION" ]; then
+              echo "::error::Could not extract pytest-hacc=$HACC_VERSION / ha=$HA_VERSION from PyPI"
+              exit 1
+          fi
+          echo "hacc=$HACC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "ha=$HA_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest pytest-hacc=$HACC_VERSION pins HA $HA_VERSION"
+
+      - name: Compare against pinned versions step
+        id: compare
+        run: |
+          set -euo pipefail
+          CURRENT_HA=$(jq -r .latest.ha .github/ha-test-versions.json)
+          CURRENT_HACC=$(jq -r '.latest["pytest-hacc"]' .github/ha-test-versions.json)
+          if [ "$CURRENT_HA" = "${{ steps.resolve.outputs.ha }}" ] && \
+             [ "$CURRENT_HACC" = "${{ steps.resolve.outputs.hacc }}" ]; then
+              echo "::notice::Already on HA $CURRENT_HA / pytest-hacc $CURRENT_HACC; nothing to do."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update ha-test-versions.json step
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          jq --arg ha "${{ steps.resolve.outputs.ha }}" \
+             --arg hacc "${{ steps.resolve.outputs.hacc }}" \
+             '.latest.ha = $ha | .latest["pytest-hacc"] = $hacc' \
+             .github/ha-test-versions.json > .github/ha-test-versions.json.tmp
+          mv .github/ha-test-versions.json.tmp .github/ha-test-versions.json
+
+      - name: Create pull request step
+        if: steps.compare.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          base: develop
+          branch: ha-version-bump/${{ steps.resolve.outputs.ha }}
+          delete-branch: true
+          sign-commits: true
+          title: "fix: bump Home Assistant test matrix to ${{ steps.resolve.outputs.ha }}"
+          commit-message: "fix: bump Home Assistant test matrix to ${{ steps.resolve.outputs.ha }}"
+          body: |
+            Bumps the `latest` HA pin in `.github/ha-test-versions.json` to
+            `${{ steps.resolve.outputs.ha }}` (via
+            `pytest-homeassistant-custom-component` `${{ steps.resolve.outputs.hacc }}`).
+
+            - Home Assistant release notes: https://github.com/home-assistant/core/releases/tag/${{ steps.resolve.outputs.ha }}
+            - pytest-homeassistant-custom-component release: https://pypi.org/project/pytest-homeassistant-custom-component/${{ steps.resolve.outputs.hacc }}/
+
+            Tests run against the new version on this PR. If they pass,
+            merge-bot auto-merges into develop and the bump rolls into the next
+            release-please prerelease.

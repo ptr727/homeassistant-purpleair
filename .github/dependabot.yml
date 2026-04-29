@@ -1,20 +1,36 @@
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# commit-message.prefix is "chore" so PR titles satisfy the Conventional Commits
+# lint enforced on test-pull-request.yml and release-please treats them as
+# no-release. Security or behaviour-changing dep bumps that should ship
+# immediately can be re-titled to "fix:" by a maintainer before merge.
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     ignore:
-      # Dependabot should not update Home Assistant as that should match the homeassistant key in hacs.json
+      # Home Assistant version is owned by check-ha-version.yml (which derives
+      # it from pytest-homeassistant-custom-component on PyPI) and by the
+      # `homeassistant` field in hacs.json — not by Dependabot.
       - dependency-name: "homeassistant"

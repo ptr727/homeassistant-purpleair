@@ -48,28 +48,44 @@ jobs:
         # Platinum quality-scale rule "strict-typing" requires a clean run.
         run: python3 -m mypy --strict --follow-imports=silent custom_components/purpleair/
 
+  read-versions:
+    name: Read HA test matrix job
+    # The matrix is sourced from .github/ha-test-versions.json so that
+    # check-ha-version.yml can bump it via PR. `minimum` is hand-maintained
+    # (must match hacs.json["homeassistant"] and the pin in requirements.txt;
+    # currently 2026.4.0 because the entity registry's `aliases` field changed
+    # shape in 2026.4 and our snapshot tests can't satisfy both pre- and
+    # post-2026.4 formats); `latest` is bot-maintained.
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.parse.outputs.include }}
+    steps:
+      - name: Checkout the repository step
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build matrix include array step
+        id: parse
+        run: |
+          set -euo pipefail
+          INCLUDE=$(jq -c '
+            [ .minimum, .latest ]
+            | map({
+                "python-version": "3.14",
+                "ha-version": .ha,
+                "pytest-hacc-version": ."pytest-hacc"
+              })
+          ' .github/ha-test-versions.json)
+          echo "include=$INCLUDE" >> "$GITHUB_OUTPUT"
+          echo "Matrix: $INCLUDE"
+
   pytest:
     name: "pytest job (HA ${{ matrix.ha-version }})"
     runs-on: ubuntu-latest
+    needs: [read-versions]
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Minimum supported HA version — must match hacs.json["homeassistant"]
-          # and the pin in requirements.txt. Bumped to 2026.4.0 because the
-          # entity registry's `aliases` field changed shape in 2026.4
-          # (set[str] -> list[AliasEntry] with COMPUTED_NAME sentinel) and our
-          # snapshot tests can't satisfy both pre- and post-2026.4 formats
-          # from a single snapshot file.
-          - python-version: "3.14"
-            ha-version: "2026.4.0"
-            # pytest-homeassistant-custom-component pins `homeassistant==X.Y.Z`
-            # per release; 0.13.321 is the release that targets HA 2026.4.0.
-            pytest-hacc-version: "0.13.321"
-          # Latest HA release — bump both versions together when HA publishes.
-          - python-version: "3.14"
-            ha-version: "2026.4.3"
-            pytest-hacc-version: "0.13.324"
+        include: ${{ fromJSON(needs.read-versions.outputs.include) }}
     steps:
       - name: Checkout the repository step
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

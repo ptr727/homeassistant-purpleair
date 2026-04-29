@@ -10,7 +10,7 @@ on:
         description: "Git tag / release name to use (matches SemVer2 verbatim)."
         value: ${{ jobs.get-version.outputs.Tag }}
       Prerelease:
-        description: "'true' on non-main refs, 'false' on main."
+        description: "'true' if the manifest version contains a SemVer prerelease segment (e.g. 0.2.0-beta.1), 'false' for stable versions (e.g. 0.2.0). Derived from the version string itself, not from the triggering ref."
         value: ${{ jobs.get-version.outputs.Prerelease }}
 
 jobs:
@@ -32,15 +32,24 @@ jobs:
         id: read
         # `jq -e` exits non-zero when `select(...)` filters the value out, so a
         # version that doesn't match SemVer2 fails the workflow before any
-        # expensive downstream job runs.
+        # expensive downstream job runs. Prerelease is derived from the version
+        # string itself (SemVer prerelease segment introduced by '-') rather
+        # than from github.ref_name, because publish-release.yml is triggered
+        # by tag push and ref_name is the tag, never the branch.
         run: |
           set -euo pipefail
           VERSION=$(jq -e -r '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"))' custom_components/purpleair/manifest.json)
           echo "SemVer2=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Tag=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.ref_name }}" = "main" ]; then
-              echo "Prerelease=false" >> "$GITHUB_OUTPUT"
+          # SemVer: prerelease is the segment after the first '-' and before
+          # any '+...' build metadata. Strip build metadata first so that a
+          # stable version with a hyphenated build tag (e.g. 1.0.0+build-1)
+          # isn't misclassified as prerelease.
+          VERSION_NO_BUILD="${VERSION%%+*}"
+          if [[ "$VERSION_NO_BUILD" == *-* ]]; then
+              PRERELEASE=true
           else
-              echo "Prerelease=true" >> "$GITHUB_OUTPUT"
+              PRERELEASE=false
           fi
-          echo "Version: $VERSION (prerelease: $([ "${{ github.ref_name }}" = "main" ] && echo false || echo true))"
+          echo "Prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION (prerelease: $PRERELEASE)"
