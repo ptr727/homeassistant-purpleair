@@ -84,6 +84,13 @@ jobs:
           # Allowed types must match test-pull-request.yml's pr-title-lint
           # allowlist exactly.
           cc_regex='^(feat|fix|perf|chore|docs|refactor|test|build|ci|revert)(\([^)]+\))?!?: .+'
+          # `--first-parent` walks only the branch's primary lineage so that
+          # commits pulled in via a sync merge (e.g. "Update branch" button on
+          # a develop ← main update) aren't treated as new work to validate —
+          # only first-parent commits represent PR squash-merges into the
+          # current branch. `--no-merges` then drops the merge commits
+          # themselves, since their auto-generated subjects can't be CC and
+          # release-please ignores them anyway.
           non_cc=""
           while IFS= read -r line; do
               [ -z "$line" ] && continue
@@ -91,7 +98,7 @@ jobs:
               if ! [[ "$subject" =~ $cc_regex ]]; then
                   non_cc+="${line}"$'\n'
               fi
-          done < <(git log --format='%H %s' "$from"..HEAD)
+          done < <(git log --first-parent --no-merges --format='%H %s' "$from"..HEAD)
           if [ -n "$non_cc" ]; then
               echo "::error::Found commits since $from that are not Conventional Commits:"
               printf '%s' "$non_cc"
