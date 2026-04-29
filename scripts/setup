@@ -27,7 +27,7 @@ python3 -m pip install --requirement requirements-test.txt
 # Lives inside the repo (not /workspaces/) because /workspaces is root-owned in
 # devcontainers and `vscode` can't create siblings there.
 #
-# The version assertion below trips loudly if your fork's pyproject.toml version
+# The version check below trips loudly if your fork's pyproject.toml version
 # diverges from the manifest.json pin -- otherwise HA's package check would silently
 # reinstall aiopurpleair==<pinned> from PyPI at integration load, overwriting the
 # editable install.
@@ -57,10 +57,11 @@ manifest = json.loads(pathlib.Path("custom_components/purpleair/manifest.json").
 req = next(r for r in manifest["requirements"] if r.startswith("aiopurpleair"))
 expected = req.split("==", 1)[1]
 installed = version("aiopurpleair")
-assert Version(installed) == Version(expected), (
-    f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
-    f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
-)
+if Version(installed) != Version(expected):
+    raise RuntimeError(
+        f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
+        f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
+    )
 print(f"aiopurpleair editable install verified at version {installed}")
 PYEOF
 else
