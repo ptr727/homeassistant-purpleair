@@ -26,16 +26,18 @@ PR titles drive versioning via [release-please](https://github.com/googleapis/re
 
 ### Types and bump effect
 
-| Prefix                                | Bump on next release | Use for                                 |
-| ------------------------------------- | -------------------- | --------------------------------------- |
-| `feat!:` or `BREAKING CHANGE:` footer | major                | API/behaviour breaks for end users      |
-| `feat:`                               | minor                | New user-visible capability             |
-| `fix:` / `perf:`                      | patch                | Bug fixes, perf wins                    |
-| `chore:`                              | none                 | Dep bumps, internal cleanup, tooling    |
-| `docs:`                               | none                 | Doc-only changes                        |
-| `refactor:`                           | none                 | Restructuring without behaviour change  |
-| `test:`                               | none                 | Test-only changes                       |
-| `build:` / `ci:`                      | none                 | Build system / CI config                |
+| Prefix                                  | Bump on next release | Use for                                 |
+| --------------------------------------- | -------------------- | --------------------------------------- |
+| `<type>!:` or `BREAKING CHANGE:` footer | major                | API/behaviour breaks for end users      |
+| `feat:`                                 | minor                | New user-visible capability             |
+| `fix:` / `perf:`                        | patch                | Bug fixes, perf wins                    |
+| `chore:`                                | none                 | Dep bumps, internal cleanup, tooling    |
+| `docs:`                                 | none                 | Doc-only changes                        |
+| `refactor:`                             | none                 | Restructuring without behaviour change  |
+| `test:`                                 | none                 | Test-only changes                       |
+| `build:` / `ci:`                        | none                 | Build system / CI config                |
+
+Per Conventional Commits, `!` after any type marks a breaking change and forces a major bump — `feat!:`, `fix!:`, `refactor!:`, etc. are all valid.
 
 ### Rules
 

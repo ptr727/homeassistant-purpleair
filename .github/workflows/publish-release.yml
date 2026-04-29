@@ -2,7 +2,14 @@ name: Publish project release action
 
 on:
   push:
-    branches: [main, develop]
+    # Trigger on tag push (release-please pushes tags after merging its release
+    # PR). Using branch-push would race with release-please when both fire on
+    # the same merge commit: softprops/action-gh-release uses GITHUB_TOKEN, which
+    # is not in the tag-protection bypass list, so it cannot push the tag if
+    # release-please hasn't yet — and if it has, the duplicate-tag push fails.
+    # Tag-push trigger serializes the flow: tag is already in place when this
+    # workflow runs, softprops just attaches the release to it.
+    tags: ['*']
   workflow_dispatch:
 
 concurrency:

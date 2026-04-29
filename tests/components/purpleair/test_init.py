@@ -376,6 +376,61 @@ async def test_async_migrate_integration_merges_enabled_siblings(
     assert sensor_indices == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
 
 
+async def test_async_migrate_integration_drops_legacy_device_link(
+    hass: HomeAssistant,
+) -> None:
+    """Migration removes the legacy (parent_entry, None) device link.
+
+    Regression: a v1 device is registered with `config_entry_id=entry.entry_id`
+    and no subentry, recorded as `(entry, None)` in the device registry. v2
+    binds the device to a real subentry instead. The migration must add the
+    new (parent_entry, subentry) association *and* drop the legacy
+    (parent_entry, None) one — otherwise the device carries a stale "linked to
+    the entry without any subentry" association forever.
+
+    This guard exercises the parent-entry branch of async_migrate_integration
+    (the case where the migrating entry is itself the chosen parent — i.e. a
+    single v1 entry with no API-key siblings).
+    """
+    parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="parent",
+    )
+    parent.add_to_hass(hass)
+
+    device_registry = mock_device_registry(hass)
+    device = device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="TEST_SENSOR_INDEX1",
+    )
+    # Pre-condition: the legacy (parent, None) link is what v1 produced.
+    assert device.config_entries_subentries[parent.entry_id] == {None}
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    survivor = hass.config_entries.async_get_entry(parent.entry_id)
+    assert survivor is not None
+    assert survivor.version == SCHEMA_VERSION
+    assert len(survivor.subentries) == 1
+    sub = next(iter(survivor.subentries.values()))
+
+    # Device is still bound to the parent entry, but ONLY via the new subentry —
+    # the legacy `None` association has been removed.
+    refreshed = device_registry.async_get(device.id)
+    assert refreshed is not None
+    assert parent.entry_id in refreshed.config_entries
+    assert refreshed.config_entries_subentries[parent.entry_id] == {sub.subentry_id}
+
+
 async def test_async_migrate_integration_noop_when_no_v1(
     hass: HomeAssistant,
 ) -> None:

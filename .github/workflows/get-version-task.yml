@@ -32,15 +32,21 @@ jobs:
         id: read
         # `jq -e` exits non-zero when `select(...)` filters the value out, so a
         # version that doesn't match SemVer2 fails the workflow before any
-        # expensive downstream job runs.
+        # expensive downstream job runs. Prerelease is derived from the version
+        # string itself (SemVer prerelease segment introduced by '-') rather
+        # than from github.ref_name, because publish-release.yml is triggered
+        # by tag push and ref_name is the tag, never the branch.
         run: |
           set -euo pipefail
           VERSION=$(jq -e -r '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"))' custom_components/purpleair/manifest.json)
           echo "SemVer2=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Tag=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.ref_name }}" = "main" ]; then
-              echo "Prerelease=false" >> "$GITHUB_OUTPUT"
+          # SemVer: a '-' only appears in the prerelease segment; build
+          # metadata is '+'-introduced and irrelevant to release status.
+          if [[ "$VERSION" == *-* ]]; then
+              PRERELEASE=true
           else
-              echo "Prerelease=true" >> "$GITHUB_OUTPUT"
+              PRERELEASE=false
           fi
-          echo "Version: $VERSION (prerelease: $([ "${{ github.ref_name }}" = "main" ] && echo false || echo true))"
+          echo "Prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION (prerelease: $PRERELEASE)"
