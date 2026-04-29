@@ -12,7 +12,7 @@ A Home Assistant [custom integration](https://developers.home-assistant.io/docs/
 - **Cost-aware field selection.** Only fields for *enabled* entities are requested, and static device-info fields are fetched once per day instead of every refresh. A typical 6-entity config uses roughly **37 % fewer field-fetches per day** than a naive implementation — see [API points and field selection](#api-points-and-field-selection).
 - **Quality-aware availability.** Entities are marked unavailable when the sensor's `confidence` drops below 50 %, when the two Plantower channels disagree (`channel_state == 0`), or when the sensor has stopped reporting (`last_seen` older than 10 min).
 - **Clear error messages in the config flow.** WRITE API keys, disabled API keys, and wrong per-sensor read keys each surface a distinct error on the right field.
-- **Gold-tier quality scale.** Full HA quality-scale gold tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, ≥ 97 % test coverage, and more — see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
+- **Platinum-tier quality scale.** Full HA quality-scale platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, ≥ 97 % test coverage, and more — see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
 - **Automatic v1 → v2 migration.** Existing config entries from the built-in integration are converted to the subentry layout on first load; entity IDs, devices, and history are preserved.
 
 ## Why private sensor support matters
@@ -267,7 +267,7 @@ In the meantime, this HACS distribution has continued to move forward — it now
 - Cost-aware dynamic field selection and the 24 h static-field cache.
 - The opt-in diagnostic entities: PM2.5 ALT, six rolling-average sensors, confidence, channel state / flags, last-seen, internal-vs-ambient diagnostics.
 - Opt-in derived entities implemented in code with source-document citations: **PM2.5 EPA mass concentration** (humidity correction) and **PM2.5 air quality index** (2024 NAAQS).
-- Gold-tier quality-scale compliance (`parallel-updates`, repair issues, stale-device cleanup, exception translations, enum entity device classes, etc.).
+- Platinum-tier quality-scale compliance (`parallel-updates`, repair issues, stale-device cleanup, exception translations, enum entity device classes, etc.).
 - Distinct config-flow errors for WRITE-type keys, disabled keys, and wrong per-sensor read keys.
 - Documented sensor behaviour with formulas, citations, and template-sensor examples for user-side calibrations.
 
@@ -289,7 +289,7 @@ Highlights over the built-in PurpleAir integration:
 - **Derived entities (disabled by default):** PM2.5 EPA mass concentration (US EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI from the 24-hour average, 2024 NAAQS breakpoints).
 - **Diagnostic entities (disabled by default):** Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, and PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
 - **Clear config-flow errors** — WRITE API keys, disabled keys, and wrong per-sensor read keys each surface a targeted error on the right field.
-- **Gold-tier** quality-scale compliance (`parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, exception translations, ≥ 97 % test coverage, `mypy --strict` clean).
+- **Platinum-tier** quality-scale compliance (`parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, exception translations, ≥ 97 % test coverage, `mypy --strict` clean).
 
 Known limitation: the v1 → v2 migration is one-way until [core PR #140901](https://github.com/home-assistant/core/pull/140901) merges. Uninstalling this custom integration after migration requires manually deleting and re-creating the PurpleAir config entry (long-term-statistics for the old entity IDs are lost). See [Migration from the built-in integration](#migration-from-the-built-in-integration) for the upgrade and downgrade procedures.
 

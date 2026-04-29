@@ -1,0 +1,46 @@
+name: Get version information task
+
+on:
+  workflow_call:
+    outputs:
+      SemVer2:
+        description: "Version string from manifest.json (raw)."
+        value: ${{ jobs.get-version.outputs.SemVer2 }}
+      Tag:
+        description: "Git tag / release name to use (matches SemVer2 verbatim)."
+        value: ${{ jobs.get-version.outputs.Tag }}
+      Prerelease:
+        description: "'true' on non-main refs, 'false' on main."
+        value: ${{ jobs.get-version.outputs.Prerelease }}
+
+jobs:
+
+  get-version:
+    name: Read version from manifest.json job
+    runs-on: ubuntu-latest
+    outputs:
+      SemVer2: ${{ steps.read.outputs.SemVer2 }}
+      Tag: ${{ steps.read.outputs.Tag }}
+      Prerelease: ${{ steps.read.outputs.Prerelease }}
+
+    steps:
+
+      - name: Checkout the repository step
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Read and validate version step
+        id: read
+        # `jq -e` exits non-zero when `select(...)` filters the value out, so a
+        # version that doesn't match SemVer2 fails the workflow before any
+        # expensive downstream job runs.
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -e -r '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"))' custom_components/purpleair/manifest.json)
+          echo "SemVer2=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Tag=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref_name }}" = "main" ]; then
+              echo "Prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+              echo "Prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Version: $VERSION (prerelease: $([ "${{ github.ref_name }}" = "main" ] && echo false || echo true))"
