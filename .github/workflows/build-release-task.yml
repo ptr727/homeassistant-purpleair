@@ -60,26 +60,35 @@ jobs:
           name: purpleair-zip
           path: ./Publish
 
-      - name: Skip-if-exists guard step
+      - name: Detect existing release step
         id: guard
-        # Make publish-release idempotent under "push to develop/main"
-        # triggers: re-pushing the same manifest version is a no-op rather
-        # than crashing on a tag collision. The notice annotation surfaces
-        # in the run summary so a forgotten version bump is still visible.
+        # Normal flow: release-please.yml has already created the GitHub
+        # Release for this tag with auto-generated notes (and pushed the tag,
+        # which is what triggered this workflow). We just attach the build
+        # artifact. Fallback: if a tag was pushed manually (e.g. recovery for
+        # a release-please run that didn't create the release for some
+        # reason), softprops below creates the release with notes + asset in
+        # one shot.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.get-version.outputs.Tag }}
         run: |
           set -euo pipefail
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              echo "::notice::Release $TAG already exists, skipping publish."
-              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "release-exists=true" >> "$GITHUB_OUTPUT"
           else
-              echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "release-exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Upload purpleair.zip to existing release step
+        if: steps.guard.outputs.release-exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.get-version.outputs.Tag }}
+        run: gh release upload "$TAG" ./Publish/purpleair.zip --clobber
+
       - name: Create GitHub release step
-        if: steps.guard.outputs.skip != 'true'
+        if: steps.guard.outputs.release-exists != 'true'
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: ${{ needs.get-version.outputs.Tag }}

@@ -9,11 +9,12 @@ on:
     # but don't match manifest.json's version (e.g. an accidentally-pushed
     # human tag).
     #
-    # Branch-push would race with release-please on the same merge commit:
-    # softprops/action-gh-release uses GITHUB_TOKEN which is not in the
-    # tag-protection bypass list, so it cannot push the tag if release-please
-    # hasn't yet — and if it has, the duplicate-tag push fails. Tag-push
-    # serializes: tag is already in place, softprops just attaches a release.
+    # The normal flow is: release-please.yml creates the GitHub Release with
+    # auto-generated notes when its release PR merges, and pushes the tag.
+    # The tag push then triggers this workflow, which builds purpleair.zip
+    # and uploads it as an asset to that release. If a tag is pushed manually
+    # (recovery), build-release-task's softprops fallback creates the release
+    # with notes + asset in one shot.
     tags: ['[0-9]*']
   workflow_dispatch:
 
