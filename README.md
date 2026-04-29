@@ -348,16 +348,17 @@ Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/t
 | `scripts/lint`  | **Lint: ruff + mypy (verify)**    | `Ctrl+Shift+B` (default build task)    |
 | `pytest`        | **Test: pytest**                  | Tasks: Run Test Task (default test)    |
 
-### Devcontainer signing prerequisites
+### Devcontainer host prerequisites
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts two files from the host so commits made inside the container are signed with your existing SSH signing key:
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (SSH signing key, GitHub CLI auth) work inside it without re-setup:
 
 | Host path | Mounted at | Purpose |
 |---|---|---|
 | `~/.ssh/id_ed25519.pub` | `/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH commit-signing key |
 | `~/.config/git/allowed_signers` | `/home/vscode/.config/git/allowed_signers` (read-only) | Git's `allowed_signers` file listing which public keys are accepted as valid signers |
+| `~/.config/gh` | `/home/vscode/.config/gh` | GitHub CLI config and auth tokens — bind-mounted read-write so `gh auth login` / token refresh inside the container persists back to the host |
 
-**Both files must exist on the host before you reopen the folder in the devcontainer, otherwise the container build will fail with a bind-mount error.**
+**All three paths must exist on the host before you reopen the folder in the devcontainer, otherwise the container build will fail with a bind-mount error.**
 
 First-time setup on the host:
 
@@ -377,8 +378,12 @@ git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
 git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
 git config --global commit.gpgsign true
+
+# 4. Authenticate the GitHub CLI on the host so the container shares the login.
+#    Skip this if ~/.config/gh already exists from a prior `gh auth login`.
+gh auth login
 ```
 
-After those files exist, open the repo in VS Code and **Reopen in Container** — the devcontainer will build and every commit from inside will be signed with the host's key.
+After those paths exist, open the repo in VS Code and **Reopen in Container** — the devcontainer will build with `gh` installed and pre-authenticated, and every commit from inside will be signed with the host's key.
 
-If you do not sign commits and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before reopening (or simply don't use the devcontainer).
+If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before reopening (or simply don't use the devcontainer).

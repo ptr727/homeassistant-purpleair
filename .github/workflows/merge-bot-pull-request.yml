@@ -1,0 +1,86 @@
+name: Merge bot pull request action
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  merge-dependabot:
+    name: Merge dependabot pull request job
+    runs-on: ubuntu-latest
+    # Restrict to dependabot PRs that originate from this repository (not a fork).
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Get dependabot metadata step
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # Skip semver-major bumps across every ecosystem (pip, github-actions,
+      # devcontainers): majors can build cleanly but break runtime behaviour,
+      # so they should land via human review.
+      - name: Merge pull request step
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  merge-release-please:
+    name: Merge release-please pull request job
+    runs-on: ubuntu-latest
+    # release-please opens its release PRs as ptr727-codegen[bot] (the App used
+    # by release-please.yml) on branches named release-please--branches--<base>.
+    if: >-
+      github.actor == 'ptr727-codegen[bot]' &&
+      github.event.pull_request.user.login == 'ptr727-codegen[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'release-please--branches--') &&
+      contains(fromJSON('["main","develop"]'), github.event.pull_request.base.ref) &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Merge pull request step
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  merge-ha-version-bump:
+    name: Merge HA version bump pull request job
+    runs-on: ubuntu-latest
+    # The check-ha-version workflow opens these PRs against develop with branch
+    # names of the form ha-version-bump/<X.Y.Z>.
+    if: >-
+      github.actor == 'ptr727-codegen[bot]' &&
+      github.event.pull_request.user.login == 'ptr727-codegen[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'ha-version-bump/') &&
+      github.event.pull_request.base.ref == 'develop' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Merge pull request step
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

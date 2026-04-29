@@ -16,6 +16,21 @@ jobs:
     uses: ./.github/workflows/test-release-task.yml
     secrets: inherit
 
+  pr-title-lint:
+    name: PR title Conventional Commits lint job
+    runs-on: ubuntu-latest
+    # release-please derives the next SemVer from PR titles (one squashed
+    # commit per PR), so titles must follow Conventional Commits. Skipped on
+    # workflow_dispatch (no PR context).
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Validate PR title step
+        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Wire branch protection's "required status check" to this single job.
   # When test-release-task contains multiple sibling jobs, the calling
   # workflow only sees one aggregated `result` per `uses:` invocation —
@@ -24,7 +39,7 @@ jobs:
   check-workflow-status:
     name: Check pull request workflow status
     runs-on: ubuntu-latest
-    needs: [test-release]
+    needs: [test-release, pr-title-lint]
     if: always()
     steps:
       - name: Check workflow results step
@@ -32,5 +47,12 @@ jobs:
           set -euo pipefail
           if [[ "${{ needs.test-release.result }}" != "success" ]]; then
               echo "Job 'test-release' result: ${{ needs.test-release.result }}"
+              exit 1
+          fi
+          # pr-title-lint is skipped on workflow_dispatch (no PR context);
+          # accept skipped as non-failing.
+          if [[ "${{ needs.pr-title-lint.result }}" != "success" && \
+                "${{ needs.pr-title-lint.result }}" != "skipped" ]]; then
+              echo "Job 'pr-title-lint' result: ${{ needs.pr-title-lint.result }}"
               exit 1
           fi

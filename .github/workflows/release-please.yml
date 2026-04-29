@@ -1,0 +1,51 @@
+name: Release Please action
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  release-please:
+    name: Run release-please job
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Generate GitHub App token step
+        # Use the codegen App so the release PR is authored by ptr727-codegen[bot]
+        # and triggers PR workflows (PRs created by GITHUB_TOKEN do not).
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          app-id: ${{ secrets.CODEGEN_APP_ID }}
+          private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
+
+      - name: Run release-please for main step
+        if: github.ref_name == 'main'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Run release-please for develop step
+        if: github.ref_name == 'develop'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          target-branch: develop
+          config-file: release-please-config-develop.json
+          manifest-file: .release-please-manifest-develop.json
