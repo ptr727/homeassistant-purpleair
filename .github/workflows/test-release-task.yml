@@ -126,6 +126,8 @@ jobs:
   build-release:
     name: Build release without publishing job
     needs: [ruff, mypy, pytest, hassfest, hacs]
+    permissions:
+      contents: read
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     with:

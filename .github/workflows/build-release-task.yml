@@ -16,6 +16,8 @@ jobs:
 
   get-version:
     name: Get version information job
+    permissions:
+      contents: read
     uses: ./.github/workflows/get-version-task.yml
     secrets: inherit
 
