@@ -103,7 +103,10 @@ Per Conventional Commits, `!` after any type marks a breaking change and forces 
 
 ## Bot identity and secrets
 
-- App: `ptr727-codegen[bot]`. Secrets: `CODEGEN_APP_ID`, `CODEGEN_APP_PRIVATE_KEY`. With no "Require approvals" on `develop`/`main`, bot PRs auto-merge as soon as `check-workflow-status` is green — no branch-protection bypass needed. If approvals get turned on, both `ptr727-codegen[bot]` and `dependabot[bot]` need to be on the bypass list. If a tag ruleset restricts pushing, `ptr727-codegen[bot]` needs to be on the tag-bypass list (release-please pushes the release tag directly after the release PR merges).
+- App: `ptr727-codegen[bot]`. Repo secrets:
+  - `CODEGEN_APP_CLIENT_ID` — the App's Client ID (Settings → Developer settings → GitHub Apps → your App → "Client ID").
+  - `CODEGEN_APP_PRIVATE_KEY` — the App's private key (PEM contents).
+- With no "Require approvals" on `develop`/`main`, bot PRs auto-merge as soon as `check-workflow-status` is green — no branch-protection bypass needed. If approvals get turned on, both `ptr727-codegen[bot]` and `dependabot[bot]` need to be on the bypass list. If a tag ruleset restricts pushing, `ptr727-codegen[bot]` needs to be on the tag-bypass list (release-please pushes the release tag directly after the release PR merges).
 - Generate tokens with `actions/create-github-app-token` — never hard-code or use a PAT.
 - Bot PRs are auto-merged by [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml) which has guarded jobs for: Dependabot (skips semver-major), release-please (branch prefix `release-please--branches--`), and HA-version bumps (branch prefix `ha-version-bump/`).
 

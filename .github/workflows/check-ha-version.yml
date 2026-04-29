@@ -28,11 +28,12 @@ jobs:
       - name: Generate GitHub App token step
         # Use the codegen App so the resulting PR is App-authored: that triggers
         # PR workflows (PRs from GITHUB_TOKEN do not) and lets merge-bot pick
-        # it up via the actor guard.
+        # it up via the actor guard. `client-id` replaces the deprecated
+        # `app-id` per actions/create-github-app-token v3+.
         id: app-token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
-          app-id: ${{ secrets.CODEGEN_APP_ID }}
+          client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
           private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
 
       - name: Checkout the repository step
