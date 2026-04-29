@@ -146,7 +146,10 @@ else
     esac
     url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${arch}.tar.gz"
     tmp=$(mktemp)
-    trap 'rm -f "$tmp"' EXIT
+    extract_dir=$(mktemp -d)
+    # Trap covers both the download tarball and the extract dir so a failure
+    # in tar / install / sha-verify doesn't leak temp directories.
+    trap 'rm -rf "$extract_dir"; rm -f "$tmp"' EXIT
     echo "Downloading actionlint $ACTIONLINT_VERSION ($arch) from $url"
     curl -fsSL "$url" -o "$tmp"
 
@@ -159,11 +162,10 @@ else
     fi
     echo "Verified sha256 $actionlint_sha"
 
-    extract_dir=$(mktemp -d)
     tar -xzf "$tmp" -C "$extract_dir" actionlint
     sudo install -m 0755 "$extract_dir/actionlint" /usr/local/bin/actionlint
-    rm -rf "$extract_dir"
     trap - EXIT
+    rm -rf "$extract_dir"
     rm -f "$tmp"
     echo "Installed: actionlint $(actionlint -version | head -n1)"
 fi
