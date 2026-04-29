@@ -9,8 +9,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: {}
-
 jobs:
 
   create-release:
@@ -29,4 +27,4 @@ jobs:
     uses: ./.github/workflows/build-datebadge-task.yml
     secrets: inherit
     permissions:
-      contents: read
+      contents: write

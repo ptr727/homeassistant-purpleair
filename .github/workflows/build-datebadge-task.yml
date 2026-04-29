@@ -3,8 +3,6 @@ name: Build BYOB date badge task
 on:
   workflow_call:
 
-permissions: {}
-
 jobs:
 
   date-badge:
@@ -13,8 +11,6 @@ jobs:
     # Only update the "Last Build" badge on main; develop/PR runs would
     # otherwise overwrite it with stale-branch timestamps.
     if: ${{ github.ref_name == 'main' }}
-    permissions:
-      contents: read
 
     steps:
 

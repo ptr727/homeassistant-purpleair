@@ -13,15 +13,11 @@ on:
         description: "'true' on non-main refs, 'false' on main."
         value: ${{ jobs.get-version.outputs.Prerelease }}
 
-permissions: {}
-
 jobs:
 
   get-version:
     name: Read version from manifest.json job
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     outputs:
       SemVer2: ${{ steps.read.outputs.SemVer2 }}
       Tag: ${{ steps.read.outputs.Tag }}
