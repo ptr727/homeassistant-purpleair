@@ -33,6 +33,12 @@
         "python.testing.unittestEnabled": false,
         "python.testing.pytestArgs": [
             "tests"
+        ],
+        "github.copilot.chat.commitMessageGeneration.instructions": [
+            { "file": ".github/copilot-instructions.md" }
+        ],
+        "github.copilot.chat.pullRequestDescriptionGeneration.instructions": [
+            { "file": ".github/copilot-instructions.md" }
         ]
     },
     "extensions": {

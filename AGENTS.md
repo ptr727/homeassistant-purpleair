@@ -12,18 +12,55 @@ A HACS-installable Home Assistant **custom integration** for PurpleAir air-quali
 - **Squash-only merges.** PR title becomes the commit message. Never use merge commits or rebase merges — release-please parses the squashed PR title.
 - Open feature PRs against `develop`. `develop → main` is how stable releases are cut.
 
-## Conventional Commits (enforced)
+## Commit messages and PR titles (enforced)
 
-PR titles drive versioning via [release-please](https://github.com/googleapis/release-please). [test-pull-request.yml](.github/workflows/test-pull-request.yml) has a required `pr-title-lint` job that blocks merge on non-conformant titles.
+PR titles drive versioning via [release-please](https://github.com/googleapis/release-please). PRs squash-merge, so the PR title becomes the single commit message on `develop` / `main`. [test-pull-request.yml](.github/workflows/test-pull-request.yml) has a required `pr-title-lint` job that blocks merge on non-conformant titles. Tag protection means the release App is the only writer for SemVer-shaped tags, so non-conformant titles can't accidentally produce a release.
 
-| Prefix                                | Bump on next release |
-| ------------------------------------- | -------------------- |
-| `feat!:` or `BREAKING CHANGE:` footer | major                |
-| `feat:`                               | minor                |
-| `fix:` / `perf:`                      | patch                |
-| `chore:` / `docs:` / `refactor:` / `test:` / `build:` / `ci:` | none |
+### Format
 
-If you're unsure whether to release, prefer `chore:`. Routine dep bumps from Dependabot use `chore(deps):` and intentionally don't trigger releases.
+    <type>(<optional scope>): <imperative summary, lowercase, no trailing period>
+
+    [optional body, wrapped at 72 chars, blank-line separated]
+
+    [optional BREAKING CHANGE: ... footer]
+
+### Types and bump effect
+
+| Prefix                                | Bump on next release | Use for                                 |
+| ------------------------------------- | -------------------- | --------------------------------------- |
+| `feat!:` or `BREAKING CHANGE:` footer | major                | API/behaviour breaks for end users      |
+| `feat:`                               | minor                | New user-visible capability             |
+| `fix:` / `perf:`                      | patch                | Bug fixes, perf wins                    |
+| `chore:`                              | none                 | Dep bumps, internal cleanup, tooling    |
+| `docs:`                               | none                 | Doc-only changes                        |
+| `refactor:`                           | none                 | Restructuring without behaviour change  |
+| `test:`                               | none                 | Test-only changes                       |
+| `build:` / `ci:`                      | none                 | Build system / CI config                |
+
+### Rules
+
+- Subject ≤ 72 characters, lowercase first word, **no trailing period**.
+- Use the imperative mood ("add X", not "added X" or "adds X").
+- Use `(scope)` when narrowing helps: `(coordinator)`, `(sensor)`, `(workflows)`, `(deps)` for dep bumps, `(docs)` for docs.
+- Body explains **why**, not what. The diff shows what.
+- Bump magnitude flows from the **type**, so don't say "minor" / "patch" in the title — pick the right type instead.
+- For Dependabot-shaped PRs, use `chore(deps): ...` so they don't trigger a release. A maintainer may retitle a security update to `fix(deps): ...` before merge if it should ship a patch.
+- If you're unsure whether to release, prefer `chore:`.
+
+### Examples
+
+    feat: surface 24-hour PM2.5 average as a separate sensor
+    fix(coordinator): skip empty PurpleAir API responses during polling
+    feat!: drop support for Home Assistant < 2026.4
+    chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
+    docs: clarify HACS install steps in README
+    ci: pin actionlint to v1.7.7
+
+### What NOT to do
+
+- Don't manually bump `version` in `manifest.json` — release-please owns that.
+- Don't open a PR titled `update stuff`, `wip`, or `Bump X from Y to Z` (Dependabot's default; configure `commit-message.prefix: "chore"` in `dependabot.yml` to avoid this).
+- Don't add `Co-Authored-By:` lines for AI tools unless the user explicitly asks.
 
 ## Versioning — DO NOT touch manually
 
