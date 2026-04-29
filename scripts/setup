@@ -112,8 +112,10 @@ else
     echo "Verified sha256 $expected_sha"
 
     sudo install -m 0755 "$tmp" /usr/local/bin/go2rtc
-    trap - EXIT
+    # Explicit cleanup before clearing the trap so an interruption (SIGINT)
+    # or failed rm during this window still falls back to the trap.
     rm -f "$tmp"
+    trap - EXIT
     echo "Installed: $(go2rtc --version | head -n1)"
 fi
 
@@ -146,7 +148,10 @@ else
     esac
     url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${arch}.tar.gz"
     tmp=$(mktemp)
-    trap 'rm -f "$tmp"' EXIT
+    extract_dir=$(mktemp -d)
+    # Trap covers both the download tarball and the extract dir so a failure
+    # in tar / install / sha-verify doesn't leak temp directories.
+    trap 'rm -rf "$extract_dir"; rm -f "$tmp"' EXIT
     echo "Downloading actionlint $ACTIONLINT_VERSION ($arch) from $url"
     curl -fsSL "$url" -o "$tmp"
 
@@ -159,12 +164,14 @@ else
     fi
     echo "Verified sha256 $actionlint_sha"
 
-    extract_dir=$(mktemp -d)
     tar -xzf "$tmp" -C "$extract_dir" actionlint
     sudo install -m 0755 "$extract_dir/actionlint" /usr/local/bin/actionlint
+    # Explicit cleanup runs before disabling the trap so that an interruption
+    # (SIGINT) or a failed rm during this window still falls back to the trap
+    # as a safety net. trap is only cleared after both resources are gone.
     rm -rf "$extract_dir"
-    trap - EXIT
     rm -f "$tmp"
+    trap - EXIT
     echo "Installed: actionlint $(actionlint -version | head -n1)"
 fi
 
@@ -194,7 +201,9 @@ else
 
     mkdir -p config/custom_components/hacs
     python3 -m zipfile -e "$tmp" config/custom_components/hacs/
-    trap - EXIT
+    # Explicit cleanup before clearing the trap so an interruption (SIGINT)
+    # or failed rm during this window still falls back to the trap.
     rm -f "$tmp"
+    trap - EXIT
     echo "Installed HACS $HACS_VERSION"
 fi
