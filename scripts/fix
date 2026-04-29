@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Apply auto-fixes for ruff format + ruff check. Run scripts/lint afterwards
+# to verify that anything ruff couldn't auto-fix is also clean.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+ruff format .
+ruff check . --fix

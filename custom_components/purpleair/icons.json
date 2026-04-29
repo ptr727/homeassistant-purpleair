@@ -1,0 +1,36 @@
+{
+  "entity": {
+    "sensor": {
+      "channel_flags": {
+        "default": "mdi:flag-variant"
+      },
+      "channel_state": {
+        "default": "mdi:state-machine"
+      },
+      "confidence": {
+        "default": "mdi:percent"
+      },
+      "last_seen": {
+        "default": "mdi:clock-outline"
+      },
+      "pm0_3_count_concentration": {
+        "default": "mdi:blur"
+      },
+      "pm0_5_count_concentration": {
+        "default": "mdi:blur"
+      },
+      "pm1_0_count_concentration": {
+        "default": "mdi:blur"
+      },
+      "pm10_0_count_concentration": {
+        "default": "mdi:blur"
+      },
+      "pm2_5_count_concentration": {
+        "default": "mdi:blur"
+      },
+      "pm5_0_count_concentration": {
+        "default": "mdi:blur"
+      }
+    }
+  }
+}

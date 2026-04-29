@@ -8,11 +8,13 @@ __pycache__
 
 # misc
 .coverage
-.vscode
 coverage.xml
 .ruff_cache
-
+.claude
 
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# aiopurpleair editable checkout (cloned by scripts/setup)
+aiopurpleair/

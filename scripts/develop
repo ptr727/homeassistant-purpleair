@@ -11,10 +11,13 @@ if [[ ! -d "${PWD}/config" ]]; then
 fi
 
 # Set the path to custom_components
-## This let's us have the structure we want <root>/custom_components/integration_blueprint
+## This lets us have the structure we want <root>/custom_components/purpleair
 ## while at the same time have Home Assistant configuration inside <root>/config
 ## without resulting to symlinks.
 export PYTHONPATH="${PYTHONPATH}:${PWD}/custom_components"
 
-# Start Home Assistant
-hass --config "${PWD}/config" --debug
+# Start Home Assistant.
+# --skip-pip-packages aiopurpleair preserves the editable install from
+# scripts/setup; otherwise HA's package check would reinstall the pinned
+# aiopurpleair==<version> from PyPI on every launch, clobbering ./aiopurpleair.
+hass --config "${PWD}/config" --debug --skip-pip-packages aiopurpleair

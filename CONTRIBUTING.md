@@ -1,61 +1,31 @@
 # Contribution guidelines
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Contributions are welcome — bug reports, fixes, feature proposals, and documentation improvements.
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
+## Workflow
 
-## Github is used for everything
+1. Fork the repo and branch from `develop` (releases are cut from `main`).
+2. Make your change and update any affected documentation.
+3. Apply auto-fixes with `scripts/fix` (runs `ruff format` + `ruff check --fix`).
+4. Verify with `scripts/lint` (verify-only: `ruff format --check` + `ruff check` + `mypy --strict`). CI runs the same checks.
+5. Run the test suite with `pytest` (install `requirements-test.txt` first).
+6. Open a pull request against `develop`.
 
-Github is used to host code, to track issues and feature requests, as well as accept pull requests.
+For upstream-relevant functional changes, please also raise them on [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) so the fix lands in Home Assistant core and benefits all users.
 
-Pull requests are the best way to propose changes to the codebase.
+## Reporting bugs
 
-1. Fork the repo and create your branch from `main`.
-2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
-4. Test you contribution.
-5. Issue that pull request!
+File issues on the [issue tracker](../../issues/new/choose). Good reports include:
 
-## Any contributions you make will be under the MIT Software License
+- A quick summary and environment details (HA version, integration version).
+- Steps to reproduce.
+- What you expected vs. what actually happened.
+- Relevant log snippets or diagnostics output.
 
-In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
+## Coding style
 
-## Report bugs using Github's [issues](../../issues)
-
-GitHub issues are used to track public bugs.
-Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
-
-## Write bug reports with detail, background, and sample code
-
-**Great Bug Reports** tend to have:
-
-- A quick summary and/or background
-- Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
-- What you expected would happen
-- What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
-
-People *love* thorough bug reports. I'm not even kidding.
-
-## Use a Consistent Coding Style
-
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
-
-## Test your code modification
-
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
-
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
+Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) — configured in [.ruff.toml](.ruff.toml), and type-checked with `mypy --strict`. Use `scripts/fix` to auto-fix and `scripts/lint` to verify (CI only runs the latter).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its MIT License.
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). By contributing, you agree that your contributions will be licensed under the same terms.
