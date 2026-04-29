@@ -36,6 +36,7 @@ PR titles drive versioning via [release-please](https://github.com/googleapis/re
 | `refactor:`                             | none                 | Restructuring without behaviour change  |
 | `test:`                                 | none                 | Test-only changes                       |
 | `build:` / `ci:`                        | none                 | Build system / CI config                |
+| `revert:`                               | none                 | Reverting a previous commit (use `git revert`-style PR title) |
 
 Per Conventional Commits, `!` after any type marks a breaking change and forces a major bump — `feat!:`, `fix!:`, `refactor!:`, etc. are all valid.
 
@@ -98,7 +99,7 @@ Per Conventional Commits, `!` after any type marks a breaking change and forces 
 - Step names end in `step`, job names end in `job`.
 - Top-level workflows have a `concurrency:` block keyed on `${{ github.workflow }}-${{ github.ref }}`.
 - Shell scripts start with `set -euo pipefail`.
-- After editing any workflow, validate with `actionlint` (downloadable via `bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)`).
+- After editing any workflow, validate with `actionlint .github/workflows/*.yml` (preinstalled in the devcontainer; see "Linters available in the devcontainer" below).
 
 ## Bot identity and secrets
 
@@ -118,8 +119,23 @@ Per Conventional Commits, `!` after any type marks a breaking change and forces 
 
 [.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key, `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed and `gh` is pre-authenticated. See [README.md](README.md#devcontainer-host-prerequisites).
 
+## Linters available in the devcontainer
+
+The devcontainer ships these CLIs out of the box. Use them locally before pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local runs are the only gate.
+
+| Tool          | What it lints                                     | Quick command                                      |
+| ------------- | ------------------------------------------------- | -------------------------------------------------- |
+| `actionlint`  | GitHub Actions workflow YAML (also runs shellcheck on `run:` blocks if shellcheck is on PATH, which it is here) | `actionlint .github/workflows/*.yml` |
+| `shellcheck`  | Standalone shell scripts (e.g. anything under [scripts/](scripts/)) | `shellcheck scripts/*`                       |
+| `yamllint`    | Generic YAML structure / formatting              | `yamllint .github/workflows/`                      |
+| `markdownlint` | Markdown (CONTRIBUTING.md, README.md, AGENTS.md, etc.) | Use the VS Code "markdownlint" extension; CLI: `npx markdownlint-cli2 '**/*.md'` |
+| `ruff`        | Python lint + format (CI-required)               | `scripts/fix` (auto-fix) / `scripts/lint` (verify) |
+| `mypy --strict` | Python type checking (CI-required)             | `scripts/lint`                                     |
+
+Installation lives in [.devcontainer.json](.devcontainer.json) (apt-packages: `shellcheck`, `yamllint`) and [scripts/setup](scripts/setup) (`actionlint` pinned with per-arch SHA256 verification, mirroring the go2rtc / HACS install pattern). The matching VS Code extensions (`arahata.linter-actionlint`, `timonwong.shellcheck`, `davidanson.vscode-markdownlint`) are recommended in [homeassistant-purpleair.code-workspace](homeassistant-purpleair.code-workspace), so opening a file gets inline diagnostics.
+
 ## Tooling pointers
 
-- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`.
+- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount (see [README.md](README.md#devcontainer-host-prerequisites)).
 - **HA core API reference**: when adding/modifying entity behaviour, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
 - **Upstream PR for shared work**: [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) tracks the upstream version of this integration; mirror functional changes there when relevant.

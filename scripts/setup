@@ -117,6 +117,57 @@ else
     echo "Installed: $(go2rtc --version | head -n1)"
 fi
 
+# --- actionlint -----------------------------------------------------------
+# Workflow linter — same tool used by `actionlint -color .github/workflows/*.yml`
+# in CI advice. Pinned with per-arch SHA256 from upstream's checksums.txt.
+ACTIONLINT_VERSION=1.7.7
+
+installed_actionlint="$(actionlint -version 2>/dev/null | head -n1 || true)"
+if [ "$installed_actionlint" = "$ACTIONLINT_VERSION" ]; then
+    echo "actionlint $ACTIONLINT_VERSION already installed, skipping."
+else
+    case "$(uname -m)" in
+        x86_64)
+            arch=amd64
+            actionlint_sha=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+            ;;
+        aarch64)
+            arch=arm64
+            actionlint_sha=401942f9c24ed71e4fe71b76c7d638f66d8633575c4016efd2977ce7c28317d0
+            ;;
+        armv7l)
+            arch=armv6
+            actionlint_sha=82e98d7252341b83fa557764824f225fa50431801b8e3d8e99f70dc1efc317b2
+            ;;
+        *)
+            echo "Unsupported architecture for actionlint: $(uname -m)" >&2
+            exit 1
+            ;;
+    esac
+    url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${arch}.tar.gz"
+    tmp=$(mktemp)
+    trap 'rm -f "$tmp"' EXIT
+    echo "Downloading actionlint $ACTIONLINT_VERSION ($arch) from $url"
+    curl -fsSL "$url" -o "$tmp"
+
+    actual_sha=$(sha256sum "$tmp" | awk '{print $1}')
+    if [ "$actual_sha" != "$actionlint_sha" ]; then
+        echo "actionlint checksum mismatch!" >&2
+        echo "  expected: $actionlint_sha" >&2
+        echo "  actual:   $actual_sha" >&2
+        exit 1
+    fi
+    echo "Verified sha256 $actionlint_sha"
+
+    extract_dir=$(mktemp -d)
+    tar -xzf "$tmp" -C "$extract_dir" actionlint
+    sudo install -m 0755 "$extract_dir/actionlint" /usr/local/bin/actionlint
+    rm -rf "$extract_dir"
+    trap - EXIT
+    rm -f "$tmp"
+    echo "Installed: actionlint $(actionlint -version | head -n1)"
+fi
+
 # --- HACS -----------------------------------------------------------------
 # https://www.hacs.xyz/
 # Pinned release-artifact install (replaces the legacy `curl | bash` installer).

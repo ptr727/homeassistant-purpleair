@@ -10,7 +10,7 @@ on:
         description: "Git tag / release name to use (matches SemVer2 verbatim)."
         value: ${{ jobs.get-version.outputs.Tag }}
       Prerelease:
-        description: "'true' on non-main refs, 'false' on main."
+        description: "'true' if the manifest version contains a SemVer prerelease segment (e.g. 0.2.0-beta.1), 'false' for stable versions (e.g. 0.2.0). Derived from the version string itself, not from the triggering ref."
         value: ${{ jobs.get-version.outputs.Prerelease }}
 
 jobs:

@@ -22,7 +22,7 @@ Releases are automated by [release-please](https://github.com/googleapis/release
 | `feat:`            | Minor bump (`0.x.0`)               | `feat: add support for outdoor sensors`           |
 | `fix:` / `perf:`   | Patch bump (`0.0.x`)               | `fix: handle empty PurpleAir API response`        |
 | `<type>!:` / `BREAKING CHANGE:` footer | Major bump (`x.0.0`) | `feat!: drop support for HA < 2026.4`           |
-| `chore:` / `docs:` / `refactor:` / `test:` / `build:` / `ci:` | No release | `chore: bump dev requirements`         |
+| `chore:` / `docs:` / `refactor:` / `test:` / `build:` / `ci:` / `revert:` | No release | `chore: bump dev requirements`         |
 
 Per Conventional Commits, `!` after **any** type marks a breaking change and forces a major bump — `feat!:`, `fix!:`, `refactor!:`, etc. all qualify.
 

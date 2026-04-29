@@ -2,14 +2,19 @@ name: Publish project release action
 
 on:
   push:
-    # Trigger on tag push (release-please pushes tags after merging its release
-    # PR). Using branch-push would race with release-please when both fire on
-    # the same merge commit: softprops/action-gh-release uses GITHUB_TOKEN, which
-    # is not in the tag-protection bypass list, so it cannot push the tag if
-    # release-please hasn't yet — and if it has, the duplicate-tag push fails.
-    # Tag-push trigger serializes the flow: tag is already in place when this
-    # workflow runs, softprops just attaches the release to it.
-    tags: ['*']
+    # Trigger on SemVer-shaped tag push (release-please pushes tags after
+    # merging its release PR; this repo's tags are bare SemVer like 0.2.0 or
+    # 0.2.0-beta.1, no v prefix). The `[0-9]*` filter admits anything starting
+    # with a digit — the guard job below rejects tags that pass the filter
+    # but don't match manifest.json's version (e.g. an accidentally-pushed
+    # human tag).
+    #
+    # Branch-push would race with release-please on the same merge commit:
+    # softprops/action-gh-release uses GITHUB_TOKEN which is not in the
+    # tag-protection bypass list, so it cannot push the tag if release-please
+    # hasn't yet — and if it has, the duplicate-tag push fails. Tag-push
+    # serializes: tag is already in place, softprops just attaches a release.
+    tags: ['[0-9]*']
   workflow_dispatch:
 
 concurrency:
@@ -18,8 +23,35 @@ concurrency:
 
 jobs:
 
+  guard:
+    name: Guard tag matches manifest version job
+    # On tag-push, refuse to proceed unless the pushed tag matches the version
+    # in the checked-out manifest.json. This catches a manually-pushed tag
+    # that happens to start with a digit but isn't a release we want to
+    # publish (the App is in tag-bypass and could in principle push such a
+    # tag). Skipped on workflow_dispatch — the dispatcher is trusted.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository step
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Assert tag matches manifest version step
+        run: |
+          set -euo pipefail
+          MANIFEST=$(jq -r .version custom_components/purpleair/manifest.json)
+          if [ "${{ github.ref_name }}" != "$MANIFEST" ]; then
+              echo "::error::Tag ${{ github.ref_name }} does not match manifest version $MANIFEST; refusing to publish."
+              exit 1
+          fi
+          echo "Tag ${{ github.ref_name }} matches manifest version $MANIFEST."
+
   create-release:
     name: Publish project release job
+    needs: [guard]
+    # `needs.guard.result == 'skipped'` covers workflow_dispatch (where guard
+    # is intentionally skipped) and 'success' covers the tag-push path.
+    if: ${{ always() && (needs.guard.result == 'success' || needs.guard.result == 'skipped') }}
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     permissions:

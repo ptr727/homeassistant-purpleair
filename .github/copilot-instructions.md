@@ -21,7 +21,7 @@ PRs squash-merge, so the PR title becomes the single commit message on `develop`
 - `feat:` → minor bump (new user-visible capability)
 - `fix:` / `perf:` → patch bump (bug fixes, perf wins)
 - `<type>!:` or `BREAKING CHANGE:` footer → major bump (`feat!:`, `fix!:`, `refactor!:`, etc.; `!` on any type signals a breaking change per Conventional Commits)
-- `chore:` / `docs:` / `refactor:` / `test:` / `build:` / `ci:` → no release
+- `chore:` / `docs:` / `refactor:` / `test:` / `build:` / `ci:` / `revert:` → no release
 
 If you're unsure whether the change should ship as a release, prefer `chore:`. Dependency bumps use `chore(deps): ...`.
 
