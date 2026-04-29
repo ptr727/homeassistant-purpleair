@@ -59,13 +59,15 @@ jobs:
               config=release-please-config-develop.json
           fi
           bootstrap_sha=$(jq -r '."bootstrap-sha" // ""' "$config")
-          # Range: prefer the latest release tag, but fall back to
-          # bootstrap-sha when the tag is older than bootstrap-sha (e.g. an
-          # orphan tag left from before this repo adopted Conventional
-          # Commits — pointing at history we explicitly want to skip).
-          # After a real release lands, the tag will be a descendant of
-          # bootstrap-sha and naturally wins.
-          last_tag=$(git tag --list --sort=-v:refname | head -n1 || true)
+          # Range: prefer the latest release tag *reachable from HEAD*, but
+          # fall back to bootstrap-sha when that tag is older than
+          # bootstrap-sha (e.g. an orphan tag pointing at history we want to
+          # skip). `--merged HEAD` filters out tags on sibling branches —
+          # without it, a stable tag cut on `main` would be picked up by a
+          # `develop` run and we'd validate the develop→main divergence as
+          # part of the range. After a real release lands on the current
+          # branch, that tag will be a descendant of bootstrap-sha and wins.
+          last_tag=$(git tag --merged HEAD --sort=-v:refname | head -n1 || true)
           if [ -n "$last_tag" ] && [ -n "$bootstrap_sha" ] && \
              git merge-base --is-ancestor "$last_tag" "$bootstrap_sha"; then
               from="$bootstrap_sha"
