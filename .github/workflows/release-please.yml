@@ -26,11 +26,79 @@ jobs:
       - name: Generate GitHub App token step
         # Use the codegen App so the release PR is authored by ptr727-codegen[bot]
         # and triggers PR workflows (PRs created by GITHUB_TOKEN do not).
+        # `client-id` replaces the deprecated `app-id` per
+        # actions/create-github-app-token v3+.
         id: app-token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
-          app-id: ${{ secrets.CODEGEN_APP_ID }}
+          client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
           private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
+
+      - name: Checkout the repository step
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Full history + tags so the validation step below can walk commits
+          # from the last release tag (or bootstrap-sha) up to HEAD.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate Conventional Commits step
+        # Belt-and-braces with the pr-title-lint job in test-pull-request.yml:
+        # that job blocks non-CC PR titles from merging via the squash-only
+        # path, but a force-push or admin-bypass push could in principle land
+        # a non-CC commit on develop/main. release-please-action only logs
+        # warnings for unparseable commits and silently skips the release —
+        # this step makes that condition fatal so it surfaces immediately.
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$BRANCH" = "main" ]; then
+              config=release-please-config.json
+          else
+              config=release-please-config-develop.json
+          fi
+          bootstrap_sha=$(jq -r '."bootstrap-sha" // ""' "$config")
+          # Range: prefer the latest release tag *reachable from HEAD*, but
+          # fall back to bootstrap-sha when that tag is older than
+          # bootstrap-sha (e.g. an orphan tag pointing at history we want to
+          # skip). `--merged HEAD` filters out tags on sibling branches —
+          # without it, a stable tag cut on `main` would be picked up by a
+          # `develop` run and we'd validate the develop→main divergence as
+          # part of the range. After a real release lands on the current
+          # branch, that tag will be a descendant of bootstrap-sha and wins.
+          last_tag=$(git tag --merged HEAD --sort=-v:refname | head -n1 || true)
+          if [ -n "$last_tag" ] && [ -n "$bootstrap_sha" ] && \
+             git merge-base --is-ancestor "$last_tag" "$bootstrap_sha"; then
+              from="$bootstrap_sha"
+              echo "Tag $last_tag is older than bootstrap-sha; using bootstrap-sha as cutoff."
+          elif [ -n "$last_tag" ]; then
+              from="$last_tag"
+          elif [ -n "$bootstrap_sha" ]; then
+              from="$bootstrap_sha"
+          else
+              echo "::warning::No release tag and no bootstrap-sha configured; skipping CC validation"
+              exit 0
+          fi
+          echo "Validating commits in $from..HEAD as Conventional Commits"
+          # Allowed types must match test-pull-request.yml's pr-title-lint
+          # allowlist exactly.
+          cc_regex='^(feat|fix|perf|chore|docs|refactor|test|build|ci|revert)(\([^)]+\))?!?: .+'
+          non_cc=""
+          while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              subject="${line#* }"
+              if ! [[ "$subject" =~ $cc_regex ]]; then
+                  non_cc+="${line}"$'\n'
+              fi
+          done < <(git log --format='%H %s' "$from"..HEAD)
+          if [ -n "$non_cc" ]; then
+              echo "::error::Found commits since $from that are not Conventional Commits:"
+              printf '%s' "$non_cc"
+              echo "::error::pr-title-lint should have caught these — check for force-pushes or admin-bypass pushes."
+              exit 1
+          fi
+          echo "All commits since $from are Conventional Commits."
 
       - name: Run release-please for main step
         if: github.ref_name == 'main'
