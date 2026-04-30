@@ -9,8 +9,7 @@ deliberation.
 A HACS-installable Home Assistant **custom integration** for PurpleAir
 air-quality sensors. Code lives in
 [custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only,
-`mypy --strict`, ruff,
-[platinum quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/).
+`mypy --strict`, ruff, [platinum quality scale][qs].
 
 ## Branches and merging
 
@@ -94,9 +93,8 @@ ci: pin actionlint to v1.7.7
 
 ## Versioning — DO NOT touch manually
 
-- The `version` field in
-  [custom_components/purpleair/manifest.json](custom_components/purpleair/manifest.json)
-  is owned by **release-please**. Do not bump it in feature PRs — release-please
+- The `version` field in [`manifest.json`][manifest-link] is owned by
+  **release-please**. Do not bump it in feature PRs — release-please
   opens its own PR that does that, and merging your PR with a manual bump will
   desync `.release-please-manifest.json` and
   `.release-please-manifest-develop.json`.
@@ -116,11 +114,12 @@ ci: pin actionlint to v1.7.7
   [check-ha-version.yml](.github/workflows/check-ha-version.yml), which derives
   both `ha` and `pytest-hacc` from PyPI's latest
   `pytest-homeassistant-custom-component` release).
-- Bumping the **minimum** is intentional and rare — do it in a `feat!:` PR that
-  also updates `hacs.json` `homeassistant`, the `requirements.txt` pin, and any
-  code that needs the new HA API.
-- **Don't** add `homeassistant` to Dependabot updates (it's explicitly ignored
-  in [dependabot.yml](.github/dependabot.yml)) — `check-ha-version.yml` owns it.
+- Bumping the **minimum** is intentional and rare — do it in a `feat!:` PR
+  that also updates `hacs.json` `homeassistant`, the `requirements.txt` pin,
+  and any code that needs the new HA API.
+- **Don't** add `homeassistant` to Dependabot updates (it's explicitly
+  ignored in [dependabot.yml](.github/dependabot.yml)) —
+  `check-ha-version.yml` owns it.
 
 ## Release flow (so you understand what to expect)
 
@@ -131,9 +130,9 @@ ci: pin actionlint to v1.7.7
    `.release-please-manifest-develop.json`.
 1. [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml)
    auto-merges the release PR once CI passes. **The merge runs under the App
-   token** (not GITHUB_TOKEN) so the resulting push triggers release-please.yml
-   again — without that, GitHub's recursion guard would suppress the trigger and
-   no tag would ever be pushed.
+   token** (not GITHUB_TOKEN) so the resulting push triggers
+   release-please.yml again — without that, GitHub's recursion guard would
+   suppress the trigger and no tag would ever be pushed.
 1. release-please.yml's second run pushes tag `X.Y.Z-beta.N` and creates the
    GitHub Release with auto-generated notes. The tag push triggers
    [publish-release.yml](.github/workflows/publish-release.yml) →
@@ -151,10 +150,10 @@ ci: pin actionlint to v1.7.7
 - **Comments**: only when the *why* is non-obvious — hidden constraint, subtle
   invariant, workaround. Don't explain *what* the code does. No multi-paragraph
   docstrings; one-line comment max.
-- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_` for
-  unused vars** — just delete.
-- **Don't add error handling for impossible cases** — trust internal code; only
-  validate at boundaries.
+- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_`
+  for unused vars** — just delete.
+- **Don't add error handling for impossible cases** — trust internal code;
+  only validate at boundaries.
 
 ### Linter cleanliness — applies to every linter, not just the CI gate
 
@@ -216,8 +215,8 @@ justification comment.
 ## Bot identity and secrets
 
 - App: `ptr727-codegen[bot]`. Repo secrets:
-  - `CODEGEN_APP_CLIENT_ID` — the App's Client ID (Settings → Developer settings
-    → GitHub Apps → your App → "Client ID").
+  - `CODEGEN_APP_CLIENT_ID` — the App's Client ID (Settings → Developer
+    settings → GitHub Apps → your App → "Client ID").
   - `CODEGEN_APP_PRIVATE_KEY` — the App's private key (PEM contents).
 - With no "Require approvals" on `develop`/`main`, bot PRs auto-merge as soon as
   `check-workflow-status` is green — no branch-protection bypass needed. If
@@ -236,7 +235,7 @@ justification comment.
 ## Common tasks
 
 - **Add a feature**: feature branch from `develop` → code + tests →
-  `scripts/fix` → `scripts/lint` → `pytest` → PR titled `feat: …` against
+  `scripts/fix` → `scripts/lint` → `pytest` → `feat: …` PR against
   `develop`.
 - **Fix a bug**: same as above with `fix: …` title.
 - **Add a Dependabot config / new ecosystem**: edit
@@ -279,8 +278,8 @@ Installation lives in [.devcontainer.json](.devcontainer.json) (apt-packages:
 pinned with per-arch SHA256 verification, mirroring the go2rtc / HACS install
 pattern). The matching VS Code extensions (`arahata.linter-actionlint`,
 `timonwong.shellcheck`, `davidanson.vscode-markdownlint`) are recommended in
-[homeassistant-purpleair.code-workspace](homeassistant-purpleair.code-workspace),
-so opening a file gets inline diagnostics.
+[the workspace file][workspace-link], so opening a file gets inline
+diagnostics.
 
 ## Tooling pointers
 
@@ -291,6 +290,10 @@ so opening a file gets inline diagnostics.
   upstream conventions in `home-assistant/core` (e.g., entity registry semantics
   changed in 2026.4 — that's why `minimum` is pinned there).
 - **Upstream PR for shared work**:
-  [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901)
-  tracks the upstream version of this integration; mirror functional changes
-  there when relevant.
+  [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of
+  this integration; mirror functional changes there when relevant.
+
+[manifest-link]: custom_components/purpleair/manifest.json
+[workspace-link]: homeassistant-purpleair.code-workspace
+[qs]: https://developers.home-assistant.io/docs/core/integration-quality-scale
+[ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901

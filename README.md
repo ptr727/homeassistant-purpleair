@@ -29,10 +29,9 @@ A Home Assistant [custom integration][ha-custom-integration-link] for
 > entries forward — the upgrade is automatic and preserves entity IDs and
 > history. **The downgrade is not:** if you later remove this custom
 > integration, the built-in cannot read the migrated v2 entries until
-> [core PR #140901][ha-core-pr-link] ships. See
-> [Migration from the built-in integration](#migration-from-the-built-in-integration)
-> for details. In the **Add Integration** picker this appears as **"PurpleAir
-> (custom)"** to distinguish it from the built-in **"PurpleAir"**.
+> [core PR #140901][ha-core-pr-link] ships. See [Migration][migration-link]
+> below for details. In the **Add Integration** picker this appears as
+> **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ## What it provides beyond Home Assistant's built-in PurpleAir integration
 
@@ -76,7 +75,7 @@ accounts start with enough points to run for about a month using this
 integration, before more points may need to be purchased.
 
 **Sensor owners can access data for their own sensors free of charge**, see
-[PurpleAir community: API points for sensor owners][purpleair-api-points-owners-link].
+[PurpleAir community: API points for sensor owners][free-points-link].
 To run this integration long-term at no cost for your own sensors, use the Read
 Key that was provided via email during sensor registration.
 
@@ -120,7 +119,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
     public sensor map.
   - The Read Key is **required for no cost API usage** of your own sensors (the
     Read Key is sent via email during sensor registration). Refer to
-    [PurpleAir community: API points for sensor owners][purpleair-api-points-owners-link].
+    [PurpleAir community: API points for sensor owners][free-points-link].
 
 ## Sensor behaviour and calibration
 
@@ -317,7 +316,7 @@ disabling a sensor you aren't using immediately drops its fields out of the next
 refresh.
 
 Free points are available for sensor owners who use their own sensor's Read Key;
-see [API points for sensor owners][purpleair-api-points-owners-link].
+see [API points for sensor owners][free-points-link].
 
 ## Upstream dependency: `aiopurpleair` fork
 
@@ -332,10 +331,9 @@ The integration's typed error handling, organization coordinator, and low-points
 repair issue all depend on additions that aren't in the canonical library yet.
 While upstream review is pending,
 [`manifest.json`](custom_components/purpleair/manifest.json) pins to a temporary
-fork distribution published to PyPI as `aiopurpleair-ptr727==2026.4.0` (built
-from
-[ptr727/bachya-aiopurpleair @ feat/organization-endpoint-and-error-codes][aiopurpleair-fork-link]).
-The fork adds:
+fork distribution published to PyPI as `aiopurpleair-ptr727==2026.4.0`
+(built from the [organization-endpoint-and-error-codes fork
+branch][aiopurpleair-fork-link]). The fork adds:
 
 - 19 new exception subclasses (one per documented API error code), wired into
   `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`,
@@ -421,7 +419,7 @@ Highlights of the current release:
   `ApiKeyTypeMismatchError`, `ApiDisabledError`, `PaymentRequiredError`, …)
   instead of `str(err)` substrings. Distributed via the temporary fork
   `aiopurpleair-ptr727==2026.4.0` while upstream review is pending — see
-  [Upstream dependency: `aiopurpleair` fork](#upstream-dependency-aiopurpleair-fork).
+  [Upstream dependency][upstream-dep-link] for details.
 - **Sensor selection from a map.** Pick nearby public sensors from a
   radius-filtered map picker.
 - **Derived entities (disabled by default):** PM2.5 EPA mass concentration (US
@@ -441,8 +439,7 @@ Known limitation: the v1 → v2 migration is one-way until
 [core PR #140901][ha-core-pr-link] merges. Uninstalling this custom integration
 after migration requires manually deleting and re-creating the PurpleAir config
 entry (long-term-statistics for the old entity IDs are lost). See
-[Migration from the built-in integration](#migration-from-the-built-in-integration)
-for the upgrade and downgrade procedures.
+[Migration][migration-link] for the upgrade and downgrade procedures.
 
 See [Release History](./HISTORY.md) for complete release notes and older
 versions.
@@ -461,10 +458,13 @@ versions.
    subentry layout. Entity IDs, devices, and long-term statistics are preserved.
    **You do not need to remove the built-in integration first — it is part of
    core, not a separate installation.**
-1. You will see
-   `We found a custom integration purpleair which has not been tested by Home Assistant`
-   in the log. That warning is emitted by HA for every custom integration and is
-   not a problem.
+1. You will see this warning in the log:
+
+    ```text
+    We found a custom integration purpleair which has not been tested by Home Assistant
+    ```
+
+    HA emits it for every custom integration and it is not a problem.
 
 If migration fails, the entry is marked `SETUP_ERROR`. Check **Settings → System
 → Repairs** and the log; empty v1 entries raise a targeted repair issue.
@@ -581,6 +581,11 @@ If you do not sign commits or use `gh` and don't want to set this up, delete the
 `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
 reopening (or simply don't use the devcontainer).
 
+<!-- Reference-style link definitions. Some shield URLs and project links
+exceed the prose line-length budget by design (single-token URLs aren't
+wrappable); the line-length rule is suspended for this block only. -->
+<!-- markdownlint-disable MD013 -->
+
 <!--- Shields links --->
 
 <!--- Inline links --->
@@ -597,6 +602,8 @@ reopening (or simply don't use the devcontainer).
 [coverage-shield]: https://img.shields.io/codecov/c/github/ptr727/homeassistant-purpleair?logo=codecov&label=Coverage
 [epa-pm25-link]: https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=353088&Lab=CEMM
 [ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
+[migration-link]: #migration-from-the-built-in-integration
+[upstream-dep-link]: #upstream-dependency-aiopurpleair-fork
 [ha-custom-integration-link]: https://developers.home-assistant.io/docs/creating_integration_file_structure/
 [ha-docs-pr-link]: https://github.com/home-assistant/home-assistant.io/pull/38063
 [hacs-link]: https://github.com/hacs/integration
@@ -613,7 +620,7 @@ reopening (or simply don't use the devcontainer).
 [prereleaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?include_prereleases&label=GitHub%20Pre-Release&logo=github&color=orange
 [purpleair-api-link]: https://api.purpleair.com/
 [purpleair-api-pm25-link]: https://api.purpleair.com/#api-sensors-get-sensor-data
-[purpleair-api-points-owners-link]: https://community.purpleair.com/t/api-points-for-sensor-owners/7525
+[free-points-link]: https://community.purpleair.com/t/api-points-for-sensor-owners/7525
 [purpleair-api-pricing-link]: https://community.purpleair.com/t/api-pricing/4523
 [purpleair-developer-link]: https://develop.purpleair.com/
 [purpleair-keys-link]: https://develop.purpleair.com/dashboards/keys
@@ -623,3 +630,4 @@ reopening (or simply don't use the devcontainer).
 [qualityscale-shield]: https://img.shields.io/badge/Quality_scale-Platinum-9C27B0?logo=homeassistant
 [releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
 [releaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?logo=github&label=GitHub%20Release
+<!-- markdownlint-enable MD013 -->
