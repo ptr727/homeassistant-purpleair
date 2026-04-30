@@ -39,3 +39,6 @@ updates:
       # version, so it must move in lockstep with .github/ha-test-versions.json
       # via check-ha-version.yml rather than an independent Dependabot PR.
       - dependency-name: "pytest-homeassistant-custom-component"
+      # pytest-homeassistant-custom-component also pins its pytest-cov version,
+      # so widening this direct constraint independently can break resolution.
+      - dependency-name: "pytest-cov"
