@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/ptr727/homeassistant-purpleair/compare/0.2.1...0.2.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* align release metadata for stable release ([d90d9af](https://github.com/ptr727/homeassistant-purpleair/commit/d90d9afeb8752a3b034a11aa673943bc94a29f48))
+
 ## [0.2.1](https://github.com/ptr727/homeassistant-purpleair/compare/0.2.0...0.2.1) (2026-04-30)
 
 
