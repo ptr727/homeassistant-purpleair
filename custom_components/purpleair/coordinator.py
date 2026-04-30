@@ -344,6 +344,17 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
                 translation_placeholders={"error": str(err)},
             ) from err
 
+        # Successful sensor refresh → API is accepting requests, so the
+        # out-of-points ERROR cannot be true. Clear it here so the user
+        # sees the issue disappear within the 5-minute sensors cycle
+        # rather than waiting up to 24 h for the next org refresh.
+        # `async_delete_issue` is a no-op when the issue isn't registered.
+        ir.async_delete_issue(
+            self.hass,
+            DOMAIN,
+            _out_of_points_issue_id(self.config_entry.entry_id),
+        )
+
         if include_static:
             self._update_static_cache(response)
 

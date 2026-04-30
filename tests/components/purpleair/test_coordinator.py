@@ -591,6 +591,42 @@ async def test_sensors_payment_required_creates_out_of_points_issue(
     assert issue.severity is ir.IssueSeverity.ERROR
 
 
+async def test_sensors_recovery_clears_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A successful sensors refresh clears the out-of-points issue.
+
+    Without this, a PaymentRequiredError that flips back to success on the
+    next 5-minute sensors cycle would leave a stale ERROR repair issue
+    visible for up to 24 h until the org coordinator's next refresh ran.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+
+    # Drive a PaymentRequiredError so the ERROR issue exists.
+    with patch.object(
+        api.sensors,
+        "async_get_sensors",
+        AsyncMock(side_effect=PaymentRequiredError("out of points")),
+    ):
+        freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is not None
+
+    # Next sensors refresh succeeds (the default `api` fixture returns a
+    # healthy GetSensorsResponse) — the issue should clear immediately.
+    freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is None
+
+
 async def test_organization_recovery_clears_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
