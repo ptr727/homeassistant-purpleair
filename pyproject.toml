@@ -5,13 +5,18 @@ norecursedirs = ["config"]
 
 [tool.pymarkdown]
 # CLI counterpart of .markdownlint.jsonc (which the VS Code markdownlint
-# extension reads). Long prose lines are intentional in README.md/AGENTS.md
-# etc., and inline HTML is used for the reference-style link section
-# dividers.
-plugins.md013.enabled = false
-plugins.md033.enabled = false
+# extension reads).
+#
+# MD013 (line-length): the IDE config exempts tables and code blocks via
+# `tables: false` / `code_blocks: false`. pymarkdown's md013 plugin
+# doesn't expose `tables`, so on the CLI side we use a higher threshold
+# (130) — wide enough to accept the conventional-commits + linter-tools
+# tables in AGENTS.md, narrow enough that genuinely runaway prose still
+# surfaces. Code blocks are exempted explicitly (sample output / log
+# lines reproduced verbatim).
+plugins.md013.line_length = 130
+plugins.md013.code_blocks = false
 plugins.md046.style = "fenced"
-plugins.md060.enabled = false
 
 # Pylint isn't part of the CI gate (scripts/lint runs ruff + mypy --strict),
 # but the VS Code Python extension surfaces pylint diagnostics inline. Most
