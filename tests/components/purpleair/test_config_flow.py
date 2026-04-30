@@ -2,7 +2,11 @@
 
 from unittest.mock import AsyncMock, patch
 
-from aiopurpleair.errors import InvalidApiKeyError, PurpleAirError
+from aiopurpleair.errors import (
+    InvalidApiKeyError,
+    InvalidDataReadKeyError,
+    PurpleAirError,
+)
 from aiopurpleair.models.keys import GetKeysResponse
 import pytest
 
@@ -244,7 +248,7 @@ async def test_subentry_invalid_read_key(
     with patch.object(
         api.sensors,
         "async_get_sensors",
-        AsyncMock(side_effect=PurpleAirError("InvalidDataReadKeyError: nope")),
+        AsyncMock(side_effect=InvalidDataReadKeyError("wrong read key")),
     ):
         result = await hass.config_entries.subentries.async_configure(
             result[CONF_FLOW_ID],

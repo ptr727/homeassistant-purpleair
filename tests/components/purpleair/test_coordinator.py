@@ -168,7 +168,7 @@ async def test_coordinator_merges_cached_static_values(
     await hass.async_block_till_done()
 
     # DeviceInfo values came from the cached (initial) response.
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
     merged = coordinator.data.data[TEST_SENSOR_INDEX1]
     assert merged.name == "Test Sensor"
     assert merged.hardware == "2.0+BME280+PMSX003-B+PMSX003-A"
@@ -288,7 +288,7 @@ async def test_epa_sensor_pulls_both_fields_when_baselines_disabled(
     # Force a refresh so we get a deterministic final call (the registry
     # listener uses async_request_refresh which is debounced).
     api.sensors.async_get_sensors.reset_mock()
-    await config_entry.runtime_data.async_refresh()
+    await config_entry.runtime_data.sensors.async_refresh()
     await hass.async_block_till_done()
 
     fields = api.sensors.async_get_sensors.await_args.args[0]
@@ -301,7 +301,7 @@ async def test_coordinator_empty_subentries_skips_api(
 ) -> None:
     """With no subentries, the coordinator returns an empty response without calling the API."""
     api.sensors.async_get_sensors.assert_not_called()
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
     assert coordinator.data is not None
     assert coordinator.data.data == {}
 
@@ -313,7 +313,7 @@ async def test_coordinator_map_url(
     setup_config_entry,
 ) -> None:
     """async_get_map_url delegates to the underlying API object."""
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
     assert coordinator.async_get_map_url(TEST_SENSOR_INDEX1) == "http://example.com"
 
 
@@ -357,7 +357,7 @@ async def test_coordinator_refresh_update_failures_are_reported(
     side_effect: Exception,
 ) -> None:
     """Non-auth failures surface as last_update_success = False."""
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
 
     with patch.object(
         api.sensors,
@@ -386,7 +386,7 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     directly after mutating cache / subentry state, which is how the
     DataUpdateCoordinator ultimately invokes it.
     """
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
 
     # Add a second subentry and evict its cache entry to simulate a fresh add.
     new_subentry = ConfigSubentry(

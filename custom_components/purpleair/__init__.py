@@ -24,7 +24,12 @@ from .const import (
     SCHEMA_VERSION,
     TITLE,
 )
-from .coordinator import PurpleAirConfigEntry, PurpleAirDataUpdateCoordinator
+from .coordinator import (
+    PurpleAirConfigEntry,
+    PurpleAirDataUpdateCoordinator,
+    PurpleAirOrganizationCoordinator,
+    PurpleAirRuntimeData,
+)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -45,11 +50,19 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> bool:
     """Set up PurpleAir config entry."""
-    coordinator = PurpleAirDataUpdateCoordinator(hass, entry)
-    entry.runtime_data = coordinator
+    sensors_coordinator = PurpleAirDataUpdateCoordinator(hass, entry)
+    organization_coordinator = PurpleAirOrganizationCoordinator(hass, entry)
+    entry.runtime_data = PurpleAirRuntimeData(
+        sensors=sensors_coordinator,
+        organization=organization_coordinator,
+    )
 
-    await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
+    await sensors_coordinator.async_setup()
+    await sensors_coordinator.async_config_entry_first_refresh()
+    # Don't fail HA setup if the organization endpoint is unavailable —
+    # diagnostic-only sensors and the repair issue can wait for the next
+    # refresh cycle.
+    await organization_coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

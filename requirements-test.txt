@@ -1,4 +1,4 @@
 -r requirements.txt
-aiopurpleair==2025.08.1
+aiopurpleair @ git+https://github.com/ptr727/bachya-aiopurpleair.git@ccd586892655d2890545c734e243418011d4c2ef
 pytest-homeassistant-custom-component==0.13.324
 mypy>=1.11

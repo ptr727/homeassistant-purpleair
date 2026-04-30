@@ -55,14 +55,21 @@ from importlib.metadata import version
 from packaging.version import Version
 manifest = json.loads(pathlib.Path("custom_components/purpleair/manifest.json").read_text())
 req = next(r for r in manifest["requirements"] if r.startswith("aiopurpleair"))
-expected = req.split("==", 1)[1]
-installed = version("aiopurpleair")
-if Version(installed) != Version(expected):
-    raise RuntimeError(
-        f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
-        f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
-    )
-print(f"aiopurpleair editable install verified at version {installed}")
+# Accept either a `==X.Y.Z` PyPI pin or a `@ git+…@SHA` git ref. With a git ref
+# the version assertion is skipped — the SHA is the source of truth and pip's
+# importlib.metadata still reports the version baked into the editable
+# checkout's pyproject.toml, which can lag the SHA freely.
+if "==" in req:
+    expected = req.split("==", 1)[1]
+    installed = version("aiopurpleair")
+    if Version(installed) != Version(expected):
+        raise RuntimeError(
+            f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
+            f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
+        )
+    print(f"aiopurpleair editable install verified at version {installed}")
+else:
+    print(f"aiopurpleair pinned at git ref ({req}); skipping version assertion.")
 PYEOF
 else
     echo "Skipping editable aiopurpleair install and editable-version assertion."

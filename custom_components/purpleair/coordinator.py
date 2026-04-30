@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from aiopurpleair.api import API
-from aiopurpleair.errors import InvalidApiKeyError, PurpleAirError
+from aiopurpleair.errors import InvalidApiKeyError, PaymentRequiredError, PurpleAirError
+from aiopurpleair.models.organizations import GetOrganizationResponse
 from aiopurpleair.models.sensors import GetSensorsResponse, SensorModel
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers import aiohttp_client, entity_registry as er
+from homeassistant.helpers import (
+    aiohttp_client,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -25,10 +31,22 @@ from .const import (
     STATIC_DEVICE_FIELDS,
 )
 
-type PurpleAirConfigEntry = ConfigEntry[PurpleAirDataUpdateCoordinator]
+
+@dataclass(frozen=True)
+class PurpleAirRuntimeData:
+    """Container for both coordinators attached to a PurpleAir config entry."""
+
+    sensors: PurpleAirDataUpdateCoordinator
+    organization: PurpleAirOrganizationCoordinator
+
+
+type PurpleAirConfigEntry = ConfigEntry[PurpleAirRuntimeData]
 
 UPDATE_INTERVAL: Final[timedelta] = timedelta(minutes=5)
 STATIC_REFRESH_INTERVAL: Final[timedelta] = timedelta(hours=24)
+ORGANIZATION_UPDATE_INTERVAL: Final[timedelta] = timedelta(hours=24)
+LOW_POINTS_DAYS_THRESHOLD: Final[int] = 7
+ISSUE_LOW_API_POINTS: Final[str] = "low_api_points"
 
 # SensorModel attribute names matching STATIC_DEVICE_FIELDS on-wire names.
 # name, hardware, model, firmware_version, latitude, longitude are direct.
@@ -270,6 +288,25 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
                 translation_domain=DOMAIN,
                 translation_key="invalid_api_key",
             ) from err
+        except PaymentRequiredError as err:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                f"{ISSUE_LOW_API_POINTS}_{self.config_entry.entry_id}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key=ISSUE_LOW_API_POINTS,
+                translation_placeholders={
+                    "remaining": "0",
+                    "rate": "0",
+                    "days_left": "0",
+                },
+            )
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
         except PurpleAirError as err:
             raise UpdateFailed(
                 translation_domain=DOMAIN,
@@ -287,3 +324,94 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
             self._update_static_cache(response)
 
         return self._merge_static_cache(response)
+
+
+class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResponse]):
+    """Define an account-level coordinator polling GET /v1/organization once a day.
+
+    Drives the Remaining-points and Consumption-rate diagnostic sensors and
+    raises a repair issue when remaining points fall below ``consumption_rate
+    * LOW_POINTS_DAYS_THRESHOLD`` so the user can buy more before the integration
+    starts failing every refresh with PaymentRequiredError.
+    """
+
+    config_entry: PurpleAirConfigEntry
+
+    def __init__(self, hass: HomeAssistant, entry: PurpleAirConfigEntry) -> None:
+        """Initialize."""
+        super().__init__(
+            hass,
+            LOGGER,
+            config_entry=entry,
+            name=f"{entry.title} (organization)",
+            update_interval=ORGANIZATION_UPDATE_INTERVAL,
+        )
+        self._api = API(
+            entry.data[CONF_API_KEY],
+            session=aiohttp_client.async_get_clientsession(hass),
+        )
+
+    async def _async_update_data(self) -> GetOrganizationResponse:
+        """Fetch the organization metadata and manage the low-points repair issue."""
+        try:
+            response = await self._api.organizations.async_get_organization()
+        except InvalidApiKeyError as err:
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="invalid_api_key",
+            ) from err
+        except PaymentRequiredError as err:
+            # Out of points. Surface the repair issue immediately so the user
+            # knows even though the daily refresh itself can't read the balance.
+            self._async_raise_low_points_issue(remaining=0, rate=0, days_left=0)
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        except PurpleAirError as err:
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
+
+        self._async_evaluate_low_points(response)
+        return response
+
+    @callback
+    def _async_evaluate_low_points(self, response: GetOrganizationResponse) -> None:
+        """Create or clear the low-points repair issue based on the response."""
+        rate = response.consumption_rate
+        remaining = response.remaining_points
+        if rate > 0 and remaining < rate * LOW_POINTS_DAYS_THRESHOLD:
+            days_left = remaining // rate
+            self._async_raise_low_points_issue(
+                remaining=remaining, rate=rate, days_left=days_left
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, self._low_points_issue_id)
+
+    @callback
+    def _async_raise_low_points_issue(
+        self, *, remaining: int, rate: int, days_left: int
+    ) -> None:
+        """Create the persistent repair issue for a low API-points balance."""
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._low_points_issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=ISSUE_LOW_API_POINTS,
+            translation_placeholders={
+                "remaining": str(remaining),
+                "rate": str(rate),
+                "days_left": str(days_left),
+            },
+        )
+
+    @property
+    def _low_points_issue_id(self) -> str:
+        """Return the per-entry issue id."""
+        return f"{ISSUE_LOW_API_POINTS}_{self.config_entry.entry_id}"
