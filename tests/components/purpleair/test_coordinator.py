@@ -4,7 +4,8 @@ from datetime import timedelta
 from types import MappingProxyType
 from unittest.mock import AsyncMock, patch
 
-from aiopurpleair.errors import InvalidApiKeyError, PurpleAirError
+from aiopurpleair.errors import InvalidApiKeyError, PaymentRequiredError, PurpleAirError
+from aiopurpleair.models.organizations import GetOrganizationResponse
 from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -13,10 +14,14 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
-from custom_components.purpleair.coordinator import UPDATE_INTERVAL
+from custom_components.purpleair.coordinator import (
+    ISSUE_LOW_API_POINTS,
+    ISSUE_OUT_OF_API_POINTS,
+    UPDATE_INTERVAL,
+)
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 
 from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2
 
@@ -168,7 +173,7 @@ async def test_coordinator_merges_cached_static_values(
     await hass.async_block_till_done()
 
     # DeviceInfo values came from the cached (initial) response.
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
     merged = coordinator.data.data[TEST_SENSOR_INDEX1]
     assert merged.name == "Test Sensor"
     assert merged.hardware == "2.0+BME280+PMSX003-B+PMSX003-A"
@@ -288,7 +293,7 @@ async def test_epa_sensor_pulls_both_fields_when_baselines_disabled(
     # Force a refresh so we get a deterministic final call (the registry
     # listener uses async_request_refresh which is debounced).
     api.sensors.async_get_sensors.reset_mock()
-    await config_entry.runtime_data.async_refresh()
+    await config_entry.runtime_data.sensors.async_refresh()
     await hass.async_block_till_done()
 
     fields = api.sensors.async_get_sensors.await_args.args[0]
@@ -301,7 +306,7 @@ async def test_coordinator_empty_subentries_skips_api(
 ) -> None:
     """With no subentries, the coordinator returns an empty response without calling the API."""
     api.sensors.async_get_sensors.assert_not_called()
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
     assert coordinator.data is not None
     assert coordinator.data.data == {}
 
@@ -313,7 +318,7 @@ async def test_coordinator_map_url(
     setup_config_entry,
 ) -> None:
     """async_get_map_url delegates to the underlying API object."""
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
     assert coordinator.async_get_map_url(TEST_SENSOR_INDEX1) == "http://example.com"
 
 
@@ -357,7 +362,7 @@ async def test_coordinator_refresh_update_failures_are_reported(
     side_effect: Exception,
 ) -> None:
     """Non-auth failures surface as last_update_success = False."""
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
 
     with patch.object(
         api.sensors,
@@ -386,7 +391,7 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     directly after mutating cache / subentry state, which is how the
     DataUpdateCoordinator ultimately invokes it.
     """
-    coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data.sensors
 
     # Add a second subentry and evict its cache entry to simulate a fresh add.
     new_subentry = ConfigSubentry(
@@ -448,3 +453,207 @@ async def test_registry_event_for_foreign_entity_does_not_refresh(
 
     # The PurpleAir coordinator must NOT have issued a refresh.
     assert api.sensors.async_get_sensors.await_count == 0
+
+
+def _organization_response(remaining: int, rate: int) -> GetOrganizationResponse:
+    """Build a synthetic organization response."""
+    return GetOrganizationResponse.model_validate(
+        {
+            "api_version": "V1.0.11-0.0.41",
+            "time_stamp": 1668985817,
+            "organization_id": "abc123def456",
+            "organization_name": "Test Org",
+            "remaining_points": remaining,
+            "consumption_rate": rate,
+        }
+    )
+
+
+async def test_organization_low_points_creates_repair_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """Remaining < rate*7 must raise the low_api_points repair issue."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+    # Healthy default fixture means no issue at setup time.
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+    # Drop the balance below the 7-day floor and refresh directly. The 24 h
+    # `update_interval` rules out async_fire_time_changed without a full-day
+    # tick, which the freezer can do but it's awkward to compose with the
+    # sensors coordinator's 5-minute schedule. Driving `async_refresh()`
+    # exercises the same `_async_update_data` path that the scheduler does.
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=1000, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_LOW_API_POINTS
+    assert issue.translation_placeholders == {
+        "remaining": "1000",
+        "rate": "200",
+        "days_left": "5",
+        "purchase_url": "https://develop.purpleair.com/dashboards/projects",
+    }
+
+
+async def test_organization_recovery_clears_repair_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A subsequent refresh that's back above the floor must clear the issue."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+
+    # First refresh: low.
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=500, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
+
+    # Second refresh: balance topped up.
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=50000, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_organization_payment_required_creates_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A PaymentRequiredError on the org refresh raises the out-of-points ERROR.
+
+    Distinct from the WARNING-level low-points issue (which has numeric
+    placeholders). out-of-points has no numerics — we don't have a balance
+    reading when the API rejects the request.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+
+    api.organizations.async_get_organization.side_effect = PaymentRequiredError(
+        "out of points"
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+
+    issue = issue_registry.async_get_issue(DOMAIN, out_of_points_id)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_OUT_OF_API_POINTS
+    assert issue.severity is ir.IssueSeverity.ERROR
+    assert issue.translation_placeholders == {
+        "purchase_url": "https://develop.purpleair.com/dashboards/projects",
+    }
+
+
+async def test_sensors_payment_required_creates_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A PaymentRequiredError on the sensors refresh also surfaces out-of-points.
+
+    Sensors coordinator runs every 5 min (vs. org coordinator's 24 h), so
+    when the balance hits zero the user sees the ERROR issue within minutes
+    rather than waiting for the next daily org refresh.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is None
+
+    with patch.object(
+        api.sensors,
+        "async_get_sensors",
+        AsyncMock(side_effect=PaymentRequiredError("out of points")),
+    ):
+        freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+
+    issue = issue_registry.async_get_issue(DOMAIN, out_of_points_id)
+    assert issue is not None
+    assert issue.severity is ir.IssueSeverity.ERROR
+
+
+async def test_sensors_recovery_clears_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A successful sensors refresh clears the out-of-points issue.
+
+    Without this, a PaymentRequiredError that flips back to success on the
+    next 5-minute sensors cycle would leave a stale ERROR repair issue
+    visible for up to 24 h until the org coordinator's next refresh ran.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+
+    # Drive a PaymentRequiredError so the ERROR issue exists.
+    with patch.object(
+        api.sensors,
+        "async_get_sensors",
+        AsyncMock(side_effect=PaymentRequiredError("out of points")),
+    ):
+        freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is not None
+
+    # Next sensors refresh succeeds (the default `api` fixture returns a
+    # healthy GetSensorsResponse) — the issue should clear immediately.
+    freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is None
+
+
+async def test_organization_recovery_clears_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A successful org refresh always clears the out-of-points issue.
+
+    Even if the new balance is below the warning threshold (low_points),
+    the API just accepted the request — by definition we're no longer
+    "out of points", so the ERROR-level issue must clear.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+
+    # First refresh: out of points.
+    api.organizations.async_get_organization.side_effect = PaymentRequiredError(
+        "out of points"
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is not None
+
+    # Second refresh: API recovered, balance is healthy.
+    api.organizations.async_get_organization.side_effect = None
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=50000, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is None

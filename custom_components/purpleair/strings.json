@@ -111,6 +111,9 @@
       "confidence": {
         "name": "Confidence"
       },
+      "consumption_rate": {
+        "name": "Consumption rate"
+      },
       "humidity_internal": {
         "name": "Internal humidity"
       },
@@ -165,6 +168,9 @@
       "pressure_internal": {
         "name": "Internal pressure"
       },
+      "remaining_points": {
+        "name": "Remaining points"
+      },
       "rssi": {
         "name": "RSSI"
       },
@@ -193,6 +199,14 @@
     "legacy_migration_no_sensors": {
       "title": "No sensors configured for {title}",
       "description": "The PurpleAir integration migrated a legacy config entry that had no sensors configured. Remove the entry or add a sensor to it to silence this warning."
+    },
+    "low_api_points": {
+      "title": "PurpleAir API points are running low",
+      "description": "Only {remaining} API points remain at a consumption rate of {rate} points/day (about {days_left} days left). Buy more points on the PurpleAir Developer dashboard ({purchase_url}) to avoid the integration failing once the balance hits zero."
+    },
+    "out_of_api_points": {
+      "title": "PurpleAir API points are exhausted",
+      "description": "The PurpleAir API is rejecting requests because the account is out of points. Buy more points on the PurpleAir Developer dashboard ({purchase_url}) to restore the integration. This issue clears automatically on the next successful refresh."
     }
   },
   "exceptions": {

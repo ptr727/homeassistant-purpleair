@@ -7,10 +7,12 @@
       "package-name": "homeassistant-purpleair",
       "include-component-in-tag": false,
       "include-v-in-tag": false,
+      "skip-changelog": true,
       "extra-files": [
         {
-          "type": "generic",
-          "path": "custom_components/purpleair/manifest.json"
+          "type": "json",
+          "path": "custom_components/purpleair/manifest.json",
+          "jsonpath": "$.version"
         }
       ]
     }

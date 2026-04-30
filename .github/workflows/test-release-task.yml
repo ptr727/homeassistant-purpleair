@@ -104,7 +104,20 @@ jobs:
             pytest-homeassistant-custom-component==${{ matrix.pytest-hacc-version }}
 
       - name: Run pytest step
-        run: python -m pytest -ra
+        run: python -m pytest -ra --cov=custom_components/purpleair --cov-report=xml --cov-branch
+
+      - name: Upload coverage to Codecov step
+        # Tokenless OIDC uploads are rejected on protected-branch PR runs
+        # ("Token required because branch is protected"), so the upload
+        # always uses CODECOV_TOKEN. `flags` lets Codecov break down
+        # coverage per HA matrix slot in the dashboard, while the repo's
+        # overall coverage badge merges all uploads for a SHA.
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: ha-${{ matrix.ha-version }}
+          fail_ci_if_error: false
 
   hassfest:
     # https://developers.home-assistant.io/blog/2020/04/16/hassfest

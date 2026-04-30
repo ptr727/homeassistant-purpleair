@@ -3,6 +3,13 @@ name: Test pull request action
 on:
   pull_request:
     branches: [main, develop]
+  # Re-run on push to protected branches so the merged commit's coverage
+  # uploads to Codecov — Codecov's "default branch" badge derives from the
+  # latest upload tagged with the default-branch ref, which doesn't happen
+  # on PR-only triggers because the upload SHA is the PR head, not the
+  # post-merge commit.
+  push:
+    branches: [main, develop]
   workflow_dispatch:
 
 concurrency:

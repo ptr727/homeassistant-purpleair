@@ -204,5 +204,17 @@
       'unique_id': '**REDACTED**',
       'version': 2,
     }),
+    'organization_coordinator': dict({
+      'last_update_success': True,
+      'update_interval': '1 day, 0:00:00',
+    }),
+    'organization_data': dict({
+      'api_version': 'V1.0.11-0.0.41',
+      'consumption_rate': 1500,
+      'organization_id': '**REDACTED**',
+      'organization_name': '**REDACTED**',
+      'remaining_points': 50000,
+      'timestamp_utc': '2022-11-20T23:10:17',
+    }),
   })
 # ---

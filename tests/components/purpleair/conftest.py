@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from aiopurpleair.endpoints.sensors import NearbySensorResult
 from aiopurpleair.models.keys import GetKeysResponse
+from aiopurpleair.models.organizations import GetOrganizationResponse
 from aiopurpleair.models.sensors import GetSensorsResponse
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, load_fixture
@@ -46,9 +47,26 @@ def get_keys_response_fixture() -> GetKeysResponse:
     )
 
 
+@pytest.fixture(name="get_organization_response")
+def get_organization_response_fixture() -> GetOrganizationResponse:
+    """Return a healthy GetOrganizationResponse (well above the 7-day floor)."""
+    return GetOrganizationResponse.model_validate(
+        {
+            "api_version": "V1.0.11-0.0.41",
+            "time_stamp": 1668985817,
+            "organization_id": "abc123def456",
+            "organization_name": "Test Org",
+            "remaining_points": 50000,
+            "consumption_rate": 1500,
+        }
+    )
+
+
 @pytest.fixture(name="api")
 def api_fixture(
-    get_sensors_response: GetSensorsResponse, get_keys_response: GetKeysResponse
+    get_sensors_response: GetSensorsResponse,
+    get_keys_response: GetKeysResponse,
+    get_organization_response: GetOrganizationResponse,
 ) -> Mock:
     """Define a fixture to return a mocked aiopurpleair API object.
 
@@ -81,6 +99,9 @@ def api_fixture(
             ),
             async_get_sensors=AsyncMock(side_effect=_filtered_get_sensors),
         ),
+        organizations=Mock(
+            async_get_organization=AsyncMock(return_value=get_organization_response),
+        ),
     )
 
 
@@ -93,6 +114,11 @@ def config_entry_fixture(
     """Define a config entry fixture."""
     entry = MockConfigEntry(
         domain=DOMAIN,
+        # Fixed entry_id for deterministic snapshots — production entry_ids are
+        # randomly generated. The new account-level diagnostic entities use it
+        # in their unique_id (account-level identifiers can't legitimately
+        # reuse a per-sensor index).
+        entry_id="purpleair_test_entry_id",
         unique_id=TEST_API_KEY,
         data=config_entry_data,
         options=config_entry_options,

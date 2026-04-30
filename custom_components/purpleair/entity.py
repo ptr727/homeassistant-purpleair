@@ -40,7 +40,7 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
         sensor_index: int,
     ) -> None:
         """Initialize."""
-        super().__init__(entry.runtime_data)
+        super().__init__(entry.runtime_data.sensors)
 
         self._sensor_index = sensor_index
         self._entry = entry

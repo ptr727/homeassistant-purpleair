@@ -2,3 +2,52 @@
 asyncio_mode = "auto"
 testpaths = ["tests"]
 norecursedirs = ["config"]
+
+# Pylint isn't part of the CI gate (scripts/lint runs ruff + mypy --strict),
+# but the VS Code Python extension surfaces pylint diagnostics inline. Most
+# of the default-enabled warnings are false-positives in this project:
+#
+# - E1123 (181 instances) — HA's `dataclass(kw_only=True, frozen=True)`
+#   subclasses confuse pylint's argument resolution.
+# - C0411 — pylint orders `aiopurpleair` as first-party, but HA's import
+#   convention treats it as third-party (placed *before* `homeassistant.*`).
+# - W0613 — pytest fixtures and HA callback signatures require unused params.
+# - W0718 — every `except Exception:` here is annotated with a `# noqa` and
+#   a justification comment; pylint can't see the comment.
+# - C0103 — `CONFIG_SCHEMA` is required by HA's hassfest, breaking
+#   snake_case naming.
+# - R0911, R0912, R0914, R0915, R0917 — design metrics. Code review handles
+#   complexity; pylint's defaults are too aggressive for HA config flows.
+# - R0801 — small static field lists are intentional; deduplication via a
+#   shared module would obscure intent.
+# - R0401, C0415 — `coordinator → sensor` cyclic import is documented as a
+#   workaround in the code; the local-scope import is the fix.
+# - W0223 — `ConfigFlow.is_matching` is an optional override; HA core's own
+#   subclasses don't override it either.
+# - C0301 — ruff already enforces line length with the project's chosen
+#   threshold; pylint's parallel check is redundant noise.
+# - W0212, W0621 — `protected-access` on `coordinator._static_cache` etc. is
+#   the standard way to test internal cache state, and `redefined-outer-name`
+#   is pytest's fixture mechanism by design.
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+    "broad-exception-caught",
+    "cyclic-import",
+    "duplicate-code",
+    "import-outside-toplevel",
+    "invalid-name",
+    "line-too-long",
+    "abstract-method",
+    "too-many-return-statements",
+    "too-many-branches",
+    "too-many-locals",
+    "too-many-statements",
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-many-instance-attributes",
+    "protected-access",
+    "redefined-outer-name",
+    "unexpected-keyword-arg",
+    "unused-argument",
+    "wrong-import-order",
+]
