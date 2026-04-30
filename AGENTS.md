@@ -155,49 +155,41 @@ ci: pin actionlint to v1.7.7
 - **Don't add error handling for impossible cases** — trust internal code;
   only validate at boundaries.
 
-### Linter cleanliness — applies to every linter, not just the CI gate
+### Linter cleanliness — fix what you see in the IDE
 
-**Before committing, every diagnostic surfaced by every configured linter must
-be zero — including ones the CI gate doesn't run.** That covers:
+**Before committing, the VS Code Problems pane should be quiet for the
+files you touched.** That means:
 
 - **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, hassfest
-  TRANSLATIONS/REQUIREMENTS validation.
-- **IDE-only but configured**: `pylint` (via `[tool.pylint."MESSAGES CONTROL"]`
-  in [pyproject.toml](pyproject.toml)), `markdownlint` (via
-  [.markdownlint.jsonc](.markdownlint.jsonc) + the matching `[tool.pymarkdown]`
-  block in [pyproject.toml](pyproject.toml) for CLI), `actionlint`,
-  `shellcheck`, `yamllint`.
+  TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
+- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]`
+  in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via
+  [.markdownlint.jsonc](.markdownlint.jsonc), used by the
+  `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`,
+  `yamllint`.
 
-**Markdown warnings are usually easy to fix at source — fix them, don't
-disable the rule.** Wrap long prose, align table pipes, choose fenced over
-indented code blocks, etc. The repo-wide MD013 config exempts tables and code
-blocks (column widths and verbatim sample output aren't reasonably wrappable);
-that's the only structural exemption. Beyond that, markdownlint warnings mean
-the source needs editing, not the config.
+**For Python linters**, false positives are common — HA's `dataclass(kw_only=True)`
+confuses pylint's argument resolution, pytest fixtures look like unused
+arguments, etc. The fix is to **disable the rule project-wide in the linter's
+config file** (with a comment explaining why), not to scatter `# noqa` /
+`# pylint: disable=...` annotations.
 
-For Python linters (ruff, mypy, pylint), false positives are real — HA's
-`dataclass(kw_only=True)` confuses pylint, pytest fixtures look like unused
-arguments, etc. There the fix is to **disable the rule project-wide in the
-linter's config file** (with a comment explaining why), not to scatter
-`# noqa` / `# pylint: disable=...` annotations across the codebase. The
-disable list lives next to the linter's config so future agents can audit
-it.
+**For markdown**, what counts as a real warning is whatever the davidanson
+extension shows in the IDE — not what some external CLI tool reports. The repo
+config disables MD013 (line-length) because long prose lines are intentional
+here. Other rules stay on; fix the source when one fires.
 
 Verifying locally:
 
 ```sh
 scripts/lint                                              # CI gate
 pylint custom_components/ tests/                          # 10/10 expected
-pymarkdown scan README.md HISTORY.md AGENTS.md \
-    CONTRIBUTING.md                                       # silent expected
+markdownlint-cli2 README.md AGENTS.md HISTORY.md \
+    CONTRIBUTING.md                                       # 0 errors expected
 actionlint .github/workflows/*.yml                        # silent expected
 shellcheck scripts/*                                      # silent expected
 yamllint .github/workflows/                               # silent expected
 ```
-
-If any of those produce output that's NOT pre-existing baseline, fix the
-underlying issue or extend the linter's project-wide disable list with a
-justification comment.
 
 ## Workflow YAML conventions
 

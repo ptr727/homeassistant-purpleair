@@ -3,22 +3,6 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 norecursedirs = ["config"]
 
-[tool.pymarkdown]
-# CLI counterpart of .markdownlint.jsonc (which the VS Code markdownlint
-# extension reads).
-#
-# MD013 (line-length): the IDE config exempts tables and code blocks via
-# `tables: false` / `code_blocks: false`. pymarkdown's md013 plugin
-# doesn't expose `tables`, and it doesn't honour markdownlint's
-# `<!-- markdownlint-disable MD013 -->` pragma comments either, so on the
-# CLI side we set a high enough threshold (200) to accept the longest
-# unbreakable URL in README.md's reference-style link block while still
-# catching genuinely runaway prose. Code blocks are exempted explicitly
-# (sample output / log lines reproduced verbatim).
-plugins.md013.line_length = 200
-plugins.md013.code_blocks = false
-plugins.md046.style = "fenced"
-
 # Pylint isn't part of the CI gate (scripts/lint runs ruff + mypy --strict),
 # but the VS Code Python extension surfaces pylint diagnostics inline. Most
 # of the default-enabled warnings are false-positives in this project:
