@@ -1,6 +1,8 @@
+---
+# yamllint disable rule:line-length rule:comments
 name: Merge bot pull request action
 
-on:
+"on":
   pull_request:
     types: [opened, reopened, synchronize]
 
@@ -13,9 +15,12 @@ jobs:
   merge-dependabot:
     name: Merge dependabot pull request job
     runs-on: ubuntu-latest
-    # Restrict to dependabot PRs that originate from this repository (not a fork).
+    # Restrict to dependabot PRs that originate from this repository, not a
+    # fork.
+    # Check the PR author rather than the event actor so maintainer repair
+    # commits on Dependabot branches can still auto-merge after CI passes.
     if: >-
-      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
@@ -58,10 +63,15 @@ jobs:
     # release-please opens its release PRs as ptr727-codegen[bot] (the App used
     # by release-please.yml) on branches named release-please--branches--<base>.
     if: >-
-      github.actor == 'ptr727-codegen[bot]' &&
       github.event.pull_request.user.login == 'ptr727-codegen[bot]' &&
-      startsWith(github.event.pull_request.head.ref, 'release-please--branches--') &&
-      contains(fromJSON('["main","develop"]'), github.event.pull_request.base.ref) &&
+      startsWith(
+        github.event.pull_request.head.ref,
+        'release-please--branches--'
+      ) &&
+      contains(
+        fromJSON('["main","develop"]'),
+        github.event.pull_request.base.ref
+      ) &&
       github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
@@ -92,7 +102,6 @@ jobs:
     # The check-ha-version workflow opens these PRs against develop with branch
     # names of the form ha-version-bump/<X.Y.Z>.
     if: >-
-      github.actor == 'ptr727-codegen[bot]' &&
       github.event.pull_request.user.login == 'ptr727-codegen[bot]' &&
       startsWith(github.event.pull_request.head.ref, 'ha-version-bump/') &&
       github.event.pull_request.base.ref == 'develop' &&
