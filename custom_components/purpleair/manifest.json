@@ -9,6 +9,6 @@
   "issue_tracker": "https://github.com/ptr727/homeassistant-purpleair/issues",
   "loggers": ["aiopurpleair", "custom_components.purpleair"],
   "quality_scale": "platinum",
-  "requirements": ["aiopurpleair==2025.08.1"],
+  "requirements": ["aiopurpleair-ptr727==2026.4.0"],
   "version": "0.1.0"
 }

@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Final
 
 from aiopurpleair.const import ChannelFlag, ChannelState
+from aiopurpleair.models.organizations import GetOrganizationResponse
 from aiopurpleair.models.sensors import SensorModel
 
 from homeassistant.components.sensor import (
@@ -27,11 +28,13 @@ from homeassistant.const import (
     UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_SENSOR_INDEX
-from .coordinator import PurpleAirConfigEntry
-from .entity import PurpleAirEntity
+from .const import CONF_SENSOR_INDEX, DOMAIN
+from .coordinator import PurpleAirConfigEntry, PurpleAirOrganizationCoordinator
+from .entity import MANUFACTURER, PurpleAirEntity
 
 # PARALLEL_UPDATES = 0 is the Home Assistant convention for coordinator-backed
 # read-only platforms: the coordinator fans out a single API response to every
@@ -511,6 +514,37 @@ DESCRIPTIONS_BY_KEY: Final[dict[str, PurpleAirSensorEntityDescription]] = {
 }
 
 
+@dataclass(frozen=True, kw_only=True)
+class PurpleAirOrganizationSensorEntityDescription(SensorEntityDescription):
+    """Describe an account-level (organization) PurpleAir sensor entity."""
+
+    value_fn: Callable[[GetOrganizationResponse], int | str | None]
+
+
+ORGANIZATION_SENSOR_DESCRIPTIONS: Final[
+    tuple[PurpleAirOrganizationSensorEntityDescription, ...]
+] = (
+    PurpleAirOrganizationSensorEntityDescription(
+        key="remaining_points",
+        translation_key="remaining_points",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="points",
+        value_fn=lambda response: response.remaining_points,
+    ),
+    PurpleAirOrganizationSensorEntityDescription(
+        key="consumption_rate",
+        translation_key="consumption_rate",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="points/d",
+        value_fn=lambda response: response.consumption_rate,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: PurpleAirConfigEntry,
@@ -528,6 +562,11 @@ async def async_setup_entry(
             update_before_add=False,
             config_subentry_id=subentry.subentry_id,
         )
+
+    async_add_entities(
+        PurpleAirOrganizationSensorEntity(entry, description)
+        for description in ORGANIZATION_SENSOR_DESCRIPTIONS
+    )
 
 
 class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):
@@ -554,3 +593,35 @@ class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):
         if sensor is None:
             return None
         return self.entity_description.value_fn(sensor)
+
+
+class PurpleAirOrganizationSensorEntity(
+    CoordinatorEntity[PurpleAirOrganizationCoordinator], SensorEntity
+):
+    """Define an account-level PurpleAir sensor (remaining points / consumption rate)."""
+
+    _attr_has_entity_name = True
+    entity_description: PurpleAirOrganizationSensorEntityDescription
+
+    def __init__(
+        self,
+        entry: PurpleAirConfigEntry,
+        description: PurpleAirOrganizationSensorEntityDescription,
+    ) -> None:
+        """Initialize."""
+        super().__init__(entry.runtime_data.organization)
+        self.entity_description = description
+        self._attr_unique_id = f"{entry.entry_id}-organization-{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"organization-{entry.entry_id}")},
+            manufacturer=MANUFACTURER,
+            name=f"{entry.title} organization",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+
+    @property
+    def native_value(self) -> int | str | None:
+        """Return the value of the entity."""
+        if self.coordinator.data is None:
+            return None
+        return self.entity_description.value_fn(self.coordinator.data)

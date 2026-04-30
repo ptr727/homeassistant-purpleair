@@ -24,7 +24,12 @@ from .const import (
     SCHEMA_VERSION,
     TITLE,
 )
-from .coordinator import PurpleAirConfigEntry, PurpleAirDataUpdateCoordinator
+from .coordinator import (
+    PurpleAirConfigEntry,
+    PurpleAirDataUpdateCoordinator,
+    PurpleAirOrganizationCoordinator,
+    PurpleAirRuntimeData,
+)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -45,11 +50,23 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> bool:
     """Set up PurpleAir config entry."""
-    coordinator = PurpleAirDataUpdateCoordinator(hass, entry)
-    entry.runtime_data = coordinator
+    sensors_coordinator = PurpleAirDataUpdateCoordinator(hass, entry)
+    organization_coordinator = PurpleAirOrganizationCoordinator(hass, entry)
+    entry.runtime_data = PurpleAirRuntimeData(
+        sensors=sensors_coordinator,
+        organization=organization_coordinator,
+    )
 
-    await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
+    await sensors_coordinator.async_setup()
+    await sensors_coordinator.async_config_entry_first_refresh()
+    # Best-effort: the organization endpoint backs only diagnostic-only
+    # sensors and the low-points repair issue. A failure here must not abort
+    # config-entry setup — `async_config_entry_first_refresh` raises
+    # ConfigEntryNotReady on transient failures, so use `async_refresh`
+    # instead, which records the failure on the coordinator and lets the
+    # next 24 h cycle retry. Auth errors still propagate via the coordinator's
+    # `_async_update_data` and trigger reauth on the next attempt.
+    await organization_coordinator.async_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

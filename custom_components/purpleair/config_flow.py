@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING, Any, Final
 from aiopurpleair.api import API
 from aiopurpleair.endpoints.sensors import NearbySensorResult
 from aiopurpleair.errors import (
+    ApiDisabledError,
+    ApiKeyTypeMismatchError,
     InvalidApiKeyError,
+    InvalidDataReadKeyError,
     InvalidRequestError,
     NotFoundError,
     PurpleAirError,
@@ -118,6 +121,12 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         try:
             keys_response: GetKeysResponse = await api.async_check_api_key()
+        except ApiKeyTypeMismatchError:
+            self._errors[CONF_API_KEY] = CONF_WRONG_KEY_TYPE
+            return False
+        except ApiDisabledError:
+            self._errors[CONF_API_KEY] = CONF_KEY_DISABLED
+            return False
         except InvalidApiKeyError:
             self._errors[CONF_API_KEY] = CONF_INVALID_API_KEY
             return False
@@ -414,6 +423,9 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
                 sensor_indices=index_list,
                 read_keys=read_key_list,
             )
+        except InvalidDataReadKeyError:
+            self._errors[CONF_SENSOR_READ_KEY] = CONF_INVALID_READ_KEY
+            return False
         except InvalidApiKeyError:
             self._errors[CONF_BASE] = CONF_INVALID_API_KEY
             return False
@@ -423,13 +435,6 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             NotFoundError,
             PurpleAirError,
         ) as err:
-            # aiopurpleair collapses a few 400 codes into PurpleAirError. The
-            # API returns a dedicated `InvalidDataReadKeyError` code when the
-            # per-sensor read_key is wrong; distinguish it by message until
-            # the library gains a proper exception class.
-            if "InvalidDataReadKey" in str(err):
-                self._errors[CONF_SENSOR_READ_KEY] = CONF_INVALID_READ_KEY
-                return False
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False

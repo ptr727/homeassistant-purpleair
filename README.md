@@ -177,85 +177,21 @@ Enabling every optional entity (PM particle counts, RSSI, uptime, ALT, six rolli
 
 Free points are available for sensor owners who use their own sensor's Read Key; see [API points for sensor owners](https://community.purpleair.com/t/api-points-for-sensor-owners/7525).
 
-## Upstream dependency: proposed `aiopurpleair` changes
+## Upstream dependency: `aiopurpleair` fork
 
-The `aiopurpleair` library this integration depends on (pinned to `2025.08.1` in [`manifest.json`](custom_components/purpleair/manifest.json)) covers only the sensors endpoints and maps three error codes to exceptions. Several of the [API's documented error codes](https://api.purpleair.com/) collapse to a generic `PurpleAirError` today. This integration works around that by pattern-matching on exception messages; cleaner error handling is gated on the following upstream additions.
+This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes](https://api.purpleair.com/) collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
 
-### 1. Extend `ERROR_CODE_MAP` in `aiopurpleair/errors.py`
+The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library yet. While upstream review is pending, [`manifest.json`](custom_components/purpleair/manifest.json) pins to a temporary fork distribution published to PyPI as `aiopurpleair-ptr727==2026.4.0` (built from [ptr727/bachya-aiopurpleair @ feat/organization-endpoint-and-error-codes](https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes)). The fork adds:
 
-Currently:
+- 19 new exception subclasses (one per documented API error code), wired into `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc. instead of pattern-matching on `str(err)`.
+- A `GET /v1/organization` endpoint exposed on `API` as `api.organizations`, with a `GetOrganizationResponse` Pydantic model carrying `remaining_points`, `consumption_rate`, `organization_id`, `organization_name`, `api_version`, and `timestamp_utc`.
+- 100 % test coverage for both additions, no breaking changes to the public API.
 
-```python
-ERROR_CODE_MAP = {
-    "ApiKeyInvalidError": InvalidApiKeyError,
-    "ApiKeyMissingError": InvalidApiKeyError,
-    "NotFoundError": NotFoundError,
-}
-```
+The fork is shipped under a distinct PyPI name (`aiopurpleair-ptr727`) so it doesn't collide with the canonical `aiopurpleair` distribution; `packages = [{ include = "aiopurpleair" }]` in the fork's `pyproject.toml` keeps the import path unchanged, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
 
-Add new exception subclasses and map entries for every error code the PurpleAir v1 API documents:
+A pull request against [bachya/aiopurpleair](https://github.com/bachya/aiopurpleair) is open. Once the maintainer merges and cuts a new canonical PyPI release, the pin in [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) flips back to `aiopurpleair==X.Y.Z`, the `aiopurpleair-ptr727` distribution gets yanked from PyPI, and this section can be removed.
 
-| API error code | HTTP | New exception class | Base class | Why we need it |
-|---|---|---|---|---|
-| `ApiKeyTypeMismatchError` | 403 | `ApiKeyTypeMismatchError` | `InvalidApiKeyError` | User supplied a WRITE key where READ is required. |
-| `ApiKeyRestrictedError` | 403 | `ApiKeyRestrictedError` | `InvalidApiKeyError` | Key restricted to host/referrer. |
-| `ApiDisabledError` | 403 | `ApiDisabledError` | `InvalidApiKeyError` | Endpoint disabled for this key. |
-| `InvalidDataReadKeyError` | 400 | `InvalidDataReadKeyError` | `InvalidRequestError` | Wrong per-sensor read key — needed to distinguish from "sensor not found." |
-| `InvalidFieldValueError` | 400 | `InvalidFieldValueError` | `InvalidRequestError` | Unknown field requested. |
-| `InvalidParameterValueError` | 400 | `InvalidParameterValueError` | `InvalidRequestError` | Generic parameter validation failure. |
-| `MissingRequiredParameterError` | 400 | `MissingRequiredParameterError` | `InvalidRequestError` | |
-| `InvalidRequestUrlError` | 400 | `InvalidRequestUrlError` | `InvalidRequestError` | |
-| `InvalidTimestampError` | 400 | `InvalidTimestampError` | `InvalidRequestError` | History endpoints only. |
-| `InvalidTimestampSpanError` | 400 | `InvalidTimestampSpanError` | `InvalidRequestError` | History endpoints only. |
-| `InvalidAverageError` | 400 | `InvalidAverageError` | `InvalidRequestError` | History endpoints only. |
-| `RequiresHttpsError` | 403 | `RequiresHttpsError` | `PurpleAirError` | |
-| `PaymentRequiredError` | 402 | `PaymentRequiredError` | `PurpleAirError` | Out of API points — should trigger a persistent repair issue. |
-| `RateLimitExceededError` | 429 | `RateLimitExceededError` | `PurpleAirError` | Standard 429; coordinators should back off. |
-| `DataInitializingError` | 503 | `DataInitializingError` | `PurpleAirError` | Transient — API says retry in 10 s. |
-| `ProjectArchivedError` | 403 | `ProjectArchivedError` | `InvalidApiKeyError` | |
-| `MissingJsonPayloadError` | 415 | `MissingJsonPayloadError` | `InvalidRequestError` | |
-| `InvalidJsonPayloadError` | 400 | `InvalidJsonPayloadError` | `InvalidRequestError` | |
-| `InvalidTokenError` | 403 | `InvalidTokenError` | `InvalidApiKeyError` | |
-
-### 2. Add `GET /v1/organization` endpoint
-
-New file `aiopurpleair/endpoints/organizations.py`:
-
-```python
-class OrganizationsEndpoints(APIEndpointsBase):
-    async def async_get_organization(self) -> GetOrganizationResponse: ...
-```
-
-Companion model `aiopurpleair/models/organizations.py` (`GetOrganizationResponse`) with fields:
-
-- `organization_id: str` — hexadecimal identifier
-- `organization_name: str`
-- `remaining_points: int`
-- `consumption_rate: int` — estimated points/day
-- `api_version: str`
-- `timestamp_utc: datetime`
-
-Rate limit: 1 s. Endpoint: `GET /v1/organization`. Auth: `X-API-Key` header.
-
-Exposed on `API` as `api.organizations`, analogous to `api.sensors`.
-
-Use case: this integration wants a daily `OrganizationCoordinator` driving **Remaining points** and **Consumption rate** diagnostic sensors, plus a repair issue when `remaining_points` drops below `consumption_rate × 7`.
-
-### 3. Testing expectations for the upstream PR
-
-- Unit tests per new exception subclass: mock a 4xx/5xx aiohttp response containing the error code in the JSON body, assert `raise_error` raises the correct subclass.
-- Unit test for `async_get_organization` parsing a mock response.
-- Existing tests remain green (no breaking changes to the public API).
-
-### 4. Migration path once the above ships
-
-Once a new `aiopurpleair` release is published:
-
-1. Bump the pin in [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements.txt`](requirements.txt).
-2. Replace the `str(err)` message matches in [`coordinator.py`](custom_components/purpleair/coordinator.py) and [`config_flow.py`](custom_components/purpleair/config_flow.py) with `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc.
-3. Add an `OrganizationCoordinator` for the diagnostic points sensors and the low-points repair issue.
-
-All error codes and semantics above are verified against a snapshot of the official docs at `.claude/API - PurpleAir.mhtml`.
+All error codes and semantics in the fork are verified against a snapshot of the official docs at `.claude/API - PurpleAir.mhtml`.
 
 ## Relationship to the upstream Home Assistant PR
 
