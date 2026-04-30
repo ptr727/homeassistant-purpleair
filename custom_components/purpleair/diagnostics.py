@@ -16,6 +16,8 @@ from homeassistant.core import HomeAssistant
 from .coordinator import PurpleAirConfigEntry
 
 CONF_TITLE = "title"
+CONF_ORGANIZATION_ID = "organization_id"
+CONF_ORGANIZATION_NAME = "organization_name"
 
 TO_REDACT = {
     CONF_API_KEY,
@@ -24,6 +26,10 @@ TO_REDACT = {
     # Config entry title and unique ID contain the API key (whole or part):
     CONF_TITLE,
     CONF_UNIQUE_ID,
+    # Account-level identifiers from GET /v1/organization. Not an API key,
+    # but enough to identify the user's PurpleAir org in shared diagnostics.
+    CONF_ORGANIZATION_ID,
+    CONF_ORGANIZATION_NAME,
 }
 
 

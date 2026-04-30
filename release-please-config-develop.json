@@ -11,8 +11,9 @@
       "prerelease-type": "beta",
       "extra-files": [
         {
-          "type": "generic",
-          "path": "custom_components/purpleair/manifest.json"
+          "type": "json",
+          "path": "custom_components/purpleair/manifest.json",
+          "jsonpath": "$.version"
         }
       ]
     }
