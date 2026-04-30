@@ -6,6 +6,10 @@
 #   3. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
+#   5. markdownlint-cli2 pinned via npm — same engine the VS Code
+#      davidanson.vscode-markdownlint extension uses, so CLI verification matches
+#      what the IDE shows. Node.js itself is provided by the devcontainer
+#      `node:1` feature.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
 # release assets, so the hashes below are computed manually when bumping and
@@ -18,6 +22,29 @@ cd "$(dirname "$0")/.."
 
 python3 -m pip install --requirement requirements.txt
 python3 -m pip install --requirement requirements-test.txt
+
+# --- markdownlint-cli2 ----------------------------------------------------
+# Pinned npm-installed binary so `markdownlint-cli2 README.md AGENTS.md ...`
+# CLI runs match the davidanson.vscode-markdownlint extension's output.
+# Node.js is supplied by the `ghcr.io/devcontainers/features/node:1`
+# devcontainer feature; if it's missing (e.g. running scripts/setup outside
+# the devcontainer) we just skip — markdown linting is IDE-driven and not
+# part of the CI gate.
+MARKDOWNLINT_VERSION=0.22.1
+
+if command -v npm >/dev/null 2>&1; then
+    installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null \
+        | awk '{print $2}' | tr -d 'v' || true)"
+    if [ "$installed_markdownlint" = "$MARKDOWNLINT_VERSION" ]; then
+        echo "markdownlint-cli2 $MARKDOWNLINT_VERSION already installed, skipping."
+    else
+        echo "Installing markdownlint-cli2@$MARKDOWNLINT_VERSION via npm"
+        npm install -g "markdownlint-cli2@$MARKDOWNLINT_VERSION"
+        echo "Installed: $(markdownlint-cli2 --version | head -n1)"
+    fi
+else
+    echo "npm not available; skipping markdownlint-cli2 install (IDE-only tool)." >&2
+fi
 
 # --- aiopurpleair checkout ------------------------------------------------
 # Local editable install of the aiopurpleair fork inside the repo root (gitignored).

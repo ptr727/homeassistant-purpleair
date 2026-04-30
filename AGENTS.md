@@ -252,26 +252,34 @@ pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but
 actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local
 runs are the only gate.
 
-| Tool | What it lints | Quick command | | ------------- |
-------------------------------------------------- |
--------------------------------------------------- | | `actionlint` | GitHub
-Actions workflow YAML (also runs shellcheck on `run:` blocks if shellcheck is on
-PATH, which it is here) | `actionlint .github/workflows/*.yml` | | `shellcheck`
-| Standalone shell scripts (e.g. anything under [scripts/](scripts/)) |
-`shellcheck scripts/*` | | `yamllint` | Generic YAML structure / formatting |
-`yamllint .github/workflows/` | | `markdownlint` | Markdown (CONTRIBUTING.md,
-README.md, AGENTS.md, etc.) | Use the VS Code "markdownlint" extension; CLI:
-`npx markdownlint-cli2 '**/*.md'` | | `ruff` | Python lint + format
-(CI-required) | `scripts/fix` (auto-fix) / `scripts/lint` (verify) | |
-`mypy --strict` | Python type checking (CI-required) | `scripts/lint` |
+| Tool                | What it lints                                                                          | Quick command                             |
+| ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `actionlint`        | GitHub Actions workflow YAML (also runs shellcheck on `run:` blocks)                   | `actionlint .github/workflows/*.yml`      |
+| `shellcheck`        | Standalone shell scripts (e.g. anything under [scripts/](scripts/))                    | `shellcheck scripts/*`                    |
+| `yamllint`          | Generic YAML structure / formatting                                                    | `yamllint .github/workflows/`             |
+| `markdownlint-cli2` | Markdown (`CONTRIBUTING.md`, `README.md`, `AGENTS.md`, etc.) — same engine as VS Code  | `markdownlint-cli2 '**/*.md'`             |
+| `pylint`            | Python (IDE-driven; not CI-gated)                                                      | `pylint custom_components/ tests/`        |
+| `ruff`              | Python lint + format (CI-required)                                                     | `scripts/fix` (auto-fix) / `scripts/lint` |
+| `mypy --strict`     | Python type checking (CI-required)                                                     | `scripts/lint`                            |
 
-Installation lives in [.devcontainer.json](.devcontainer.json) (apt-packages:
-`shellcheck`, `yamllint`) and [scripts/setup](scripts/setup) (`actionlint`
-pinned with per-arch SHA256 verification, mirroring the go2rtc / HACS install
-pattern). The matching VS Code extensions (`arahata.linter-actionlint`,
-`timonwong.shellcheck`, `davidanson.vscode-markdownlint`) are recommended in
-[the workspace file][workspace-link], so opening a file gets inline
-diagnostics.
+Installation:
+
+- `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` —
+  `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
+- Node.js LTS — `node:1` feature in [.devcontainer.json](.devcontainer.json),
+  needed for `markdownlint-cli2`.
+- `markdownlint-cli2` — pinned `npm install -g` step in
+  [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are
+  installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
+- `actionlint` — SHA256-pinned tarball download in
+  [scripts/setup](scripts/setup).
+- `pylint` is configured via `[tool.pylint."MESSAGES CONTROL"]` in
+  [pyproject.toml](pyproject.toml); the disable list is annotated with
+  why each rule is silenced.
+- The matching VS Code extensions (`arahata.linter-actionlint`,
+  `timonwong.shellcheck`, `davidanson.vscode-markdownlint`,
+  `ms-python.python`) are recommended in [the workspace file][workspace-link],
+  so opening a file gets inline diagnostics.
 
 ## Tooling pointers
 
