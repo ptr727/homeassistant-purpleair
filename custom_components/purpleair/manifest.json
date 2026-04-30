@@ -1,14 +1,21 @@
 {
   "domain": "purpleair",
   "name": "PurpleAir (custom)",
-  "codeowners": ["@ptr727"],
+  "codeowners": [
+    "@ptr727"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/ptr727/homeassistant-purpleair",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ptr727/homeassistant-purpleair/issues",
-  "loggers": ["aiopurpleair", "custom_components.purpleair"],
+  "loggers": [
+    "aiopurpleair",
+    "custom_components.purpleair"
+  ],
   "quality_scale": "platinum",
-  "requirements": ["aiopurpleair-ptr727==2026.4.0"],
-  "version": "0.2.0"
+  "requirements": [
+    "aiopurpleair-ptr727==2026.4.0"
+  ],
+  "version": "0.2.1"
 }
