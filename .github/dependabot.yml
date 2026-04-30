@@ -1,3 +1,4 @@
+---
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
 # commit-message.prefix is "chore" so PR titles satisfy the Conventional Commits
@@ -34,3 +35,7 @@ updates:
       # it from pytest-homeassistant-custom-component on PyPI) and by the
       # `homeassistant` field in hacs.json — not by Dependabot.
       - dependency-name: "homeassistant"
+      # pytest-homeassistant-custom-component pins a specific Home Assistant
+      # version, so it must move in lockstep with .github/ha-test-versions.json
+      # via check-ha-version.yml rather than an independent Dependabot PR.
+      - dependency-name: "pytest-homeassistant-custom-component"
