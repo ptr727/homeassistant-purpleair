@@ -38,12 +38,13 @@ if command -v npm >/dev/null 2>&1; then
         installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null \
             | awk '{print $2}' | tr -d 'v')"
     fi
-    if [ "$installed_markdownlint" = "$MARKDOWNLINT_VERSION" ]; then
-        echo "markdownlint-cli2 $MARKDOWNLINT_VERSION already installed, skipping."
+    if [[ "${installed_markdownlint}" = "${MARKDOWNLINT_VERSION}" ]]; then
+        echo "markdownlint-cli2 ${MARKDOWNLINT_VERSION} already installed, skipping."
     else
-        echo "Installing markdownlint-cli2@$MARKDOWNLINT_VERSION via npm"
-        npm install -g "markdownlint-cli2@$MARKDOWNLINT_VERSION"
-        echo "Installed: $(markdownlint-cli2 --version | head -n1)"
+        echo "Installing markdownlint-cli2@${MARKDOWNLINT_VERSION} via npm"
+        npm install -g "markdownlint-cli2@${MARKDOWNLINT_VERSION}"
+        installed_markdownlint="$(markdownlint-cli2 --version | head -n1)"
+        echo "Installed: ${installed_markdownlint}"
     fi
 else
     echo "npm not available; skipping markdownlint-cli2 install (IDE-only tool)." >&2
@@ -66,18 +67,18 @@ AIOPURPLEAIR_REPO=https://github.com/ptr727/bachya-aiopurpleair.git
 AIOPURPLEAIR_BRANCH=dev
 USE_EDITABLE_AIOPURPLEAIR=true
 
-if [ ! -d "$AIOPURPLEAIR_DIR" ]; then
-    echo "Cloning $AIOPURPLEAIR_REPO ($AIOPURPLEAIR_BRANCH) into $AIOPURPLEAIR_DIR"
-    if ! git clone --branch "$AIOPURPLEAIR_BRANCH" "$AIOPURPLEAIR_REPO" "$AIOPURPLEAIR_DIR"; then
-        echo "Warning: Failed to clone $AIOPURPLEAIR_REPO. Continuing without editable aiopurpleair checkout." >&2
+if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then
+    echo "Cloning ${AIOPURPLEAIR_REPO} (${AIOPURPLEAIR_BRANCH}) into ${AIOPURPLEAIR_DIR}"
+    if ! git clone --branch "${AIOPURPLEAIR_BRANCH}" "${AIOPURPLEAIR_REPO}" "${AIOPURPLEAIR_DIR}"; then
+        echo "Warning: Failed to clone ${AIOPURPLEAIR_REPO}. Continuing without editable aiopurpleair checkout." >&2
         USE_EDITABLE_AIOPURPLEAIR=false
     fi
 else
-    echo "$AIOPURPLEAIR_DIR already exists, skipping clone."
+    echo "${AIOPURPLEAIR_DIR} already exists, skipping clone."
 fi
 
-if [ "$USE_EDITABLE_AIOPURPLEAIR" = true ] && [ -d "$AIOPURPLEAIR_DIR" ]; then
-    python3 -m pip install --editable "$AIOPURPLEAIR_DIR"
+if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]; then
+    python3 -m pip install --editable "${AIOPURPLEAIR_DIR}"
 
     python3 <<'PYEOF'
 import json, pathlib
@@ -114,10 +115,11 @@ fi
 GO2RTC_VERSION=1.9.14
 
 installed_version="$(go2rtc --version 2>/dev/null | head -n1 || true)"
-if [ "$installed_version" = "go2rtc version $GO2RTC_VERSION" ]; then
-    echo "go2rtc $GO2RTC_VERSION already installed, skipping."
+if [[ "${installed_version}" = "go2rtc version ${GO2RTC_VERSION}" ]]; then
+    echo "go2rtc ${GO2RTC_VERSION} already installed, skipping."
 else
-    case "$(uname -m)" in
+    machine="$(uname -m)"
+    case "${machine}" in
         x86_64)
             arch=amd64
             expected_sha=32d616af226bd731678ffde328b94cfb94e30339bfefc469cfb76323144615a6
@@ -131,31 +133,32 @@ else
             expected_sha=4d7e1639af5a2722a28e864468fd8099b3c1682565446c798bf9e3b38fde12e4
             ;;
         *)
-            echo "Unsupported architecture: $(uname -m)" >&2
+            echo "Unsupported architecture: ${machine}" >&2
             exit 1
             ;;
     esac
     url="https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${arch}"
     tmp=$(mktemp)
     trap 'rm -f "$tmp"' EXIT
-    echo "Downloading go2rtc $GO2RTC_VERSION ($arch) from $url"
-    curl -fsSL "$url" -o "$tmp"
+    echo "Downloading go2rtc ${GO2RTC_VERSION} (${arch}) from ${url}"
+    curl -fsSL "${url}" -o "${tmp}"
 
-    actual_sha=$(sha256sum "$tmp" | awk '{print $1}')
-    if [ "$actual_sha" != "$expected_sha" ]; then
+    actual_sha=$(sha256sum "${tmp}" | awk '{print $1}')
+    if [[ "${actual_sha}" != "${expected_sha}" ]]; then
         echo "go2rtc checksum mismatch!" >&2
-        echo "  expected: $expected_sha" >&2
-        echo "  actual:   $actual_sha" >&2
+        echo "  expected: ${expected_sha}" >&2
+        echo "  actual:   ${actual_sha}" >&2
         exit 1
     fi
-    echo "Verified sha256 $expected_sha"
+    echo "Verified sha256 ${expected_sha}"
 
-    sudo install -m 0755 "$tmp" /usr/local/bin/go2rtc
+    sudo install -m 0755 "${tmp}" /usr/local/bin/go2rtc
     # Explicit cleanup before clearing the trap so an interruption (SIGINT)
     # or failed rm during this window still falls back to the trap.
-    rm -f "$tmp"
+    rm -f "${tmp}"
     trap - EXIT
-    echo "Installed: $(go2rtc --version | head -n1)"
+    installed_version="$(go2rtc --version | head -n1)"
+    echo "Installed: ${installed_version}"
 fi
 
 # --- actionlint -----------------------------------------------------------
@@ -164,10 +167,11 @@ fi
 ACTIONLINT_VERSION=1.7.7
 
 installed_actionlint="$(actionlint -version 2>/dev/null | head -n1 || true)"
-if [ "$installed_actionlint" = "$ACTIONLINT_VERSION" ]; then
-    echo "actionlint $ACTIONLINT_VERSION already installed, skipping."
+if [[ "${installed_actionlint}" = "${ACTIONLINT_VERSION}" ]]; then
+    echo "actionlint ${ACTIONLINT_VERSION} already installed, skipping."
 else
-    case "$(uname -m)" in
+    machine="$(uname -m)"
+    case "${machine}" in
         x86_64)
             arch=amd64
             actionlint_sha=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
@@ -181,7 +185,7 @@ else
             actionlint_sha=82e98d7252341b83fa557764824f225fa50431801b8e3d8e99f70dc1efc317b2
             ;;
         *)
-            echo "Unsupported architecture for actionlint: $(uname -m)" >&2
+            echo "Unsupported architecture for actionlint: ${machine}" >&2
             exit 1
             ;;
     esac
@@ -191,27 +195,28 @@ else
     # Trap covers both the download tarball and the extract dir so a failure
     # in tar / install / sha-verify doesn't leak temp directories.
     trap 'rm -rf "$extract_dir"; rm -f "$tmp"' EXIT
-    echo "Downloading actionlint $ACTIONLINT_VERSION ($arch) from $url"
-    curl -fsSL "$url" -o "$tmp"
+    echo "Downloading actionlint ${ACTIONLINT_VERSION} (${arch}) from ${url}"
+    curl -fsSL "${url}" -o "${tmp}"
 
-    actual_sha=$(sha256sum "$tmp" | awk '{print $1}')
-    if [ "$actual_sha" != "$actionlint_sha" ]; then
+    actual_sha=$(sha256sum "${tmp}" | awk '{print $1}')
+    if [[ "${actual_sha}" != "${actionlint_sha}" ]]; then
         echo "actionlint checksum mismatch!" >&2
-        echo "  expected: $actionlint_sha" >&2
-        echo "  actual:   $actual_sha" >&2
+        echo "  expected: ${actionlint_sha}" >&2
+        echo "  actual:   ${actual_sha}" >&2
         exit 1
     fi
-    echo "Verified sha256 $actionlint_sha"
+    echo "Verified sha256 ${actionlint_sha}"
 
-    tar -xzf "$tmp" -C "$extract_dir" actionlint
-    sudo install -m 0755 "$extract_dir/actionlint" /usr/local/bin/actionlint
+    tar -xzf "${tmp}" -C "${extract_dir}" actionlint
+    sudo install -m 0755 "${extract_dir}/actionlint" /usr/local/bin/actionlint
     # Explicit cleanup runs before disabling the trap so that an interruption
     # (SIGINT) or a failed rm during this window still falls back to the trap
     # as a safety net. trap is only cleared after both resources are gone.
-    rm -rf "$extract_dir"
-    rm -f "$tmp"
+    rm -rf "${extract_dir}"
+    rm -f "${tmp}"
     trap - EXIT
-    echo "Installed: actionlint $(actionlint -version | head -n1)"
+    installed_actionlint="$(actionlint -version | head -n1)"
+    echo "Installed: actionlint ${installed_actionlint}"
 fi
 
 # --- HACS -----------------------------------------------------------------
@@ -220,29 +225,29 @@ fi
 HACS_VERSION=2.0.5
 HACS_SHA256=97be6b824a4f38e683728cc6dd72367f6b8bad0a43428b1b3b987a3087adf413
 
-if [ -f config/custom_components/hacs/manifest.json ]; then
+if [[ -f config/custom_components/hacs/manifest.json ]]; then
     echo "HACS already installed, skipping."
 else
     url="https://github.com/hacs/integration/releases/download/${HACS_VERSION}/hacs.zip"
     tmp=$(mktemp)
     trap 'rm -f "$tmp"' EXIT
-    echo "Downloading HACS $HACS_VERSION from $url"
-    curl -fsSL "$url" -o "$tmp"
+    echo "Downloading HACS ${HACS_VERSION} from ${url}"
+    curl -fsSL "${url}" -o "${tmp}"
 
-    actual_sha=$(sha256sum "$tmp" | awk '{print $1}')
-    if [ "$actual_sha" != "$HACS_SHA256" ]; then
+    actual_sha=$(sha256sum "${tmp}" | awk '{print $1}')
+    if [[ "${actual_sha}" != "${HACS_SHA256}" ]]; then
         echo "HACS checksum mismatch!" >&2
-        echo "  expected: $HACS_SHA256" >&2
-        echo "  actual:   $actual_sha" >&2
+        echo "  expected: ${HACS_SHA256}" >&2
+        echo "  actual:   ${actual_sha}" >&2
         exit 1
     fi
-    echo "Verified sha256 $HACS_SHA256"
+    echo "Verified sha256 ${HACS_SHA256}"
 
     mkdir -p config/custom_components/hacs
-    python3 -m zipfile -e "$tmp" config/custom_components/hacs/
+    python3 -m zipfile -e "${tmp}" config/custom_components/hacs/
     # Explicit cleanup before clearing the trap so an interruption (SIGINT)
     # or failed rm during this window still falls back to the trap.
-    rm -f "$tmp"
+    rm -f "${tmp}"
     trap - EXIT
-    echo "Installed HACS $HACS_VERSION"
+    echo "Installed HACS ${HACS_VERSION}"
 fi
