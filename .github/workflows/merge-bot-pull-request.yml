@@ -1,0 +1,119 @@
+name: Merge bot pull request action
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  merge-dependabot:
+    name: Merge dependabot pull request job
+    runs-on: ubuntu-latest
+    # Restrict to dependabot PRs that originate from this repository (not a fork).
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Generate GitHub App token step
+        # All three merge jobs use the App token (not GITHUB_TOKEN) so the
+        # resulting squash-merge push is committed by the App, which fires
+        # downstream workflows on develop/main. Pushes from GITHUB_TOKEN are
+        # blocked from triggering further workflow runs by GitHub's recursion
+        # guard, which would silently skip release-please.yml on the merge
+        # commit and prevent tags / releases from being created.
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
+
+      - name: Get dependabot metadata step
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # Skip semver-major bumps across every ecosystem (pip, github-actions,
+      # devcontainers): majors can build cleanly but break runtime behaviour,
+      # so they should land via human review.
+      - name: Merge pull request step
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  merge-release-please:
+    name: Merge release-please pull request job
+    runs-on: ubuntu-latest
+    # release-please opens its release PRs as ptr727-codegen[bot] (the App used
+    # by release-please.yml) on branches named release-please--branches--<base>.
+    if: >-
+      github.actor == 'ptr727-codegen[bot]' &&
+      github.event.pull_request.user.login == 'ptr727-codegen[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'release-please--branches--') &&
+      contains(fromJSON('["main","develop"]'), github.event.pull_request.base.ref) &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Generate GitHub App token step
+        # See note in merge-dependabot above: App-token-driven merges trigger
+        # downstream workflows; GITHUB_TOKEN-driven ones do not. Required here
+        # so release-please.yml runs again after the release PR squash-merges,
+        # picks up the bumped manifest, pushes the tag, and creates the release.
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
+
+      - name: Merge pull request step
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  merge-ha-version-bump:
+    name: Merge HA version bump pull request job
+    runs-on: ubuntu-latest
+    # The check-ha-version workflow opens these PRs against develop with branch
+    # names of the form ha-version-bump/<X.Y.Z>.
+    if: >-
+      github.actor == 'ptr727-codegen[bot]' &&
+      github.event.pull_request.user.login == 'ptr727-codegen[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'ha-version-bump/') &&
+      github.event.pull_request.base.ref == 'develop' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+
+      - name: Generate GitHub App token step
+        # See note in merge-dependabot above: App-token-driven merges trigger
+        # downstream workflows; GITHUB_TOKEN-driven ones do not.
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
+
+      - name: Merge pull request step
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}

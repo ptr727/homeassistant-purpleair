@@ -1,0 +1,11 @@
+{
+  "$comment": "Pinned Home Assistant + pytest-homeassistant-custom-component versions consumed by test-release-task.yml's pytest matrix. `minimum` is hand-maintained and must match the homeassistant field in hacs.json. `latest` is bot-maintained by check-ha-version.yml.",
+  "minimum": {
+    "ha": "2026.4.0",
+    "pytest-hacc": "0.13.321"
+  },
+  "latest": {
+    "ha": "2026.4.3",
+    "pytest-hacc": "0.13.324"
+  }
+}

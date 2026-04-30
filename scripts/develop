@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
@@ -14,7 +14,9 @@ fi
 ## This lets us have the structure we want <root>/custom_components/purpleair
 ## while at the same time have Home Assistant configuration inside <root>/config
 ## without resulting to symlinks.
-export PYTHONPATH="${PYTHONPATH}:${PWD}/custom_components"
+# `${PYTHONPATH:-}` keeps `set -u` happy when the variable is unset (default
+# outside venvs).
+export PYTHONPATH="${PYTHONPATH:-}:${PWD}/custom_components"
 
 # Start Home Assistant.
 # --skip-pip-packages aiopurpleair preserves the editable install from

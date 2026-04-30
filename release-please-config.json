@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "a0939f54b6522bc50952e44570b6e329e67a95ea",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "homeassistant-purpleair",
+      "include-component-in-tag": false,
+      "include-v-in-tag": false,
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "custom_components/purpleair/manifest.json"
+        }
+      ]
+    }
+  }
+}
