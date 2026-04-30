@@ -60,14 +60,15 @@ req = next(r for r in manifest["requirements"] if r.startswith("aiopurpleair"))
 # importlib.metadata still reports the version baked into the editable
 # checkout's pyproject.toml, which can lag the SHA freely.
 if "==" in req:
-    expected = req.split("==", 1)[1]
-    installed = version("aiopurpleair")
+    pkg_name, expected = req.split("==", 1)
+    pkg_name = pkg_name.strip()
+    installed = version(pkg_name)
     if Version(installed) != Version(expected):
         raise RuntimeError(
-            f"aiopurpleair editable install reports {installed}; manifest.json expects {expected}. "
+            f"{pkg_name} editable install reports {installed}; manifest.json expects {expected}. "
             f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
         )
-    print(f"aiopurpleair editable install verified at version {installed}")
+    print(f"{pkg_name} editable install verified at version {installed}")
 else:
     print(f"aiopurpleair pinned at git ref ({req}); skipping version assertion.")
 PYEOF
