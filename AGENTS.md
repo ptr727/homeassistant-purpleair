@@ -170,9 +170,11 @@ files you touched.** That means:
 
 **For Python linters**, false positives are common — HA's `dataclass(kw_only=True)`
 confuses pylint's argument resolution, pytest fixtures look like unused
-arguments, etc. The fix is to **disable the rule project-wide in the linter's
-config file** (with a comment explaining why), not to scatter `# noqa` /
-`# pylint: disable=...` annotations.
+arguments, etc. Prefer to **disable recurring false positives project-wide in
+the linter's config file** (with a comment explaining why), rather than
+scattering inline suppressions. Avoid unjustified `# noqa` or
+`# pylint: disable=...` annotations; if an inline suppression is truly needed,
+keep it narrow and explain why.
 
 **For markdown**, what counts as a real warning is whatever the davidanson
 extension shows in the IDE — not what some external CLI tool reports. The repo

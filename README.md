@@ -578,10 +578,7 @@ If you do not sign commits or use `gh` and don't want to set this up, delete the
 `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
 reopening (or simply don't use the devcontainer).
 
-<!-- Reference-style link definitions. Some shield URLs and project links
-exceed the prose line-length budget by design (single-token URLs aren't
-wrappable); the line-length rule is suspended for this block only. -->
-<!-- markdownlint-disable MD013 -->
+<!-- Reference-style link definitions. -->
 
 <!--- Shields links --->
 
@@ -627,4 +624,3 @@ wrappable); the line-length rule is suspended for this block only. -->
 [qualityscale-shield]: https://img.shields.io/badge/Quality_scale-Platinum-9C27B0?logo=homeassistant
 [releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
 [releaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?logo=github&label=GitHub%20Release
-<!-- markdownlint-enable MD013 -->
