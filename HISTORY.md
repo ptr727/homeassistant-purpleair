@@ -1,6 +1,6 @@
 # PurpleAir for Home Assistant — Release History
 
-Long-running release ledger. The README's [Release notes](./README.md#release-notes) section summarises only the current release; older releases live here. Per-commit detail (PR titles, authors, diff range) is auto-generated on each [GitHub Release][releases-link] page.
+Long-running release ledger. The README's [Release notes](./README.md#release-notes) section summarises only the current release; older releases live here. Per-PR detail (PR titles, authors, diff range) is auto-generated on the [GitHub Releases][releases-link] page.
 
 ## Release History
 
