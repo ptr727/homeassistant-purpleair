@@ -70,7 +70,8 @@ if "==" in req:
         )
     print(f"{pkg_name} editable install verified at version {installed}")
 else:
-    print(f"aiopurpleair pinned at git ref ({req}); skipping version assertion.")
+    pkg_name = req.split("@", 1)[0].strip()
+    print(f"{pkg_name} pinned at git ref ({req}); skipping version assertion.")
 PYEOF
 else
     echo "Skipping editable aiopurpleair install and editable-version assertion."
