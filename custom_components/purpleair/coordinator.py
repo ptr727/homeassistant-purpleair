@@ -47,7 +47,39 @@ STATIC_REFRESH_INTERVAL: Final[timedelta] = timedelta(hours=24)
 ORGANIZATION_UPDATE_INTERVAL: Final[timedelta] = timedelta(hours=24)
 LOW_POINTS_DAYS_THRESHOLD: Final[int] = 7
 ISSUE_LOW_API_POINTS: Final[str] = "low_api_points"
+ISSUE_OUT_OF_API_POINTS: Final[str] = "out_of_api_points"
 PURCHASE_URL: Final[str] = "https://develop.purpleair.com/dashboards/projects"
+
+
+def _low_points_issue_id(entry_id: str) -> str:
+    """Build the per-entry low-points repair issue id."""
+    return f"{ISSUE_LOW_API_POINTS}_{entry_id}"
+
+
+def _out_of_points_issue_id(entry_id: str) -> str:
+    """Build the per-entry out-of-points repair issue id."""
+    return f"{ISSUE_OUT_OF_API_POINTS}_{entry_id}"
+
+
+@callback
+def _async_raise_out_of_points_issue(hass: HomeAssistant, entry_id: str) -> None:
+    """Surface the persistent ERROR repair issue for an exhausted points balance.
+
+    Distinct from the WARNING-level low-points issue so the severity reflects
+    the operational difference: low_points is "buy soon", out_of_points is
+    "the API is rejecting requests right now". Both issues use distinct ids
+    so they don't overwrite each other when both coordinators fire.
+    """
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        _out_of_points_issue_id(entry_id),
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=ISSUE_OUT_OF_API_POINTS,
+        translation_placeholders={"purchase_url": PURCHASE_URL},
+    )
+
 
 # SensorModel attribute names matching STATIC_DEVICE_FIELDS on-wire names.
 # name, hardware, model, firmware_version, latitude, longitude are direct.
@@ -290,20 +322,10 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
                 translation_key="invalid_api_key",
             ) from err
         except PaymentRequiredError as err:
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                f"{ISSUE_LOW_API_POINTS}_{self.config_entry.entry_id}",
-                is_fixable=False,
-                severity=ir.IssueSeverity.ERROR,
-                translation_key=ISSUE_LOW_API_POINTS,
-                translation_placeholders={
-                    "remaining": "0",
-                    "rate": "0",
-                    "days_left": "0",
-                    "purchase_url": PURCHASE_URL,
-                },
-            )
+            # Surface the dedicated out-of-points issue (distinct id from the
+            # low-points warning) so the user sees a clear ERROR-level repair
+            # without confusing "0 points/day" placeholders.
+            _async_raise_out_of_points_issue(self.hass, self.config_entry.entry_id)
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="update_failed",
@@ -354,7 +376,7 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
         )
 
     async def _async_update_data(self) -> GetOrganizationResponse:
-        """Fetch the organization metadata and manage the low-points repair issue."""
+        """Fetch the organization metadata and manage the repair issues."""
         try:
             response = await self._api.organizations.async_get_organization()
         except InvalidApiKeyError as err:
@@ -363,9 +385,10 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
                 translation_key="invalid_api_key",
             ) from err
         except PaymentRequiredError as err:
-            # Out of points. Surface the repair issue immediately so the user
-            # knows even though the daily refresh itself can't read the balance.
-            self._async_raise_low_points_issue(remaining=0, rate=0, days_left=0)
+            # The API confirms we're out of points — surface the dedicated
+            # out-of-points ERROR issue. Don't touch the low-points warning
+            # here; we don't have a current balance reading to evaluate.
+            _async_raise_out_of_points_issue(self.hass, self.config_entry.entry_id)
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="update_failed",
@@ -383,38 +406,36 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
 
     @callback
     def _async_evaluate_low_points(self, response: GetOrganizationResponse) -> None:
-        """Create or clear the low-points repair issue based on the response."""
-        rate = response.consumption_rate
-        remaining = response.remaining_points
-        if rate > 0 and remaining < rate * LOW_POINTS_DAYS_THRESHOLD:
-            days_left = remaining // rate
-            self._async_raise_low_points_issue(
-                remaining=remaining, rate=rate, days_left=days_left
-            )
-        else:
-            ir.async_delete_issue(self.hass, DOMAIN, self._low_points_issue_id)
+        """Create or clear the repair issues based on the current balance.
 
-    @callback
-    def _async_raise_low_points_issue(
-        self, *, remaining: int, rate: int, days_left: int
-    ) -> None:
-        """Create the persistent repair issue for a low API-points balance."""
-        ir.async_create_issue(
-            self.hass,
-            DOMAIN,
-            self._low_points_issue_id,
-            is_fixable=False,
-            severity=ir.IssueSeverity.WARNING,
-            translation_key=ISSUE_LOW_API_POINTS,
-            translation_placeholders={
-                "remaining": str(remaining),
-                "rate": str(rate),
-                "days_left": str(days_left),
-                "purchase_url": PURCHASE_URL,
-            },
+        A successful response means the API is accepting requests, so the
+        out-of-points ERROR issue is always cleared here. Only the
+        low-points WARNING is balance-dependent.
+        """
+        # Successful read → API is accepting requests → out-of-points cannot
+        # be true right now. Clear it unconditionally.
+        ir.async_delete_issue(
+            self.hass, DOMAIN, _out_of_points_issue_id(self.config_entry.entry_id)
         )
 
-    @property
-    def _low_points_issue_id(self) -> str:
-        """Return the per-entry issue id."""
-        return f"{ISSUE_LOW_API_POINTS}_{self.config_entry.entry_id}"
+        rate = response.consumption_rate
+        remaining = response.remaining_points
+        low_points_id = _low_points_issue_id(self.config_entry.entry_id)
+        if rate > 0 and remaining < rate * LOW_POINTS_DAYS_THRESHOLD:
+            days_left = remaining // rate
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                low_points_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_LOW_API_POINTS,
+                translation_placeholders={
+                    "remaining": str(remaining),
+                    "rate": str(rate),
+                    "days_left": str(days_left),
+                    "purchase_url": PURCHASE_URL,
+                },
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, low_points_id)

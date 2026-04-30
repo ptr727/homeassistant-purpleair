@@ -203,6 +203,10 @@
     "low_api_points": {
       "title": "PurpleAir API points are running low",
       "description": "Only {remaining} API points remain at a consumption rate of {rate} points/day (about {days_left} days left). Buy more points on the PurpleAir Developer dashboard ({purchase_url}) to avoid the integration failing once the balance hits zero."
+    },
+    "out_of_api_points": {
+      "title": "PurpleAir API points are exhausted",
+      "description": "The PurpleAir API is rejecting requests because the account is out of points. Buy more points on the PurpleAir Developer dashboard ({purchase_url}) to restore the integration. This issue clears automatically on the next successful refresh."
     }
   },
   "exceptions": {

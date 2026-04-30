@@ -16,6 +16,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
 from custom_components.purpleair.coordinator import (
     ISSUE_LOW_API_POINTS,
+    ISSUE_OUT_OF_API_POINTS,
     UPDATE_INTERVAL,
 )
 from homeassistant.config_entries import ConfigSubentry
@@ -528,7 +529,7 @@ async def test_organization_recovery_clears_repair_issue(
     assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
 
 
-async def test_organization_payment_required_creates_repair_issue(
+async def test_organization_payment_required_creates_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
@@ -536,14 +537,87 @@ async def test_organization_payment_required_creates_repair_issue(
     api,
     issue_registry: ir.IssueRegistry,
 ) -> None:
-    """A PaymentRequiredError on the org refresh must still raise the repair issue."""
-    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+    """A PaymentRequiredError on the org refresh raises the out-of-points ERROR.
+
+    Distinct from the WARNING-level low-points issue (which has numeric
+    placeholders). out-of-points has no numerics — we don't have a balance
+    reading when the API rejects the request.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
 
     api.organizations.async_get_organization.side_effect = PaymentRequiredError(
         "out of points"
     )
     await config_entry.runtime_data.organization.async_refresh()
 
-    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    issue = issue_registry.async_get_issue(DOMAIN, out_of_points_id)
     assert issue is not None
-    assert issue.translation_key == ISSUE_LOW_API_POINTS
+    assert issue.translation_key == ISSUE_OUT_OF_API_POINTS
+    assert issue.severity is ir.IssueSeverity.ERROR
+    assert issue.translation_placeholders == {
+        "purchase_url": "https://develop.purpleair.com/dashboards/projects",
+    }
+
+
+async def test_sensors_payment_required_creates_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A PaymentRequiredError on the sensors refresh also surfaces out-of-points.
+
+    Sensors coordinator runs every 5 min (vs. org coordinator's 24 h), so
+    when the balance hits zero the user sees the ERROR issue within minutes
+    rather than waiting for the next daily org refresh.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is None
+
+    with patch.object(
+        api.sensors,
+        "async_get_sensors",
+        AsyncMock(side_effect=PaymentRequiredError("out of points")),
+    ):
+        freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+
+    issue = issue_registry.async_get_issue(DOMAIN, out_of_points_id)
+    assert issue is not None
+    assert issue.severity is ir.IssueSeverity.ERROR
+
+
+async def test_organization_recovery_clears_out_of_points_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A successful org refresh always clears the out-of-points issue.
+
+    Even if the new balance is below the warning threshold (low_points),
+    the API just accepted the request — by definition we're no longer
+    "out of points", so the ERROR-level issue must clear.
+    """
+    out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
+
+    # First refresh: out of points.
+    api.organizations.async_get_organization.side_effect = PaymentRequiredError(
+        "out of points"
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is not None
+
+    # Second refresh: API recovered, balance is healthy.
+    api.organizations.async_get_organization.side_effect = None
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=50000, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is None
