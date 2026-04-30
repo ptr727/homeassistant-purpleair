@@ -3,7 +3,7 @@
 # workflow so "green locally" matches "green on GitHub". To apply
 # auto-fixes run scripts/fix instead.
 
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
 

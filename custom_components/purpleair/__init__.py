@@ -211,10 +211,13 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                         device.id,
                         remove_config_entry_id=entry.entry_id,
                     )
-                else:
+                elif None in device.config_entries_subentries.get(
+                    parent_entry.entry_id, set()
+                ):
+                    # Drop only the legacy (parent_entry, None) link
                     device_registry.async_update_device(
                         device.id,
-                        remove_config_entry_id=entry.entry_id,
+                        remove_config_entry_id=parent_entry.entry_id,
                         remove_config_subentry_id=None,
                     )
 
