@@ -33,8 +33,11 @@ python3 -m pip install --requirement requirements-test.txt
 MARKDOWNLINT_VERSION=0.22.1
 
 if command -v npm >/dev/null 2>&1; then
-    installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null \
-        | awk '{print $2}' | tr -d 'v' || true)"
+    installed_markdownlint=""
+    if command -v markdownlint-cli2 >/dev/null 2>&1; then
+        installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null \
+            | awk '{print $2}' | tr -d 'v')"
+    fi
     if [ "$installed_markdownlint" = "$MARKDOWNLINT_VERSION" ]; then
         echo "markdownlint-cli2 $MARKDOWNLINT_VERSION already installed, skipping."
     else

@@ -1,0 +1,10 @@
+# generated or vendored content
+aiopurpleair/
+config/
+htmlcov/
+
+# release-please manifest/version-state files
+.release-please-manifest*.json
+
+# release-please generated changelog
+CHANGELOG.md
