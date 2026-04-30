@@ -291,12 +291,11 @@ with values that only change on firmware updates or user actions (`name`,
 `hardware`, `model`, `firmware_version`, `latitude`, `longitude`). The
 coordinator splits them into two sets:
 
-| Set | Fields | Fetch cadence | |---|---|---| | `STATIC_DEVICE_FIELDS` |
-`name`, `hardware`, `model`, `firmware_version`, `latitude`, `longitude` | Once
-at setup, then every 24 h | | `AVAILABILITY_FIELDS` | `last_seen`, `confidence`,
-`channel_state`, `channel_flags` | Every refresh (5 min) | | Per-entity fields |
-e.g. `temperature`, `humidity`, `pm2.5`, `pm2.5_24hour` | Every refresh, only
-for enabled entities |
+| Set | Fields | Fetch cadence |
+| --- | --- | --- |
+| `STATIC_DEVICE_FIELDS` | `name`, `hardware`, `model`, `firmware_version`, `latitude`, `longitude` | Once at setup, then every 24 h |
+| `AVAILABILITY_FIELDS` | `last_seen`, `confidence`, `channel_state`, `channel_flags` | Every refresh (5 min) |
+| Per-entity fields | e.g. `temperature`, `humidity`, `pm2.5`, `pm2.5_24hour` | Every refresh, only for enabled entities |
 
 Reloading the config entry (**Settings → Devices & services → PurpleAir → ⋮ →
 Reload**) forces an immediate static re-fetch — useful after a firmware update
@@ -307,7 +306,8 @@ enabled-by-default entities** (temperature, humidity, pressure, PM1.0/PM2.5/PM10
 mass concentrations):
 
 | Scenario | Fields per refresh | Refreshes per day | Field-fetches per day |
-|---|---|---|---| | Hard-coded full field list (naive) | 16 | 288 | **4,608** |
+| --- | --- | --- | --- |
+| Hard-coded full field list (naive) | 16 | 288 | **4,608** |
 | This integration | 10 + 6 once daily | 288 + 1 | **2,886** (≈ 37 % less) |
 
 Enabling every optional entity (PM particle counts, RSSI, uptime, ALT, six
@@ -523,13 +523,13 @@ Each script is also wired up as a VS Code task in
 [.vscode/tasks.json](.vscode/tasks.json) — open **Command Palette → Tasks: Run
 Task**, or use the shortcuts below:
 
-| Script | VS Code task | Shortcut | | --------------- |
---------------------------------- | -------------------------------------- | |
-`scripts/setup` | **Setup: Install dev requirements** | Tasks: Run Task | |
-`scripts/develop` | **Develop: Run Home Assistant** | Tasks: Run Task | |
-`scripts/fix` | **Fix: ruff format + check --fix** | Tasks: Run Task | |
-`scripts/lint` | **Lint: ruff + mypy (verify)** | `Ctrl+Shift+B` (default build
-task) | | `pytest` | **Test: pytest** | Tasks: Run Test Task (default test) |
+| Script | VS Code task | Shortcut |
+| --- | --- | --- |
+| `scripts/setup` | **Setup: Install dev requirements** | Tasks: Run Task |
+| `scripts/develop` | **Develop: Run Home Assistant** | Tasks: Run Task |
+| `scripts/fix` | **Fix: ruff format + check --fix** | Tasks: Run Task |
+| `scripts/lint` | **Lint: ruff + mypy (verify)** | `Ctrl+Shift+B` (default build task) |
+| `pytest` | **Test: pytest** | Tasks: Run Test Task (default test) |
 
 ### Devcontainer host prerequisites
 
@@ -537,14 +537,11 @@ The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the
 container so existing host credentials (SSH signing key, GitHub CLI auth) work
 inside it without re-setup:
 
-| Host path | Mounted at | Purpose | |---|---|---| | `~/.ssh/id_ed25519.pub` |
-`/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH
-commit-signing key | | `~/.config/git/allowed_signers` |
-`/home/vscode/.config/git/allowed_signers` (read-only) | Git's `allowed_signers`
-file listing which public keys are accepted as valid signers | | `~/.config/gh`
-| `/home/vscode/.config/gh` | GitHub CLI config and auth tokens — bind-mounted
-read-write so `gh auth login` / token refresh inside the container persists back
-to the host |
+| Host path | Mounted at | Purpose |
+| --- | --- | --- |
+| `~/.ssh/id_ed25519.pub` | `/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH commit-signing key |
+| `~/.config/git/allowed_signers` | `/home/vscode/.config/git/allowed_signers` (read-only) | Git's `allowed_signers` file listing which public keys are accepted as valid signers |
+| `~/.config/gh` | `/home/vscode/.config/gh` | GitHub CLI config and auth tokens — bind-mounted read-write so `gh auth login` / token refresh inside the container persists back to the host |
 
 **All three paths must exist on the host before you reopen the folder in the
 devcontainer, otherwise the container build will fail with a bind-mount error.**
