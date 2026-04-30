@@ -8,9 +8,14 @@ jobs:
   date-badge:
     name: Build BYOB date badge job
     runs-on: ubuntu-latest
-    # Only update the "Last Build" badge on main; develop/PR runs would
-    # otherwise overwrite it with stale-branch timestamps.
-    if: ${{ github.ref_name == 'main' }}
+    # Only update the "Last Build" badge for stable releases. publish-release.yml
+    # triggers on tag push, so github.ref_name is the tag (e.g. "0.1.0"), not
+    # the branch — the old `== 'main'` check would always fail. A stable tag is
+    # one that has no SemVer prerelease segment, i.e. no `-` in the name
+    # (`0.2.0` → stable, `0.2.0-beta.1` → prerelease, skip). Develop's
+    # release-please config always emits `-beta.N` suffixes, so non-`-` tags
+    # implicitly come from main's stable lineage.
+    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
 
     steps:
 
