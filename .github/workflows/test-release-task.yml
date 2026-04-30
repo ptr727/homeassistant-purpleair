@@ -112,7 +112,7 @@ jobs:
         # always uses CODECOV_TOKEN. `flags` lets Codecov break down
         # coverage per HA matrix slot in the dashboard, while the repo's
         # overall coverage badge merges all uploads for a SHA.
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
