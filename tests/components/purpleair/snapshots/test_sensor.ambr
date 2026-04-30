@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_sensor_snapshot[sensor.purpleair_organization-entry]
+# name: test_sensor_snapshot[sensor.purpleair_organization_consumption_rate-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -15,7 +15,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.purpleair_organization',
+    'entity_id': 'sensor.purpleair_organization_consumption_rate',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -23,66 +23,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': None,
+    'object_id_base': 'Consumption rate',
     'options': dict({
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': None,
-    'platform': 'purpleair',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'remaining_points',
-    'unique_id': 'purpleair_test_entry_id-organization-remaining_points',
-    'unit_of_measurement': 'points',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.purpleair_organization-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'friendly_name': 'PurpleAir organization',
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-      'unit_of_measurement': 'points',
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.purpleair_organization',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '50000',
-  })
-# ---
-# name: test_sensor_snapshot[sensor.purpleair_organization_2-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.purpleair_organization_2',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': None,
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': None,
+    'original_name': 'Consumption rate',
     'platform': 'purpleair',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -92,19 +38,73 @@
     'unit_of_measurement': 'points/d',
   })
 # ---
-# name: test_sensor_snapshot[sensor.purpleair_organization_2-state]
+# name: test_sensor_snapshot[sensor.purpleair_organization_consumption_rate-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'PurpleAir organization',
+      'friendly_name': 'PurpleAir organization Consumption rate',
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
       'unit_of_measurement': 'points/d',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.purpleair_organization_2',
+    'entity_id': 'sensor.purpleair_organization_consumption_rate',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '1500',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.purpleair_organization_remaining_points-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': dict({
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+    }),
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'sensor.purpleair_organization_remaining_points',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Remaining points',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Remaining points',
+    'platform': 'purpleair',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'remaining_points',
+    'unique_id': 'purpleair_test_entry_id-organization-remaining_points',
+    'unit_of_measurement': 'points',
+  })
+# ---
+# name: test_sensor_snapshot[sensor.purpleair_organization_remaining_points-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'PurpleAir organization Remaining points',
+      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      'unit_of_measurement': 'points',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.purpleair_organization_remaining_points',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '50000',
   })
 # ---
 # name: test_sensor_snapshot[sensor.test_sensor_channel_flags-entry]

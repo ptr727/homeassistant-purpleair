@@ -4,7 +4,8 @@ from datetime import timedelta
 from types import MappingProxyType
 from unittest.mock import AsyncMock, patch
 
-from aiopurpleair.errors import InvalidApiKeyError, PurpleAirError
+from aiopurpleair.errors import InvalidApiKeyError, PaymentRequiredError, PurpleAirError
+from aiopurpleair.models.organizations import GetOrganizationResponse
 from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -13,10 +14,13 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
-from custom_components.purpleair.coordinator import UPDATE_INTERVAL
+from custom_components.purpleair.coordinator import (
+    ISSUE_LOW_API_POINTS,
+    UPDATE_INTERVAL,
+)
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 
 from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2
 
@@ -448,3 +452,97 @@ async def test_registry_event_for_foreign_entity_does_not_refresh(
 
     # The PurpleAir coordinator must NOT have issued a refresh.
     assert api.sensors.async_get_sensors.await_count == 0
+
+
+def _organization_response(remaining: int, rate: int) -> GetOrganizationResponse:
+    """Build a synthetic organization response."""
+    return GetOrganizationResponse.model_validate(
+        {
+            "api_version": "V1.0.11-0.0.41",
+            "time_stamp": 1668985817,
+            "organization_id": "abc123def456",
+            "organization_name": "Test Org",
+            "remaining_points": remaining,
+            "consumption_rate": rate,
+        }
+    )
+
+
+async def test_organization_low_points_creates_repair_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """Remaining < rate*7 must raise the low_api_points repair issue."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+    # Healthy default fixture means no issue at setup time.
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+    # Drop the balance below the 7-day floor and refresh directly. The 24 h
+    # `update_interval` rules out async_fire_time_changed without a full-day
+    # tick, which the freezer can do but it's awkward to compose with the
+    # sensors coordinator's 5-minute schedule. Driving `async_refresh()`
+    # exercises the same `_async_update_data` path that the scheduler does.
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=1000, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_LOW_API_POINTS
+    assert issue.translation_placeholders == {
+        "remaining": "1000",
+        "rate": "200",
+        "days_left": "5",
+    }
+
+
+async def test_organization_recovery_clears_repair_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A subsequent refresh that's back above the floor must clear the issue."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+
+    # First refresh: low.
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=500, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
+
+    # Second refresh: balance topped up.
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=50000, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_organization_payment_required_creates_repair_issue(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A PaymentRequiredError on the org refresh must still raise the repair issue."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+
+    api.organizations.async_get_organization.side_effect = PaymentRequiredError(
+        "out of points"
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == ISSUE_LOW_API_POINTS
