@@ -1,6 +1,6 @@
 # PurpleAir for Home Assistant — Release History
 
-Long-running release ledger. The README's [Release notes](./README.md#release-notes) section summarises only the current release; older releases live here. Per-commit history is maintained automatically by release-please in the [Changelog][changelog-link].
+Long-running release ledger. The README's [Release notes](./README.md#release-notes) section summarises only the current release; older releases live here. Per-PR detail (PR titles, authors, diff range) is auto-generated on the [GitHub Releases][releases-link] page.
 
 ## Release History
 
@@ -17,4 +17,4 @@ Long-running release ledger. The README's [Release notes](./README.md#release-no
   - Clear config-flow errors — WRITE API keys, disabled keys, and wrong per-sensor read keys each surface a targeted error on the right field.
   - Platinum-tier quality-scale compliance.
 
-[changelog-link]: ./CHANGELOG.md
+[releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
