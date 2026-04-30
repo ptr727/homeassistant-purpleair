@@ -5,17 +5,22 @@ on:
 
 jobs:
 
+  get-version:
+    name: Get version information job
+    uses: ./.github/workflows/get-version-task.yml
+    secrets: inherit
+
   date-badge:
     name: Build BYOB date badge job
     runs-on: ubuntu-latest
+    needs: [get-version]
     # Only update the "Last Build" badge for stable releases. publish-release.yml
     # triggers on tag push, so github.ref_name is the tag (e.g. "0.1.0"), not
-    # the branch — the old `== 'main'` check would always fail. A stable tag is
-    # one that has no SemVer prerelease segment, i.e. no `-` in the name
-    # (`0.2.0` → stable, `0.2.0-beta.1` → prerelease, skip). Develop's
-    # release-please config always emits `-beta.N` suffixes, so non-`-` tags
-    # implicitly come from main's stable lineage.
-    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+    # the branch — the old `== 'main'` check would always fail. Reuse the
+    # `Prerelease` output from get-version-task, which strips SemVer build
+    # metadata (`+...`) before checking for a prerelease segment, so a stable
+    # build-tagged version like `1.0.0+build-1` isn't misclassified.
+    if: needs.get-version.outputs.Prerelease == 'false'
 
     steps:
 
