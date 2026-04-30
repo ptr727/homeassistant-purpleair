@@ -179,15 +179,17 @@ Free points are available for sensor owners who use their own sensor's Read Key;
 
 ## Upstream dependency: `aiopurpleair` fork
 
-This integration depends on the `aiopurpleair` library. The latest published release (`2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes](https://api.purpleair.com/) collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
+This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes](https://api.purpleair.com/) collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
 
-The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the published library yet. Until those additions land upstream, [`manifest.json`](custom_components/purpleair/manifest.json) pins to a branch on a fork — [ptr727/bachya-aiopurpleair @ feat/organization-endpoint-and-error-codes](https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes) — that adds:
+The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library yet. While upstream review is pending, [`manifest.json`](custom_components/purpleair/manifest.json) pins to a temporary fork distribution published to PyPI as `aiopurpleair-ptr727==2026.4.0` (built from [ptr727/bachya-aiopurpleair @ feat/organization-endpoint-and-error-codes](https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes)). The fork adds:
 
 - 19 new exception subclasses (one per documented API error code), wired into `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc. instead of pattern-matching on `str(err)`.
 - A `GET /v1/organization` endpoint exposed on `API` as `api.organizations`, with a `GetOrganizationResponse` Pydantic model carrying `remaining_points`, `consumption_rate`, `organization_id`, `organization_name`, `api_version`, and `timestamp_utc`.
 - 100 % test coverage for both additions, no breaking changes to the public API.
 
-A pull request against [bachya/aiopurpleair](https://github.com/bachya/aiopurpleair) is open. Once the maintainer merges and cuts a new PyPI release, the pin in [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) flips back to a `==X.Y.Z` version pin and this section can be removed.
+The fork is shipped under a distinct PyPI name (`aiopurpleair-ptr727`) so it doesn't collide with the canonical `aiopurpleair` distribution; `packages = [{ include = "aiopurpleair" }]` in the fork's `pyproject.toml` keeps the import path unchanged, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
+
+A pull request against [bachya/aiopurpleair](https://github.com/bachya/aiopurpleair) is open. Once the maintainer merges and cuts a new canonical PyPI release, the pin in [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) flips back to `aiopurpleair==X.Y.Z`, the `aiopurpleair-ptr727` distribution gets yanked from PyPI, and this section can be removed.
 
 All error codes and semantics in the fork are verified against a snapshot of the official docs at `.claude/API - PurpleAir.mhtml`.
 

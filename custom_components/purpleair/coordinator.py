@@ -47,6 +47,7 @@ STATIC_REFRESH_INTERVAL: Final[timedelta] = timedelta(hours=24)
 ORGANIZATION_UPDATE_INTERVAL: Final[timedelta] = timedelta(hours=24)
 LOW_POINTS_DAYS_THRESHOLD: Final[int] = 7
 ISSUE_LOW_API_POINTS: Final[str] = "low_api_points"
+PURCHASE_URL: Final[str] = "https://develop.purpleair.com/dashboards/projects"
 
 # SensorModel attribute names matching STATIC_DEVICE_FIELDS on-wire names.
 # name, hardware, model, firmware_version, latitude, longitude are direct.
@@ -300,6 +301,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
                     "remaining": "0",
                     "rate": "0",
                     "days_left": "0",
+                    "purchase_url": PURCHASE_URL,
                 },
             )
             raise UpdateFailed(
@@ -408,6 +410,7 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
                 "remaining": str(remaining),
                 "rate": str(rate),
                 "days_left": str(days_left),
+                "purchase_url": PURCHASE_URL,
             },
         )
 

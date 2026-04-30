@@ -1,4 +1,4 @@
 -r requirements.txt
-aiopurpleair @ git+https://github.com/ptr727/bachya-aiopurpleair.git@ccd586892655d2890545c734e243418011d4c2ef
+aiopurpleair-ptr727==2026.4.0
 pytest-homeassistant-custom-component==0.13.324
 mypy>=1.11

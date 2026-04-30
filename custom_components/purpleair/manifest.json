@@ -9,8 +9,6 @@
   "issue_tracker": "https://github.com/ptr727/homeassistant-purpleair/issues",
   "loggers": ["aiopurpleair", "custom_components.purpleair"],
   "quality_scale": "platinum",
-  "requirements": [
-    "aiopurpleair @ git+https://github.com/ptr727/bachya-aiopurpleair.git@ccd586892655d2890545c734e243418011d4c2ef"
-  ],
+  "requirements": ["aiopurpleair-ptr727==2026.4.0"],
   "version": "0.1.0"
 }

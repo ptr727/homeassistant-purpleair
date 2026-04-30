@@ -498,6 +498,7 @@ async def test_organization_low_points_creates_repair_issue(
         "remaining": "1000",
         "rate": "200",
         "days_left": "5",
+        "purchase_url": "https://develop.purpleair.com/dashboards/projects",
     }
 
 
