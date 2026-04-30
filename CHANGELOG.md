@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/ptr727/homeassistant-purpleair/compare/0.2.0...0.2.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* address Copilot review on PR [#32](https://github.com/ptr727/homeassistant-purpleair/issues/32) (manifest/repair-issue/diagnostics) ([#34](https://github.com/ptr727/homeassistant-purpleair/issues/34)) ([11968ed](https://github.com/ptr727/homeassistant-purpleair/commit/11968ed861d55ca3a8d4d2b7c332bcd9ecfb67f9))
+
 ## [0.2.0](https://github.com/ptr727/homeassistant-purpleair/compare/0.1.1...0.2.0) (2026-04-30)
 
 
