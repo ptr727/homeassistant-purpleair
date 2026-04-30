@@ -10,11 +10,13 @@ PRs squash-merge, so the PR title becomes the single commit message on `develop`
 
 ### Format
 
-    <type>(<optional scope>): <imperative summary, lowercase, no trailing period>
+```text
+<type>(<optional scope>): <imperative summary, lowercase, no trailing period>
 
-    [optional body, wrapped at 72 chars, blank-line separated, explains *why*]
+[optional body, wrapped at 72 chars, blank-line separated, explains *why*]
 
-    [optional BREAKING CHANGE: ... footer]
+[optional BREAKING CHANGE: ... footer]
+```
 
 ### Allowed types and their effect on the next release
 
@@ -36,11 +38,13 @@ If you're unsure whether the change should ship as a release, prefer `chore:`. D
 
 ### Examples
 
-    feat: surface 24-hour PM2.5 average as a separate sensor
-    fix(coordinator): skip empty PurpleAir API responses during polling
-    feat!: drop support for Home Assistant < 2026.4
-    chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
-    docs: clarify HACS install steps in README
+```text
+feat: surface 24-hour PM2.5 average as a separate sensor
+fix(coordinator): skip empty PurpleAir API responses during polling
+feat!: drop support for Home Assistant < 2026.4
+chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
+docs: clarify HACS install steps in README
+```
 
 ## When in doubt
 
