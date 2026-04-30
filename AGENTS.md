@@ -164,7 +164,7 @@ files you touched.** That means:
   TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
 - **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]`
   in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via
-  [.markdownlint.jsonc](.markdownlint.jsonc), used by the
+  [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the
   `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`,
   `yamllint`.
 
