@@ -18,11 +18,13 @@ PR titles drive versioning via [release-please](https://github.com/googleapis/re
 
 ### Format
 
-    <type>(<optional scope>): <imperative summary, lowercase, no trailing period>
+```text
+<type>(<optional scope>): <imperative summary, lowercase, no trailing period>
 
-    [optional body, wrapped at 72 chars, blank-line separated]
+[optional body, wrapped at 72 chars, blank-line separated]
 
-    [optional BREAKING CHANGE: ... footer]
+[optional BREAKING CHANGE: ... footer]
+```
 
 ### Types and bump effect
 
@@ -52,12 +54,14 @@ Per Conventional Commits, `!` after any type marks a breaking change and forces 
 
 ### Examples
 
-    feat: surface 24-hour PM2.5 average as a separate sensor
-    fix(coordinator): skip empty PurpleAir API responses during polling
-    feat!: drop support for Home Assistant < 2026.4
-    chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
-    docs: clarify HACS install steps in README
-    ci: pin actionlint to v1.7.7
+```text
+feat: surface 24-hour PM2.5 average as a separate sensor
+fix(coordinator): skip empty PurpleAir API responses during polling
+feat!: drop support for Home Assistant < 2026.4
+chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
+docs: clarify HACS install steps in README
+ci: pin actionlint to v1.7.7
+```
 
 ### What NOT to do
 
@@ -92,6 +96,29 @@ Per Conventional Commits, `!` after any type marks a breaking change and forces 
 - **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
 - **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
 - **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
+
+### Linter cleanliness — applies to every linter, not just the CI gate
+
+**Before committing, every diagnostic surfaced by every configured linter must be zero — including ones the CI gate doesn't run.** That covers:
+
+- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, hassfest TRANSLATIONS/REQUIREMENTS validation.
+- **IDE-only but configured**: `pylint` (via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (via [.markdownlint.jsonc](.markdownlint.jsonc) + the matching `[tool.pymarkdown]` block in [pyproject.toml](pyproject.toml) for CLI), `actionlint`, `shellcheck`, `yamllint`.
+
+If a linter reports a false positive, the fix is to **disable the rule project-wide in the linter's config file** (with a comment explaining why), not to scatter `# noqa` / `# pylint: disable=...` annotations across the codebase. The disable list lives next to the linter's config so future agents can audit it.
+
+Verifying locally:
+
+```sh
+scripts/lint                                              # CI gate
+pylint custom_components/ tests/                          # 10/10 expected
+pymarkdown scan README.md HISTORY.md AGENTS.md \
+    CONTRIBUTING.md                                       # silent expected
+actionlint .github/workflows/*.yml                        # silent expected
+shellcheck scripts/*                                      # silent expected
+yamllint .github/workflows/                               # silent expected
+```
+
+If any of those produce output that's NOT pre-existing baseline, fix the underlying issue or extend the linter's project-wide disable list with a justification comment.
 
 ## Workflow YAML conventions
 

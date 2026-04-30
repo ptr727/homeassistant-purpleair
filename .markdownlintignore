@@ -1,0 +1,15 @@
+# release-please-managed: machine-generated, do not lint.
+CHANGELOG.md
+
+# Vendored aiopurpleair fork — its own repo, lint there.
+aiopurpleair/
+
+# release-please's release-notes intermediate files.
+.release-please-manifest*.json
+
+# Plan files written by Claude Code.
+.claude/
+
+# Build / dependency directories.
+node_modules/
+config/

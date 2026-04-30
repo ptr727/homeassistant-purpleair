@@ -1,0 +1,23 @@
+// markdownlint config — picked up by both markdownlint-cli2 and the VS Code
+// markdownlint extension (davidanson.vscode-markdownlint).
+{
+    // Disable strict 80-column line length. Prose paragraphs in README.md,
+    // AGENTS.md, etc. are intentionally long — wrapping them at 80 hurts
+    // readability and produces noisy diffs on edits.
+    "MD013": false,
+    // Allow inline HTML (the `<!--- Shields links --->` comment blocks at
+    // the bottom of README.md are valuable visual section dividers).
+    "MD033": false,
+    // Explicitly require fenced code blocks (```sh ... ```) over the
+    // legacy 4-space-indented style. Without this, markdownlint defaults
+    // to "consistent" mode and arbitrarily picks whichever style appears
+    // first in the file, which produces noisy MD046 warnings as docs
+    // grow.
+    "MD046": { "style": "fenced" },
+    // Disable table-column-style enforcement. Aligning every pipe pixel-
+    // perfectly inside tables fights the GitHub renderer (which collapses
+    // spacing anyway) and produces noisy diffs when a single row's text
+    // changes width. The semantic content is what matters, not pipe
+    // alignment.
+    "MD060": false
+}
