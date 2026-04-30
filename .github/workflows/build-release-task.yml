@@ -85,7 +85,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.get-version.outputs.Tag }}
-        run: gh release upload "$TAG" ./Publish/purpleair.zip --clobber
+        # `--repo` is needed because this job has no checkout step, so `gh`
+        # cannot infer the target repo from a git remote (matches the
+        # adjacent `gh release view` invocation above).
+        run: gh release upload "$TAG" ./Publish/purpleair.zip --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Create GitHub release step
         if: steps.guard.outputs.release-exists != 'true'
