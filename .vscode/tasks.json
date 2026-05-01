@@ -59,6 +59,46 @@
                 "reveal": "always",
                 "panel": "dedicated"
             }
+        },
+        {
+            "label": "Test: pytest + branch coverage",
+            "type": "shell",
+            "command": "python -m pytest -ra --cov=custom_components/purpleair --cov-report=term-missing --cov-branch",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Setup: aiopurpleair venv",
+            "type": "shell",
+            "command": "bash -lc 'cd aiopurpleair && python3 -m venv .venv && . .venv/bin/activate && python -m pip install --upgrade pip'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Setup: aiopurpleair deps (poetry)",
+            "type": "shell",
+            "command": "bash -lc 'cd aiopurpleair && . .venv/bin/activate && ./script/setup'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Test: aiopurpleair pytest (venv)",
+            "type": "shell",
+            "command": "bash -lc 'cd aiopurpleair && . .venv/bin/activate && pytest -ra'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
         }
     ]
 }

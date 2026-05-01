@@ -1,9 +1,17 @@
 # PurpleAir for Home Assistant (custom integration)
 
 A Home Assistant [custom integration][ha-custom-integration-link] for
-[PurpleAir][purpleair-link] air-quality sensors. Distributed via
-[HACS][hacs-xyz-link] or installed manually by copying into
-`<config>/custom_components/`.
+[PurpleAir][purpleair-link] air-quality sensors.
+
+> **Not the built-in PurpleAir integration.** This custom integration shares the
+> `purpleair` domain with the core built-in one. When loaded, Home Assistant's
+> loader picks the custom version over the built-in and migrates existing config
+> entries forward — the upgrade is automatic and preserves entity IDs and
+> history. **The downgrade is not:** if you later remove this custom
+> integration, the built-in cannot read the migrated v2 entries until
+> [core PR #140901][ha-core-pr-link] ships. See [Migration][migration-link]
+> below for details. In the **Add Integration** picker this appears as
+> **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ## Build and Distribution
 
@@ -16,24 +24,14 @@ A Home Assistant [custom integration][ha-custom-integration-link] for
 
 ### Releases
 
-[![GitHub Release][releaseversion-shield]][releases-link]\
-[![GitHub Pre-Release][prereleaseversion-shield]][releases-link]\
+[![Release Version][releaseversion-shield]][releases-link]\
+[![Pre-Release Version][prereleaseversion-shield]][releases-link]\
 [![HACS Default][hacs-shield]][hacs-link]\
-[![License][license-shield]][license-link]\
-[![Quality scale: Platinum][qualityscale-shield]][qualityscale-link]\
-[![Home Assistant 2026.4.0+][haversion-shield]][haversion-link]
+[![Quality Scale][qualityscale-shield]][qualityscale-link]\
+[![Home Assistant][haversion-shield]][haversion-link]\
+[![License][license-shield]][license-link]
 
-> **Not the built-in PurpleAir integration.** This custom integration shares the
-> `purpleair` domain with the core built-in one. When loaded, Home Assistant's
-> loader picks the custom version over the built-in and migrates existing config
-> entries forward — the upgrade is automatic and preserves entity IDs and
-> history. **The downgrade is not:** if you later remove this custom
-> integration, the built-in cannot read the migrated v2 entries until
-> [core PR #140901][ha-core-pr-link] ships. See [Migration][migration-link]
-> below for details. In the **Add Integration** picker this appears as
-> **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
-
-## What it provides beyond Home Assistant's built-in PurpleAir integration
+## Features beyond Home Assistant's built-in PurpleAir integration
 
 - **Private sensor support.** Each subentry can supply its own per-sensor **Read
   Key**, so the integration can query unlisted private sensors and query
@@ -61,7 +59,7 @@ A Home Assistant [custom integration][ha-custom-integration-link] for
 - **Platinum-tier quality scale.** Full HA quality-scale platinum tier:
   `parallel-updates`, `entity-unavailable`, `log-when-unavailable`,
   `repair-issues`, `reconfiguration-flow`, entity translations, exception
-  translations, ≥ 97 % test coverage, and more — see
+  translations, ≥ 95 % test coverage, and more — see
   [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
 - **Automatic v1 → v2 migration.** Existing config entries from the built-in
   integration are converted to the subentry layout on first load; entity IDs,
@@ -491,9 +489,9 @@ Two recovery options:
 There is no in-place downgrade until the core PR merges. Plan accordingly before
 installing.
 
-## Status & credits
+## Status & Credits
 
-- **Branch layout:** `develop` for testing, releases cut from `main`.
+- **Branch layout:** `develop` for testing, releases from `main`.
 - **API library:** [aiopurpleair][aiopurpleair-pypi-link], authored by
   [@bachya][bachya-link].
 - **License:** Apache 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
@@ -518,6 +516,24 @@ pytest            # run the test suite (after pip install -r requirements-test.t
 `scripts/lint` is the CI gate — it fails non-zero on any ruff, format, or
 `mypy --strict` violation so "green locally" matches "green on GitHub". When it
 fails on an auto-fixable issue, run `scripts/fix` and re-run lint.
+
+If you also run tests in the `aiopurpleair/` workspace folder, prefer a
+separate virtual environment for that repo. This integration targets Python
+3.14, while aiopurpleair's Poetry lock may pin older C-extension builds that
+do not compile on 3.14 in all branches.
+
+Recommended approach:
+
+```sh
+cd aiopurpleair
+python3 -m venv .venv
+. .venv/bin/activate
+./script/setup
+```
+
+`scripts/setup` for this integration intentionally does not auto-run
+`aiopurpleair/script/setup`; it only ensures the minimal missing test
+dependency (`aresponses`) is installed in the current environment.
 
 Each script is also wired up as a VS Code task in
 [.vscode/tasks.json](.vscode/tasks.json) — open **Command Palette → Tasks: Run
@@ -578,19 +594,13 @@ If you do not sign commits or use `gh` and don't want to set this up, delete the
 `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
 reopening (or simply don't use the devcontainer).
 
-<!-- Reference-style link definitions. -->
-
-<!--- Shields links --->
-
-<!--- Inline links --->
-
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
 [aiopurpleair-fork-link]: https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes
 [aiopurpleair-pypi-link]: https://pypi.org/project/aiopurpleair/
 [airnow-aqi-link]: https://www.airnow.gov/aqi/aqi-basics/
 [bachya-aiopurpleair-link]: https://github.com/bachya/aiopurpleair
 [bachya-link]: https://github.com/bachya
-[buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-release-task.yml?logo=github&label=Build%20Status
+[buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-pull-request.yml?logo=github&label=Build%20Status
 [commits-link]: https://github.com/ptr727/homeassistant-purpleair/commits/main
 [coverage-link]: https://app.codecov.io/gh/ptr727/homeassistant-purpleair
 [coverage-shield]: https://img.shields.io/codecov/c/github/ptr727/homeassistant-purpleair?logo=codecov&label=Coverage

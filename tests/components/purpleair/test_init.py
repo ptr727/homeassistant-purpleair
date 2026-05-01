@@ -27,7 +27,11 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_API_KEY, CONF_SHOW_ON_MAP
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 
 from .const import (
     TEST_API_KEY,
@@ -574,3 +578,109 @@ async def test_async_migrate_integration_aligns_v2_show_on_map(
     await hass.async_block_till_done()
 
     assert v2_parent.options[CONF_SHOW_ON_MAP] is True
+
+
+async def test_async_migrate_integration_rehomes_disabled_sibling_entities(
+    hass: HomeAssistant,
+) -> None:
+    """Sibling entity/device CONFIG_ENTRY disablers remap during merge.
+
+    When at least one sibling is enabled, a migrated sibling's entity/device
+    entries should move from CONFIG_ENTRY-disabled to DEVICE/USER semantics.
+    """
+    parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="parent",
+    )
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX2],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="sibling",
+        disabled_by=ConfigEntryDisabler.USER,
+    )
+    parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
+
+    device_registry = mock_device_registry(hass)
+    # Parent device keeps all_disabled=False for this API key set.
+    device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="TEST_SENSOR_INDEX1",
+    )
+    sibling_device = device_registry.async_get_or_create(
+        config_entry_id=sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+        name="TEST_SENSOR_INDEX2",
+        disabled_by=dr.DeviceEntryDisabler.CONFIG_ENTRY,
+    )
+
+    entity_registry = er.async_get(hass)
+    entity_entry = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-temperature",
+        config_entry=sibling,
+        device_id=sibling_device.id,
+        disabled_by=er.RegistryEntryDisabler.CONFIG_ENTRY,
+        original_name="Temp",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    migrated_entity = entity_registry.async_get(entity_entry.entity_id)
+    assert migrated_entity is not None
+    assert migrated_entity.config_entry_id == parent.entry_id
+    assert migrated_entity.config_subentry_id is not None
+    assert migrated_entity.disabled_by is er.RegistryEntryDisabler.DEVICE
+
+    migrated_device = device_registry.async_get(sibling_device.id)
+    assert migrated_device is not None
+    assert migrated_device.disabled_by is dr.DeviceEntryDisabler.USER
+
+
+async def test_async_migrate_integration_skips_future_parent_alignment(
+    hass: HomeAssistant,
+) -> None:
+    """A parent entry above SCHEMA_VERSION is skipped in option alignment."""
+    legacy_entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="legacy",
+    )
+    future_parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION + 1,
+        unique_id=TEST_NEW_API_KEY,
+        data={CONF_API_KEY: TEST_NEW_API_KEY},
+        options={CONF_SHOW_ON_MAP: False},
+        title="future-parent",
+    )
+    future_parent.add_to_hass(hass)
+    legacy_entry.add_to_hass(hass)
+
+    # Distinct API keys: future_parent only exercises the second-pass
+    # api_key_entries loop where version > SCHEMA_VERSION should be skipped.
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert future_parent.version == SCHEMA_VERSION + 1
+    assert future_parent.options[CONF_SHOW_ON_MAP] is False

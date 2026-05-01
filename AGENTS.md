@@ -268,7 +268,7 @@ Installation:
 
 - `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` —
   `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
-- Node.js LTS — `node:1` feature in [.devcontainer.json](.devcontainer.json),
+- Node.js LTS — `node:2` feature in [.devcontainer.json](.devcontainer.json),
   needed for `markdownlint-cli2`.
 - `markdownlint-cli2` — pinned `npm install -g` step in
   [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are
