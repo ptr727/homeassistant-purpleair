@@ -109,11 +109,17 @@ jobs:
           non_cc=""
           while IFS= read -r line; do
               [ -z "$line" ] && continue
-              subject="${line#* }"
+              sha="${line%% *}"
+              rest="${line#* }"
+              author_email="${rest%% *}"
+              subject="${rest#* }"
+              # Skip commits authored by bots (e.g. release-please direct pushes
+              # to main/develop after a release — their messages are not CC).
+              [[ "$author_email" == *"[bot]"* ]] && continue
               if ! [[ "$subject" =~ $cc_regex ]]; then
-                  non_cc+="${line}"$'\n'
+                  non_cc+="${sha} ${subject}"$'\n'
               fi
-          done < <(git log --first-parent --no-merges --format='%H %s' "$from"..HEAD)
+          done < <(git log --first-parent --no-merges --format='%H %ae %s' "$from"..HEAD)
           if [ -n "$non_cc" ]; then
               echo "::error::Found commits since $from that are not Conventional Commits:"
               printf '%s' "$non_cc"
