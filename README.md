@@ -537,13 +537,15 @@ git config --global user.email "[Your Email]"
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
 
 # Create the allowed_signers file (uses git email)
-echo "$(git config --get user.email) namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)" >> ~/.config/git/allowed_signers
-git config --global gpg.ssh.allowedSignersFile "~/.config/git/allowed_signers"
-  
-# Use SSH for git signing
+SIGNER_LINE="$(git config --get user.email) namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)"
+mkdir -p ~/.config/git
+touch ~/.config/git/allowed_signers
+grep -qxF "$SIGNER_LINE" ~/.config/git/allowed_signers || echo "$SIGNER_LINE" >> ~/.config/git/allowed_signers
+
+# Use SSH for git signing — keep ~ literal in config so it works across host and containers
 git config --global gpg.format ssh
-git config --global user.signingkey ~/.ssh/id_ed25519.pub
-git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
+git config --global user.signingkey '~/.ssh/id_ed25519.pub'
+git config --global gpg.ssh.allowedSignersFile '~/.config/git/allowed_signers'
 git config --global commit.gpgsign true
 
 # Login to GitHub using web browser
@@ -591,7 +593,6 @@ Open the directory, and then open the workspace in a devcontainer, do not clone 
 
 Open a terminal in VS Code from the devcontainer, and test the configuration following the same steps as above for the host.
 
-
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
 [aiopurpleair-fork-link]: https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes
 [aiopurpleair-pypi-link]: https://pypi.org/project/aiopurpleair/
@@ -605,7 +606,6 @@ Open a terminal in VS Code from the devcontainer, and test the configuration fol
 [epa-pm25-link]: https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=353088&Lab=CEMM
 [ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
 [migration-link]: #migration-from-the-built-in-integration
-[upstream-dep-link]: #upstream-dependency-aiopurpleair-fork
 [ha-custom-integration-link]: https://developers.home-assistant.io/docs/creating_integration_file_structure/
 [ha-docs-pr-link]: https://github.com/home-assistant/home-assistant.io/pull/38063
 [hacs-link]: https://github.com/hacs/integration
