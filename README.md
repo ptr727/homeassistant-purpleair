@@ -520,41 +520,77 @@ inside it without re-setup:
 **All three paths must exist on the host before you reopen the folder in the
 devcontainer, otherwise the container build will fail with a bind-mount error.**
 
-First-time setup on the host:
+If you do not sign commits or use `gh` and don't want to set this up, delete the
+`"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
+opening, or simply don't use the devcontainer.
 
-```sh
-# 1. Generate (or reuse) an SSH signing key pair.
-#    Skip this if you already use ~/.ssh/id_ed25519 for signing.
-ssh-keygen -t ed25519 -C "you@example.com" -f ~/.ssh/id_ed25519
+**Setup on the host**:
 
-# 2. Create the allowed_signers file. Replace the email and key material with
-#    your own — the second/third fields are the contents of id_ed25519.pub.
-mkdir -p ~/.config/git
-printf '%s %s\n' "you@example.com" "$(cat ~/.ssh/id_ed25519.pub)" \
-    > ~/.config/git/allowed_signers
+Execute on the linux host where the devcontainer will run, direct terminal, remote SSH, or from a WSL terminal.
 
-TODO Add email config
+```shell
+# Configure git
+git config --global user.name "[Your Name]"
+git config --global user.email "[Your Email]"
 
-# 3. Tell git to use SSH for signing (one-time, global).
+# Generate a SSH signing key pair
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+
+# Create the allowed_signers file (uses git email)
+echo "$(git config --get user.email) namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)" >> ~/.config/git/allowed_signers
+git config --global gpg.ssh.allowedSignersFile "~/.config/git/allowed_signers"
+  
+# Use SSH for git signing
 git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
 git config --global gpg.ssh.allowedSignersFile ~/.config/git/allowed_signers
 git config --global commit.gpgsign true
 
-# 4. Authenticate the GitHub CLI on the host so the container shares the login.
-#    Skip this if ~/.config/gh already exists from a prior `gh auth login`.
+# Login to GitHub using web browser
 gh auth login
+
+# Register SSH key with GitHub
+gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
+gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) auth"
+gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) signing" --type signing
 ```
 
-After those paths exist, open the repo in VS Code and **Reopen in Container** —
-the devcontainer will build with `gh` installed and pre-authenticated, and every
-commit from inside will be signed with the host's key.
+Edit `~/.bashrc` to persist SSH agent forwarding:
 
-TODO: Add clone in volume
+```shell
+# Make ssh-agent persistent
+if [ -z "$SSH_AUTH_SOCK" ] || ! ssh-add -l >/dev/null 2>&1; then
+  eval "$(ssh-agent -s)" >/dev/null
+  ssh-add ~/.ssh/id_ed25519 >/dev/null 2>&1
+fi
+```
 
-If you do not sign commits or use `gh` and don't want to set this up, delete the
-`"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
-reopening (or simply don't use the devcontainer).
+Test configuration on the host:
+
+```shell
+# Test paths
+ls -la ~/.ssh
+ls -la ~/.config/git
+ls -la ~/.config/gh
+
+# Show git config
+git config --list --show-origin
+
+# Test github SSH login
+gh ssh-key list
+ssh -T git@github.com
+
+# Verify SSH agent
+echo "$SSH_AUTH_SOCK"
+ls -l "$SSH_AUTH_SOCK"
+ssh-add -l
+```
+
+Connect to the host from VS Code, direct, over SSH, or over WSL, and clone the repo to the local filesystem.\
+Open the directory, and then open the workspace in a devcontainer, do not clone into a volume as `${localEnv:HOME}` will not resolve and the container will fail to open.
+
+Open a terminal in VS Code from the devcontainer, and test the configuration following the same steps as above for the host.
+
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
 [aiopurpleair-fork-link]: https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes

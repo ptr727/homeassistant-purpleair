@@ -29,5 +29,26 @@
         "ghcr.io/devcontainers/features/node:2": {
             "version": "lts"
         }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "anthropic.claude-code",
+                "arahata.linter-actionlint",
+                "charliermarsh.ruff",
+                "davidanson.vscode-markdownlint",
+                "github.vscode-pull-request-github",
+                "ms-azuretools.vscode-docker",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-vscode-remote.remote-containers",
+                "openai.chatgpt",
+                "redhat.vscode-xml",
+                "redhat.vscode-yaml",
+                "ryanluker.vscode-coverage-gutters",
+                "streetsidesoftware.code-spell-checker",
+                "timonwong.shellcheck"
+            ]
+        }
     }
 }

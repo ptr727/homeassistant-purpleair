@@ -47,21 +47,21 @@
     },
     "extensions": {
         "recommendations": [
+            "anthropic.claude-code",
+            "arahata.linter-actionlint",
             "charliermarsh.ruff",
+            "davidanson.vscode-markdownlint",
             "github.vscode-pull-request-github",
+            "ms-azuretools.vscode-docker",
             "ms-python.python",
             "ms-python.vscode-pylance",
-            "ms-azuretools.vscode-docker",
             "ms-vscode-remote.remote-containers",
-            "ryanluker.vscode-coverage-gutters",
-            "arahata.linter-actionlint",
-            "timonwong.shellcheck",
-            "davidanson.vscode-markdownlint",
-            "anthropic.claude-code",
             "openai.chatgpt",
-            "redhat.vscode-yaml",
             "redhat.vscode-xml",
-            "streetsidesoftware.code-spell-checker"
+            "redhat.vscode-yaml",
+            "ryanluker.vscode-coverage-gutters",
+            "streetsidesoftware.code-spell-checker",
+            "timonwong.shellcheck",
         ]
     }
 }

@@ -2,7 +2,11 @@
 
 ## Fix TODO's
 
-Fix or implement the TODO's in docs and code.
+- Fix or implement the TODO's in docs and code.
+
+## MD / YANL Format
+
+- Revert the MD / markdown and YAML line shortening done to make the linter happy, line length is not enforced, reformat to follow normal sentence length lines
 
 ## Migrate from release-please to NBGV
 
