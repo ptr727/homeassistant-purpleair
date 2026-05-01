@@ -404,21 +404,21 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     )
     hass.config_entries.async_add_subentry(config_entry, new_subentry)
     await hass.async_block_till_done()
-    coordinator._static_cache.pop(TEST_SENSOR_INDEX2, None)  # noqa: SLF001
+    coordinator._static_cache.pop(TEST_SENSOR_INDEX2, None)
 
     # _should_fetch_static must detect the cache miss.
-    assert coordinator._should_fetch_static() is True  # noqa: SLF001
+    assert coordinator._should_fetch_static() is True
 
     # Call _async_update_data directly — bypasses the debouncer that would
     # otherwise suppress rapid refreshes in the test.
     api.sensors.async_get_sensors.reset_mock()
-    await coordinator._async_update_data()  # noqa: SLF001
+    await coordinator._async_update_data()
 
     fields = api.sensors.async_get_sensors.await_args.args[0]
     for field in ("name", "hardware", "model", "firmware_version"):
         assert field in fields, f"{field} missing from refresh after new subentry"
     # And merging populated the new cache entry.
-    assert TEST_SENSOR_INDEX2 in coordinator._static_cache  # noqa: SLF001
+    assert TEST_SENSOR_INDEX2 in coordinator._static_cache
 
 
 async def test_registry_event_for_foreign_entity_does_not_refresh(
@@ -466,12 +466,12 @@ async def test_coordinator_release_registry_listener_idempotent(
     """Releasing an already-released registry listener is a no-op."""
     coordinator = config_entry.runtime_data.sensors
 
-    coordinator._async_release_registry_listener()  # noqa: SLF001
-    assert coordinator._registry_unsub is None  # noqa: SLF001
+    coordinator._async_release_registry_listener()
+    assert coordinator._registry_unsub is None
 
     # Second release call covers the "already None" branch.
-    coordinator._async_release_registry_listener()  # noqa: SLF001
-    assert coordinator._registry_unsub is None  # noqa: SLF001
+    coordinator._async_release_registry_listener()
+    assert coordinator._registry_unsub is None
 
 
 async def test_coordinator_static_cache_skips_all_none_static_response(
@@ -498,10 +498,10 @@ async def test_coordinator_static_cache_skips_all_none_static_response(
         update={"data": {TEST_SENSOR_INDEX1: sensor}}
     )
 
-    coordinator._static_cache.clear()  # noqa: SLF001
-    coordinator._update_static_cache(response)  # noqa: SLF001
+    coordinator._static_cache.clear()
+    coordinator._update_static_cache(response)
 
-    assert TEST_SENSOR_INDEX1 not in coordinator._static_cache  # noqa: SLF001
+    assert TEST_SENSOR_INDEX1 not in coordinator._static_cache
 
 
 async def test_coordinator_merge_static_cache_no_cache_returns_original(
@@ -513,9 +513,9 @@ async def test_coordinator_merge_static_cache_no_cache_returns_original(
 ) -> None:
     """Without cached static data, merge returns the same response object."""
     coordinator = config_entry.runtime_data.sensors
-    coordinator._static_cache.clear()  # noqa: SLF001
+    coordinator._static_cache.clear()
 
-    merged = coordinator._merge_static_cache(get_sensors_response)  # noqa: SLF001
+    merged = coordinator._merge_static_cache(get_sensors_response)
     assert merged is get_sensors_response
 
 
@@ -635,7 +635,7 @@ async def test_organization_invalid_api_key_raises_auth_failed(
     api.organizations.async_get_organization.side_effect = InvalidApiKeyError("bad key")
 
     with pytest.raises(ConfigEntryAuthFailed):
-        await coordinator._async_update_data()  # noqa: SLF001
+        await coordinator._async_update_data()
 
 
 async def test_organization_generic_error_raises_update_failed(
@@ -650,7 +650,7 @@ async def test_organization_generic_error_raises_update_failed(
     api.organizations.async_get_organization.side_effect = PurpleAirError("boom")
 
     with pytest.raises(UpdateFailed):
-        await coordinator._async_update_data()  # noqa: SLF001
+        await coordinator._async_update_data()
 
 
 async def test_sensors_payment_required_creates_out_of_points_issue(

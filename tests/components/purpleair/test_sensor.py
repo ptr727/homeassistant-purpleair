@@ -409,8 +409,8 @@ async def test_entity_helpers_when_coordinator_data_missing(
     config_entry.runtime_data.sensors.data = None
     assert entity.native_value is None
     assert entity.extra_state_attributes == {}
-    assert entity._maybe_sensor_data() is None  # noqa: SLF001
-    entity._refresh_device_info()  # noqa: SLF001
+    assert entity._maybe_sensor_data() is None
+    entity._refresh_device_info()
 
 
 async def test_stale_guard_reference_none_keeps_sensor_healthy(
@@ -439,8 +439,8 @@ async def test_stale_guard_reference_none_keeps_sensor_healthy(
         }
     )
 
-    assert entity._is_sensor_healthy() is True  # noqa: SLF001
-    assert entity._unhealthy_reason() == "unknown"  # noqa: SLF001
+    assert entity._is_sensor_healthy() is True
+    assert entity._unhealthy_reason() == "unknown"
 
 
 async def test_organization_native_value_none_without_data(
