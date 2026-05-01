@@ -188,6 +188,9 @@ split-on-trailing-comma = false
 # Allow relative imports within the integration package and within tests
 "custom_components/*/*" = ["TID252"]
 "tests/components/*/*" = ["TID252"]
+# Only these two files exercise private coordinator/entity members for branch coverage.
+"tests/components/purpleair/test_coordinator.py" = ["SLF001"]
+"tests/components/purpleair/test_sensor.py" = ["SLF001"]
 
 [lint.mccabe]
 max-complexity = 25

@@ -21,7 +21,9 @@ from custom_components.purpleair.coordinator import (
 )
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2
 
@@ -402,21 +404,21 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     )
     hass.config_entries.async_add_subentry(config_entry, new_subentry)
     await hass.async_block_till_done()
-    coordinator._static_cache.pop(TEST_SENSOR_INDEX2, None)  # noqa: SLF001
+    coordinator._static_cache.pop(TEST_SENSOR_INDEX2, None)
 
     # _should_fetch_static must detect the cache miss.
-    assert coordinator._should_fetch_static() is True  # noqa: SLF001
+    assert coordinator._should_fetch_static() is True
 
     # Call _async_update_data directly — bypasses the debouncer that would
     # otherwise suppress rapid refreshes in the test.
     api.sensors.async_get_sensors.reset_mock()
-    await coordinator._async_update_data()  # noqa: SLF001
+    await coordinator._async_update_data()
 
     fields = api.sensors.async_get_sensors.await_args.args[0]
     for field in ("name", "hardware", "model", "firmware_version"):
         assert field in fields, f"{field} missing from refresh after new subentry"
     # And merging populated the new cache entry.
-    assert TEST_SENSOR_INDEX2 in coordinator._static_cache  # noqa: SLF001
+    assert TEST_SENSOR_INDEX2 in coordinator._static_cache
 
 
 async def test_registry_event_for_foreign_entity_does_not_refresh(
@@ -453,6 +455,68 @@ async def test_registry_event_for_foreign_entity_does_not_refresh(
 
     # The PurpleAir coordinator must NOT have issued a refresh.
     assert api.sensors.async_get_sensors.await_count == 0
+
+
+async def test_coordinator_release_registry_listener_idempotent(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+) -> None:
+    """Releasing an already-released registry listener is a no-op."""
+    coordinator = config_entry.runtime_data.sensors
+
+    coordinator._async_release_registry_listener()
+    assert coordinator._registry_unsub is None
+
+    # Second release call covers the "already None" branch.
+    coordinator._async_release_registry_listener()
+    assert coordinator._registry_unsub is None
+
+
+async def test_coordinator_static_cache_skips_all_none_static_response(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    get_sensors_response,
+) -> None:
+    """A response with no static fields should not add cache entries."""
+    coordinator = config_entry.runtime_data.sensors
+
+    sensor = get_sensors_response.data[TEST_SENSOR_INDEX1].model_copy(
+        update={
+            "name": None,
+            "hardware": None,
+            "model": None,
+            "firmware_version": None,
+            "latitude": None,
+            "longitude": None,
+        }
+    )
+    response = get_sensors_response.model_copy(
+        update={"data": {TEST_SENSOR_INDEX1: sensor}}
+    )
+
+    coordinator._static_cache.clear()
+    coordinator._update_static_cache(response)
+
+    assert TEST_SENSOR_INDEX1 not in coordinator._static_cache
+
+
+async def test_coordinator_merge_static_cache_no_cache_returns_original(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    get_sensors_response,
+) -> None:
+    """Without cached static data, merge returns the same response object."""
+    coordinator = config_entry.runtime_data.sensors
+    coordinator._static_cache.clear()
+
+    merged = coordinator._merge_static_cache(get_sensors_response)
+    assert merged is get_sensors_response
 
 
 def _organization_response(remaining: int, rate: int) -> GetOrganizationResponse:
@@ -557,6 +621,36 @@ async def test_organization_payment_required_creates_out_of_points_issue(
     assert issue.translation_placeholders == {
         "purchase_url": "https://develop.purpleair.com/dashboards/projects",
     }
+
+
+async def test_organization_invalid_api_key_raises_auth_failed(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """Invalid API key on organization endpoint maps to auth failure."""
+    coordinator = config_entry.runtime_data.organization
+    api.organizations.async_get_organization.side_effect = InvalidApiKeyError("bad key")
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def test_organization_generic_error_raises_update_failed(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """Generic PurpleAir organization errors map to UpdateFailed."""
+    coordinator = config_entry.runtime_data.organization
+    api.organizations.async_get_organization.side_effect = PurpleAirError("boom")
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
 
 
 async def test_sensors_payment_required_creates_out_of_points_issue(

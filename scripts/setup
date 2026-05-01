@@ -9,7 +9,7 @@
 #   5. markdownlint-cli2 pinned via npm — same engine the VS Code
 #      davidanson.vscode-markdownlint extension uses, so CLI verification matches
 #      what the IDE shows. Node.js itself is provided by the devcontainer
-#      `node:1` feature.
+#      `node:2` feature.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
 # release assets, so the hashes below are computed manually when bumping and
@@ -26,7 +26,7 @@ python3 -m pip install --requirement requirements-test.txt
 # --- markdownlint-cli2 ----------------------------------------------------
 # Pinned npm-installed binary so `markdownlint-cli2 README.md AGENTS.md ...`
 # CLI runs match the davidanson.vscode-markdownlint extension's output.
-# Node.js is supplied by the `ghcr.io/devcontainers/features/node:1`
+# Node.js is supplied by the `ghcr.io/devcontainers/features/node:2`
 # devcontainer feature; if it's missing (e.g. running scripts/setup outside
 # the devcontainer) we just skip — markdown linting is IDE-driven and not
 # part of the CI gate.
@@ -43,7 +43,9 @@ if command -v npm >/dev/null 2>&1; then
     else
         echo "Installing markdownlint-cli2@${MARKDOWNLINT_VERSION} via npm"
         npm install -g "markdownlint-cli2@${MARKDOWNLINT_VERSION}"
-        installed_markdownlint="$(markdownlint-cli2 --version | head -n1)"
+        # Avoid piping to `head` here; Node 24 can raise EPIPE on closed stdout.
+        installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null)"
+        installed_markdownlint="${installed_markdownlint%%$'\n'*}"
         echo "Installed: ${installed_markdownlint}"
     fi
 else
@@ -78,6 +80,30 @@ else
 fi
 
 if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]; then
+    # Do not auto-run aiopurpleair's Poetry bootstrap in this environment.
+    # Its lock file may target a different Python minor (for example older
+    # frozenlist/multidict builds that fail on 3.14), and this repo's setup
+    # should stay deterministic for Home Assistant development.
+    #
+    # For this workspace we only need aresponses available for aiopurpleair
+    # tests; install it directly if missing.
+    if ! python3 -c 'import aresponses' >/dev/null 2>&1; then
+        python3 -m pip install "aresponses>=2.1.6,<4.0.0"
+    fi
+
+    # Optional escape hatch for contributors who explicitly want to run the
+    # library's own setup flow in its own repo context.
+    if [[ "${RUN_AIOPURPLEAIR_SETUP:-0}" = "1" ]] || [[ "${RUN_AIOPURPLEAIR_SETUP:-}" =~ ^([Tt]rue|TRUE|yes|YES)$ ]]; then
+        if [[ -x "${AIOPURPLEAIR_DIR}/script/setup" ]]; then
+            echo "RUN_AIOPURPLEAIR_SETUP enabled; running ${AIOPURPLEAIR_DIR}/script/setup"
+            if ! (cd "${AIOPURPLEAIR_DIR}" && ./script/setup); then
+                echo "Warning: aiopurpleair setup failed; continuing with editable install." >&2
+            fi
+        else
+            echo "Warning: aiopurpleair setup script not found; skipping optional aiopurpleair setup." >&2
+        fi
+    fi
+
     python3 -m pip install --editable "${AIOPURPLEAIR_DIR}"
 
     python3 <<'PYEOF'
