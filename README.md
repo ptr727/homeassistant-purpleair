@@ -514,7 +514,7 @@ inside it without re-setup:
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
 | `~/.ssh/id_ed25519.pub` | `/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH commit-signing key |
-| `~/.config/git` | `/home/vscode/.config/git` (read-only) | Git config directory (including `allowed_signers` and `config` for user name/email) |
+| `~/.config/git/allowed_signers` | `/home/vscode/.config/git/allowed_signers` (read-only) | Git config allowed signers |
 | `~/.config/gh` | `/home/vscode/.config/gh` | GitHub CLI config and auth tokens — bind-mounted read-write so `gh auth login` / token refresh inside the container persists back to the host |
 
 **All three paths must exist on the host before you reopen the folder in the
