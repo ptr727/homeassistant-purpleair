@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 import logging
+from math import nan
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -20,6 +21,10 @@ from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
     CHANNEL_FLAGS_OPTIONS,
     CHANNEL_STATE_OPTIONS,
+    ORGANIZATION_SENSOR_DESCRIPTIONS,
+    SENSOR_DESCRIPTIONS,
+    PurpleAirOrganizationSensorEntity,
+    PurpleAirSensorEntity,
     _channel_flags_value,
     _channel_state_value,
     _pm25_aqi,
@@ -233,6 +238,11 @@ def test_pm25_aqi_truncates_to_tenth() -> None:
     assert _pm25_aqi(SimpleNamespace(pm2_5_24hour=9.05)) == 50
 
 
+def test_pm25_aqi_nan_returns_none() -> None:
+    """NaN PM2.5 values are treated as invalid and return None."""
+    assert _pm25_aqi(SimpleNamespace(pm2_5_24hour=nan)) is None
+
+
 def test_channel_state_value_helper() -> None:
     """Every ChannelState enum member maps to its translation key."""
     expected_by_member = dict(zip(ChannelState, CHANNEL_STATE_OPTIONS, strict=True))
@@ -382,6 +392,73 @@ async def test_sensor_unavailable_when_missing_from_response(
         sum("is back online" in record.message for record in caplog.records)
         == n_unavailable_logs
     )
+
+
+async def test_entity_helpers_when_coordinator_data_missing(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+) -> None:
+    """Base entity helpers must short-circuit cleanly when data is None."""
+    description = next(
+        desc for desc in SENSOR_DESCRIPTIONS if desc.key == "temperature"
+    )
+    entity = PurpleAirSensorEntity(config_entry, TEST_SENSOR_INDEX1, description)
+
+    config_entry.runtime_data.sensors.data = None
+    assert entity.native_value is None
+    assert entity.extra_state_attributes == {}
+    assert entity._maybe_sensor_data() is None
+    entity._refresh_device_info()
+
+
+async def test_stale_guard_reference_none_keeps_sensor_healthy(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    get_sensors_response,
+) -> None:
+    """Staleness checks skip when data_timestamp_utc is missing."""
+    description = next(
+        desc for desc in SENSOR_DESCRIPTIONS if desc.key == "temperature"
+    )
+    entity = PurpleAirSensorEntity(config_entry, TEST_SENSOR_INDEX1, description)
+
+    stale_like_sensor = get_sensors_response.data[TEST_SENSOR_INDEX1].model_copy(
+        update={"last_seen_utc": datetime(2000, 1, 1)}
+    )
+    config_entry.runtime_data.sensors.data = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: stale_like_sensor,
+            },
+            "data_timestamp_utc": None,
+        }
+    )
+
+    assert entity._is_sensor_healthy() is True
+    assert entity._unhealthy_reason() == "unknown"
+
+
+async def test_organization_native_value_none_without_data(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+) -> None:
+    """Organization sensor entities return None when coordinator has no data."""
+    description = next(
+        desc
+        for desc in ORGANIZATION_SENSOR_DESCRIPTIONS
+        if desc.key == "remaining_points"
+    )
+    entity = PurpleAirOrganizationSensorEntity(config_entry, description)
+
+    config_entry.runtime_data.organization.data = None
+    assert entity.native_value is None
 
 
 @pytest.mark.parametrize(

@@ -35,10 +35,14 @@
             "tests"
         ],
         "github.copilot.chat.commitMessageGeneration.instructions": [
-            { "file": ".github/copilot-instructions.md" }
+            {
+                "file": ".github/copilot-instructions.md"
+            }
         ],
         "github.copilot.chat.pullRequestDescriptionGeneration.instructions": [
-            { "file": ".github/copilot-instructions.md" }
+            {
+                "file": ".github/copilot-instructions.md"
+            }
         ]
     },
     "extensions": {
@@ -54,7 +58,9 @@
             "timonwong.shellcheck",
             "davidanson.vscode-markdownlint",
             "anthropic.claude-code",
-            "openai.chatgpt"
+            "openai.chatgpt",
+            "redhat.vscode-yaml",
+            "redhat.vscode-xml"
         ]
     }
 }

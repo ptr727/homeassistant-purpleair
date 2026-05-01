@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from math import isnan
 from typing import Final
 
 from aiopurpleair.const import ChannelFlag, ChannelState
@@ -152,9 +153,12 @@ def _pm25_aqi(sensor: SensorModel) -> int | None:
     pm = sensor.pm2_5_24hour
     if pm is None or pm < 0:
         return None
-    # Per 40 CFR § 58 App. G, PM2.5 is truncated to 0.1 µg/m³ before AQI
-    # lookup so that the 9.0/9.1-style boundaries are unambiguous.
-    pm = int(pm * 10) / 10
+    # Keep NaN in the common path so it cleanly falls through to the
+    # unmatched-range fallback below.
+    if not isnan(pm):
+        # Per 40 CFR § 58 App. G, PM2.5 is truncated to 0.1 µg/m³ before AQI
+        # lookup so that the 9.0/9.1-style boundaries are unambiguous.
+        pm = int(pm * 10) / 10
     if pm > 500.4:
         return 500
     for c_lo, c_hi, i_lo, i_hi in _AQI_BREAKPOINTS:
