@@ -535,6 +535,13 @@ python3 -m venv .venv
 `aiopurpleair/script/setup`; it only ensures the minimal missing test
 dependency (`aresponses`) is installed in the current environment.
 
+If you explicitly want to run the library's own setup from the integration
+bootstrap, opt in with:
+
+```sh
+RUN_AIOPURPLEAIR_SETUP=1 scripts/setup
+```
+
 Each script is also wired up as a VS Code task in
 [.vscode/tasks.json](.vscode/tasks.json) — open **Command Palette → Tasks: Run
 Task**, or use the shortcuts below:
@@ -547,6 +554,14 @@ Task**, or use the shortcuts below:
 | `scripts/lint` | **Lint: ruff + mypy (verify)** | `Ctrl+Shift+B` (default build task) |
 | `pytest` | **Test: pytest** | Tasks: Run Test Task (default test) |
 
+Additional useful tasks in the same file:
+
+- **Test: pytest + branch coverage** — run CI-style branch coverage locally.
+- **Setup: aiopurpleair venv** — create `aiopurpleair/.venv` and upgrade `pip`.
+- **Setup: aiopurpleair deps (poetry)** — run `aiopurpleair/script/setup` inside
+  that venv.
+- **Test: aiopurpleair pytest (venv)** — run aiopurpleair tests inside that venv.
+
 ### Devcontainer host prerequisites
 
 The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the
@@ -556,7 +571,7 @@ inside it without re-setup:
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
 | `~/.ssh/id_ed25519.pub` | `/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH commit-signing key |
-| `~/.config/git/allowed_signers` | `/home/vscode/.config/git/allowed_signers` (read-only) | Git's `allowed_signers` file listing which public keys are accepted as valid signers |
+| `~/.config/git` | `/home/vscode/.config/git` (read-only) | Git config directory (including `allowed_signers` and `config` for user name/email) |
 | `~/.config/gh` | `/home/vscode/.config/gh` | GitHub CLI config and auth tokens — bind-mounted read-write so `gh auth login` / token refresh inside the container persists back to the host |
 
 **All three paths must exist on the host before you reopen the folder in the
