@@ -98,6 +98,17 @@ ci: pin actionlint to v1.7.7
   opens its own PR that does that, and merging your PR with a manual bump will
   desync `.release-please-manifest.json` and
   `.release-please-manifest-develop.json`.
+- Each manifest file tracks a specific branch:
+  - `.release-please-manifest.json` — tracks `main`; correct value matches
+    `manifest.json` `version` on `main`.
+  - `.release-please-manifest-develop.json` — tracks `develop`; correct value
+    matches the latest beta version on `develop`.
+- **When reviewing `develop → main` PRs**, these files will legitimately show
+  bumped version values — they were written by the release-please bot as part
+  of the beta release cycle on `develop`, not manually edited. Do not flag or
+  revert them. The only time a revert is warranted is if the value is a
+  placeholder string (not a semver) or mismatches the corresponding
+  `manifest.json` version on that branch.
 - [hacs.json](hacs.json) has no `version` field; HACS reads the integration
   version from `manifest.json`. Don't add one.
 - The `homeassistant` field in `hacs.json` is the **minimum** required HA
