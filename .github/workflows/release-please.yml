@@ -120,7 +120,7 @@ jobs:
               # release-managed version files. These can be created by GitHub
               # automation with a human author email, and are outside the PR
               # squash path enforced by pr-title-lint.
-              if [[ "$subject" =~ ^Update\  ]] && \
+              if [[ "$subject" =~ ^Update[[:space:]]+ ]] && \
                [[ -z "$(git diff-tree --no-commit-id --name-only -r "$sha" | \
                  grep -Ev '^(\.release-please-manifest(\-develop)?\.json|custom_components/purpleair/manifest\.json)$' || true)" ]]; then
                 continue
