@@ -60,7 +60,8 @@
             "anthropic.claude-code",
             "openai.chatgpt",
             "redhat.vscode-yaml",
-            "redhat.vscode-xml"
+            "redhat.vscode-xml",
+            "streetsidesoftware.code-spell-checker"
         ]
     }
 }

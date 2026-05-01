@@ -1,4 +1,4 @@
-# PurpleAir for Home Assistant (custom integration)
+# PurpleAir Integration for Home Assistant
 
 A Home Assistant [custom integration][ha-custom-integration-link] for
 [PurpleAir][purpleair-link] air-quality sensors.
@@ -30,6 +30,16 @@ A Home Assistant [custom integration][ha-custom-integration-link] for
 [![Quality Scale][qualityscale-shield]][qualityscale-link]\
 [![Home Assistant][haversion-shield]][haversion-link]\
 [![License][license-shield]][license-link]
+
+### Release Notes
+
+**Version 0.1**:
+
+- Initial reelease.
+- Requires Home Assistant 2026.4.0 or newer.
+
+See [Release History](./HISTORY.md) for complete release notes and older
+versions.
 
 ## Features beyond Home Assistant's built-in PurpleAir integration
 
@@ -366,81 +376,11 @@ Assistant core as [home-assistant/core#140901][ha-core-pr-link] (with
 accompanying docs at [home-assistant/home-assistant.io#38063][ha-docs-pr-link]).
 That PR has been pending review for some time.
 
-In the meantime, this HACS distribution has continued to move forward — it now
-**supersedes** the PR in functionality. Everything in the "What it provides
-beyond Home Assistant's built-in PurpleAir integration" section at the top of
-this README was developed after the PR was filed:
-
-- Quality-aware availability (`confidence`, `channel_state`, `last_seen`).
-- Cost-aware dynamic field selection and the 24 h static-field cache.
-- The opt-in diagnostic entities: PM2.5 ALT, six rolling-average sensors,
-  confidence, channel state / flags, last-seen, internal-vs-ambient diagnostics.
-- Opt-in derived entities implemented in code with source-document citations:
-  **PM2.5 EPA mass concentration** (humidity correction) and **PM2.5 air quality
-  index** (2024 NAAQS).
-- Account-level **Remaining points** and **Consumption rate** diagnostic sensors
-  plus the low-points repair issue.
-- Platinum-tier quality-scale compliance (`parallel-updates`, repair issues,
-  stale-device cleanup, exception translations, enum entity device classes,
-  etc.).
-- Distinct config-flow errors for WRITE-type keys, disabled keys, and wrong
-  per-sensor read keys.
-- Documented sensor behaviour with formulas, citations, and template-sensor
-  examples for user-side calibrations.
+In the meantime, this version has continued to move forward — it now
+**supersedes** the PR in functionality.
 
 The original core PR will not be kept in lockstep with these changes, and may be
-abandoned. The HACS release stream is the maintained path going forward.
-
-## Release notes
-
-Requires Home Assistant 2026.4.0 or newer.
-
-Highlights of the current release:
-
-- **Private sensor support** via per-sensor read keys (free API points when
-  querying your own sensors).
-- **Subentry layout** — one subentry per sensor; automatic v1 → v2 migration
-  from the built-in integration preserving entity IDs, devices, and
-  long-term-statistics history.
-- **Cost-aware field selection** — only fields backing enabled entities are
-  requested, and static device-info fields are fetched once per day. Roughly 37
-  % fewer field-fetches per day than a naive implementation for a default
-  install.
-- **Quality-aware availability** — entities go unavailable on `confidence < 50`,
-  `channel_state == 0` ("No PM"), or a stale `last_seen`.
-- **Account-level diagnostics (NEW)** — disabled-by-default `Remaining points`
-  and `Consumption rate` sensors backed by a daily refresh of
-  `GET /v1/organization`. A persistent repair issue fires when the balance drops
-  below seven days of consumption or `PaymentRequiredError` is raised.
-- **Typed config-flow & coordinator errors (NEW)** — the integration now matches
-  on `aiopurpleair`'s typed exception subclasses (`InvalidDataReadKeyError`,
-  `ApiKeyTypeMismatchError`, `ApiDisabledError`, `PaymentRequiredError`, …)
-  instead of `str(err)` substrings. Distributed via the temporary fork
-  `aiopurpleair-ptr727==2026.4.0` while upstream review is pending — see
-  [Upstream dependency][upstream-dep-link] for details.
-- **Sensor selection from a map.** Pick nearby public sensors from a
-  radius-filtered map picker.
-- **Derived entities (disabled by default):** PM2.5 EPA mass concentration (US
-  EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI
-  from the 24-hour average, 2024 NAAQS breakpoints).
-- **Diagnostic entities (disabled by default):** Confidence, Channel state,
-  Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT,
-  PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
-- **Clear config-flow errors** — WRITE API keys, disabled keys, and wrong
-  per-sensor read keys each surface a targeted error on the right field.
-- **Platinum-tier** quality-scale compliance (`parallel-updates`,
-  `entity-unavailable`, `log-when-unavailable`, `repair-issues`,
-  `reconfiguration-flow`, exception translations, ≥ 97 % test coverage,
-  `mypy --strict` clean).
-
-Known limitation: the v1 → v2 migration is one-way until
-[core PR #140901][ha-core-pr-link] merges. Uninstalling this custom integration
-after migration requires manually deleting and re-creating the PurpleAir config
-entry (long-term-statistics for the old entity IDs are lost). See
-[Migration][migration-link] for the upgrade and downgrade procedures.
-
-See [Release History](./HISTORY.md) for complete release notes and older
-versions.
+abandoned. The HACS release stream may be the maintained path going forward.
 
 ## Migration from the built-in integration
 
@@ -489,17 +429,20 @@ Two recovery options:
 There is no in-place downgrade until the core PR merges. Plan accordingly before
 installing.
 
-## Status & Credits
+## Credits
 
-- **Branch layout:** `develop` for testing, releases from `main`.
 - **API library:** [aiopurpleair][aiopurpleair-pypi-link], authored by
   [@bachya][bachya-link].
 - **License:** Apache 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 - **Credits:** Original PurpleAir integration author [@bachya][bachya-link];
   subentry redesign reviewed and supported by [@joostlek][joostlek-link].
 
+## Issues
+
 Bug reports and feature requests are welcome on the
 [issue tracker][issues-link].
+
+TODO: Add discussions link.
 
 ## Development
 
@@ -590,6 +533,8 @@ mkdir -p ~/.config/git
 printf '%s %s\n' "you@example.com" "$(cat ~/.ssh/id_ed25519.pub)" \
     > ~/.config/git/allowed_signers
 
+TODO Add email config
+
 # 3. Tell git to use SSH for signing (one-time, global).
 git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519.pub
@@ -604,6 +549,8 @@ gh auth login
 After those paths exist, open the repo in VS Code and **Reopen in Container** —
 the devcontainer will build with `gh` installed and pre-authenticated, and every
 commit from inside will be signed with the host's key.
+
+TODO: Add clone in volume
 
 If you do not sign commits or use `gh` and don't want to set this up, delete the
 `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
