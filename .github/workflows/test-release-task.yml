@@ -2,6 +2,19 @@ name: Test release task
 
 on:
   workflow_call:
+    inputs:
+      # Controls whether the no-publish build-release child job runs.
+      # PR-trigger callers (test-pull-request.yml) want it true so the
+      # build path is validated end-to-end on every PR. The
+      # publish-release.yml caller wants it false because create-release
+      # builds the artifact for real immediately after; running both
+      # would double the build cost and produces two purpleair-zip
+      # artifacts in the same workflow run, which only works because of
+      # an undocumented quirk of actions/upload-artifact.
+      build:
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
 
 jobs:
@@ -143,6 +156,7 @@ jobs:
   build-release:
     name: Build release without publishing job
     needs: [ruff, mypy, pytest, hassfest, hacs]
+    if: ${{ inputs.build }}
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     with:

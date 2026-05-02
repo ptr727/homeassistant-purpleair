@@ -40,16 +40,26 @@ jobs:
     # the same suite that gates PR merges — so a maintainer dispatching
     # `gh workflow run publish-release.yml --ref main` against a regressed
     # main tip cannot ship: ruff, mypy --strict, pytest matrix, hassfest,
-    # HACS validation, plus a no-publish build that exercises NBGV
-    # stamping all have to pass first.
+    # and HACS validation all have to pass first.
     #
-    # Skipped on push-to-develop because develop's content has already
-    # passed exactly this suite via test-pull-request.yml when the PR
-    # that produced the develop commit merged. Re-running here would
-    # double CI time per merge for no extra signal.
+    # Pass `build: false` so test-release-task skips its no-publish
+    # build-release child. The create-release job below builds the
+    # artifact for real immediately after, and two builds in the same
+    # workflow run would (a) produce two same-named `purpleair-zip`
+    # artifacts and (b) double the build cost for no extra signal.
+    #
+    # Skipped on push-to-develop because for those triggers
+    # test-pull-request.yml is also fired by the same push and runs the
+    # same suite (against the same SHA) in parallel. We don't strictly
+    # block on it before publishing the prerelease — develop is the
+    # rolling beta channel — and a failure shows up on the parallel
+    # run; running it inside publish-release.yml would just duplicate
+    # the work without strengthening the gate.
     if: github.event_name == 'workflow_dispatch' && needs.gate.result == 'success'
     uses: ./.github/workflows/test-release-task.yml
     secrets: inherit
+    with:
+      build: false
 
   create-release:
     name: Publish project release job
