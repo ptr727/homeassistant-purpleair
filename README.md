@@ -32,7 +32,7 @@ Release highlights — see [Release History](./HISTORY.md) for details.
 - Subentry layout — one subentry per sensor; automatic v1 → v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
 - Cost-aware field selection — only fields backing enabled entities are requested, and static device-info fields are fetched once per day.
 - Quality-aware availability — entities go unavailable on `confidence < 50`, `channel_state == 0` ("No PM"), or a stale `last_seen`.
-- Account-level **Remaining points** and **Consumption rate** diagnostic sensors (disabled by default), backed by a daily refresh of `GET /v1/organization`. A persistent repair issue fires when the balance drops below seven days of consumption or the API rejects requests with `PaymentRequiredError`.
+- Account-level **Remaining points** (enabled by default) and **Consumption rate** (disabled by default) diagnostic sensors, backed by a daily refresh of `GET /v1/organization`. A persistent repair issue fires when the balance drops below seven days of consumption or the API rejects requests with `PaymentRequiredError`.
 - Sensor selection from a map — pick nearby public sensors from a radius-filtered map picker.
 - Disabled-by-default derived entities: PM2.5 EPA mass concentration (US EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI from the 24-hour average, 2024 NAAQS breakpoints).
 - Disabled-by-default diagnostic entities: Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
@@ -50,7 +50,7 @@ See [Release History](./HISTORY.md) for historic changes.
 - **Sensor selection from a map.** Pick nearby public sensors from a radius-filtered map picker.
 - **Cost-aware field selection.** Only fields for *enabled* entities are requested, and static device-info fields are fetched once per day instead of every refresh — see [API points and field selection](#api-points-and-field-selection).
 - **Quality-aware availability.** Entities are marked unavailable when the sensor's `confidence` drops below 50 %, when the two Plantower channels disagree (`channel_state == 0`), or when the sensor has stopped reporting (`last_seen` older than 10 min).
-- **Remaining-points diagnostics.** Account-level **Remaining points** and **Consumption rate** sensors (disabled by default) plus a persistent repair issue when fewer than seven days of points remain or the API rejects requests with `PaymentRequiredError`.
+- **Remaining-points diagnostics.** Account-level **Remaining points** sensor (enabled by default) and **Consumption rate** sensor (disabled by default) plus a persistent repair issue when fewer than seven days of points remain or the API rejects requests with `PaymentRequiredError`.
 - **Platinum-tier quality scale.** Full [HA quality-scale][qualityscale-rules-link] platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, ≥ 95 % test coverage, and more — see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
 - **Automatic v1 → v2 migration.** Existing config entries from the built-in integration are converted to the subentry layout on first load; entity IDs, devices, and history are preserved.
 
@@ -96,7 +96,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
 
 ### Account-Level Diagnostics
 
-In addition to the per-sensor subentries, the integration registers a single per-config-entry **organization** device (named `<entry-title> organization` — e.g. "PurpleAir organization" for the default integration title) that surfaces account-level information shared across all sensors under the same API key. It currently backs the **Remaining points** and **Consumption rate** diagnostic sensors (both disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
+In addition to the per-sensor subentries, the integration registers a single per-config-entry **organization** device (named `<entry-title> organization` — e.g. "PurpleAir organization" for the default integration title) that surfaces account-level information shared across all sensors under the same API key. It currently backs the **Remaining points** diagnostic sensor (enabled by default) and the **Consumption rate** diagnostic sensor (disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
 
 ## Sensor Behavior and Calibration
 

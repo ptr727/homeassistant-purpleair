@@ -532,6 +532,7 @@ ORGANIZATION_SENSOR_DESCRIPTIONS: Final[
         key="remaining_points",
         translation_key="remaining_points",
         entity_category=EntityCategory.DIAGNOSTIC,
+        # README documents this as enabled by default; keep both in sync.
         entity_registry_enabled_default=True,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="points",

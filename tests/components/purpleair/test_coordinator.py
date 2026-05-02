@@ -678,10 +678,15 @@ async def test_sensors_payment_required_creates_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
+    # freezer must precede setup_config_entry: the org coordinator has a
+    # default-enabled listener (remaining_points) and schedules a 24 h refresh
+    # during setup. Without an already-active freezer, loop.time() (= patched
+    # monotonic) jumps forward when freezegun activates, marking the org task
+    # overdue so it fires on the first sensors tick and clears our issue.
+    freezer: FrozenDateTimeFactory,
     setup_config_entry,
     api,
     issue_registry: ir.IssueRegistry,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """A PaymentRequiredError on the sensors refresh also surfaces out-of-points.
 
@@ -710,10 +715,12 @@ async def test_sensors_recovery_clears_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
+    # See test_sensors_payment_required_creates_out_of_points_issue for why
+    # freezer must precede setup_config_entry.
+    freezer: FrozenDateTimeFactory,
     setup_config_entry,
     api,
     issue_registry: ir.IssueRegistry,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """A successful sensors refresh clears the out-of-points issue.
 
