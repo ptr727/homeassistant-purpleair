@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [get-version]
     # Only update the "Last Build" badge for stable releases. publish-release.yml
-    # triggers on tag push, so github.ref_name is the tag (e.g. "0.1.0"), not
-    # the branch — the old `== 'main'` check would always fail. Reuse the
-    # `Prerelease` output from get-version-task, which strips SemVer build
-    # metadata (`+...`) before checking for a prerelease segment, so a stable
-    # build-tagged version like `1.0.0+build-1` isn't misclassified.
+    # is dispatched manually from main for stable releases and runs on push
+    # to develop for prereleases — branch-name checks would have to know
+    # which event fired, so we just reuse get-version-task's Prerelease
+    # output (derived from NBGV's PrereleaseVersion: empty on main, -gSHA on
+    # develop). Stable iff Prerelease == 'false'.
     if: needs.get-version.outputs.Prerelease == 'false'
 
     steps:
