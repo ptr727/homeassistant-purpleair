@@ -1,24 +1,43 @@
 # SSH Agent Configuration
 
-## Configure persistent SSH agent (Proxmox / Debian / Ubuntu)
+## 1. Enable systemd in WSL (skip on Proxmox / native Linux)
 
-Sets up a single, systemd-managed `ssh-agent` per user session, available to all
-shells automatically. Works identically on Proxmox hosts and WSL distros (Debian,
-Ubuntu).
-
-### 1. Enable systemd in WSL (skip on Proxmox / native Linux)
-
-In each WSL distro, ensure `/etc/wsl.conf` enables systemd:
+In each WSL distro, ensure `/etc/wsl.conf` enables systemd. This block is safe to
+re-run — it only modifies the file if needed.
 
 ```shell
-sudo tee -a /etc/wsl.conf > /dev/null <<'EOF'
-[boot]
-systemd=true
+sudo python3 <<'EOF'
+import configparser
+import os
+
+path = "/etc/wsl.conf"
+cfg = configparser.ConfigParser()
+cfg.optionxform = str  # preserve key case
+if os.path.exists(path):
+    cfg.read(path)
+
+changed = False
+if not cfg.has_section("boot"):
+    cfg.add_section("boot")
+    changed = True
+if cfg.get("boot", "systemd", fallback=None) != "true":
+    cfg.set("boot", "systemd", "true")
+    changed = True
+
+if changed:
+    with open(path, "w") as f:
+        cfg.write(f)
+    print(f"Updated {path}")
+else:
+    print(f"{path} already configured")
 EOF
 ```
 
-If `/etc/wsl.conf` already has a `[boot]` section, edit it manually instead to
-avoid duplicate sections.
+Verify:
+
+```shell
+cat /etc/wsl.conf
+```
 
 From a **Windows PowerShell** prompt, shut down all WSL distros so the change
 takes effect:
@@ -33,85 +52,3 @@ Reopen the distro and confirm systemd is PID 1:
 ps -p 1 -o comm=
 # should print: systemd
 ```
-
-### 2. Enable the user-level ssh-agent service
-
-```shell
-systemctl --user enable --now ssh-agent.socket
-```
-
-Verify:
-
-```shell
-systemctl --user status ssh-agent.socket
-echo $SSH_AUTH_SOCK
-# should print: /run/user/<uid>/openssh_agent
-```
-
-### 3. Tell SSH to use the systemd socket and auto-add keys
-
-Add to `~/.ssh/config` (create the file if it doesn't exist, mode `600`):
-
-```shell
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-touch ~/.ssh/config && chmod 600 ~/.ssh/config
-```
-
-Append:
-
-```ssh-config
-Host *
-    AddKeysToAgent yes
-    IdentityFile ~/.ssh/id_ed25519
-```
-
-`AddKeysToAgent yes` causes the first SSH operation in a session to load the key
-(prompting for the passphrase if any) and cache it for the agent's lifetime.
-
-### 4. Defensive `.bashrc` snippet (safety net)
-
-Add to `~/.bashrc`. Harmless when systemd is managing the agent; useful as a
-fallback in shells that don't inherit `SSH_AUTH_SOCK`.
-
-```shell
-# Reuse a shared ssh-agent if systemd's isn't available in this shell
-SSH_AGENT_ENV="$HOME/.ssh/agent.env"
-if [ -z "$SSH_AUTH_SOCK" ]; then
-    if [ -r "$SSH_AGENT_ENV" ]; then
-        . "$SSH_AGENT_ENV" >/dev/null
-    fi
-    if ! ssh-add -l >/dev/null 2>&1; then
-        ssh-agent -s > "$SSH_AGENT_ENV"
-        chmod 600 "$SSH_AGENT_ENV"
-        . "$SSH_AGENT_ENV" >/dev/null
-        ssh-add ~/.ssh/id_ed25519 >/dev/null 2>&1
-    fi
-fi
-```
-
-Reload:
-
-```shell
-source ~/.bashrc
-```
-
-### 5. Verify
-
-Open a fresh shell and confirm:
-
-```shell
-ps aux | grep ssh-agent | grep -v grep
-# should show exactly one ssh-agent process per user
-
-echo $SSH_AUTH_SOCK
-ssh-add -l
-# lists your loaded key(s)
-```
-
-If you previously had agent sprawl, kill the orphans first:
-
-```shell
-pkill ssh-agent
-```
-
-Then close all shells, open a fresh one, and re-verify.
