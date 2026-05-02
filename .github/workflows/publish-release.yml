@@ -61,7 +61,7 @@ jobs:
     # Explicitly allowlist success/skipped on each dependency so a
     # `cancelled` outcome (timeout, manual cancel, runner failure) blocks
     # publish — != 'failure' alone would let cancelled through.
-    if: |
+    if: >-
       always() &&
       (needs.gate.result == 'success' || needs.gate.result == 'skipped') &&
       (needs.test-release.result == 'success' || needs.test-release.result == 'skipped')
