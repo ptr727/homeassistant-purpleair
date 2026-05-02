@@ -73,19 +73,25 @@ jobs:
         # accidentally restores the nested-purpleair/ layout, fail the
         # build here rather than ship a release that breaks every HACS
         # install.
+        #
+        # Normalize a leading `./` from stored entries before matching:
+        # `zip -r ... .` is allowed to record paths as either `manifest.json`
+        # or `./manifest.json` depending on Info-ZIP version, and an
+        # unnormalized check could miss a `./purpleair/` wrapper.
         run: |
           set -euo pipefail
-          if ! unzip -l purpleair.zip | awk '{print $NF}' | grep -qx 'manifest.json'; then
+          entries=$(unzip -Z1 purpleair.zip | sed 's|^\./||')
+          if ! echo "$entries" | grep -qx 'manifest.json'; then
               echo "::error::purpleair.zip missing manifest.json at root — HACS layout regression?"
               unzip -l purpleair.zip
               exit 1
           fi
-          if ! unzip -l purpleair.zip | awk '{print $NF}' | grep -qx '__init__.py'; then
+          if ! echo "$entries" | grep -qx '__init__.py'; then
               echo "::error::purpleair.zip missing __init__.py at root — HACS layout regression?"
               unzip -l purpleair.zip
               exit 1
           fi
-          if unzip -l purpleair.zip | awk '{print $NF}' | grep -qE '^purpleair/'; then
+          if echo "$entries" | grep -qE '^purpleair/'; then
               echo "::error::purpleair.zip contains a top-level purpleair/ wrapper — HACS would extract one level too deep."
               unzip -l purpleair.zip
               exit 1
