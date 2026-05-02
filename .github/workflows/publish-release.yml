@@ -33,12 +33,22 @@ jobs:
               exit 1
           fi
 
-  create-release:
-    name: Publish project release job
+  test-release:
+    name: Test release job
     needs: [gate]
     # `gate` is skipped on push (only runs on workflow_dispatch); accept both
     # outcomes so the develop-push path proceeds without a real gate result.
+    # Reuses test-release-task.yml — the same suite that gates PR merges —
+    # so a manual main-dispatched release is held to the same quality bar
+    # (ruff, mypy --strict, pytest matrix, hassfest, HACS validation, plus
+    # a no-publish build that exercises the NBGV stamping path).
     if: ${{ always() && (needs.gate.result == 'success' || needs.gate.result == 'skipped') }}
+    uses: ./.github/workflows/test-release-task.yml
+    secrets: inherit
+
+  create-release:
+    name: Publish project release job
+    needs: [test-release]
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     permissions:

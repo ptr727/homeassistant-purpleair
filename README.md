@@ -24,12 +24,7 @@ A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir
 
 ### Release Notes
 
-**Version 0.1**:
-
-- Initial release.
-- Requires Home Assistant 2026.4.0 or newer.
-
-See [Release History](./HISTORY.md) for complete release notes and older versions.
+Per-version release notes live on the [GitHub Releases page][releases-link] (auto-generated from squashed PR titles by [Nerdbank.GitVersioning][nbgv-link] + the publish-release workflow). Minimum supported Home Assistant: **2026.4.0**. See [Release History](./HISTORY.md) for a curated highlights summary.
 
 ## Features beyond Home Assistant's built-in PurpleAir integration
 
@@ -495,6 +490,7 @@ ssh-add -l
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
 [license-link]: ./LICENSE
 [license-shield]: https://img.shields.io/github/license/ptr727/homeassistant-purpleair?label=License
+[nbgv-link]: https://github.com/dotnet/Nerdbank.GitVersioning
 [prereleaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?include_prereleases&label=GitHub%20Pre-Release&logo=github&color=orange
 [purpleair-api-link]: https://api.purpleair.com/
 [purpleair-api-pm25-link]: https://api.purpleair.com/#api-sensors-get-sensor-data
