@@ -349,7 +349,7 @@ Additional useful tasks in the same file:
 
 ### Devcontainer Setup
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth on Linux/WSL) work inside it without re-setup. macOS is partially excluded — the host's `gh` token lives in Keychain by default, which the bind-mount doesn't carry, so container `gh` is unauthenticated until you opt into one of the trade-offs documented in the macOS Deltas below.
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where it lives in the file store) work inside it without re-setup. The `gh` part is conditional: only file-stored tokens travel through the bind-mount. If your host `gh` uses a credential store — Keychain by default on macOS, or libsecret/Secret Service on Linux when you ran `gh auth login --secure-storage` — `~/.config/gh/hosts.yml` carries no `oauth_token` and container `gh` will be unauthenticated until you opt into one of the trade-offs documented below.
 
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
@@ -537,10 +537,12 @@ ssh-add -l
 # Test GitHub SSH connectivity (does not need `gh`)
 ssh -T git@github.com
 
-# Test gh — only if you authenticated `gh` in the container (Linux/WSL
-# always; macOS only if you took the in-container login path). The
-# Keychain-only macOS path leaves container `gh` unauthenticated and
-# this command will fail by design.
+# Test gh — only if container `gh` is authenticated. It is when the
+# host stored the token in `~/.config/gh/hosts.yml` (default on
+# Linux/WSL); it isn't when the host stores it in Keychain (default on
+# macOS) or libsecret (Linux opt-in via `--secure-storage`), unless
+# you ran `gh auth login` once inside the container. Skip in those
+# cases — `gh ssh-key list` will fail by design.
 gh ssh-key list
 ```
 
