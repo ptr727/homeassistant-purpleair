@@ -81,7 +81,7 @@
             "redhat.vscode-yaml",
             "ryanluker.vscode-coverage-gutters",
             "streetsidesoftware.code-spell-checker",
-            "timonwong.shellcheck",
+            "timonwong.shellcheck"
         ]
     }
 }
