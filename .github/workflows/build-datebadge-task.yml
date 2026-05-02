@@ -18,8 +18,9 @@ jobs:
     # is dispatched manually from main for stable releases and runs on push
     # to develop for prereleases — branch-name checks would have to know
     # which event fired, so we just reuse get-version-task's Prerelease
-    # output (derived from NBGV's PrereleaseVersion: empty on main, -gSHA on
-    # develop). Stable iff Prerelease == 'false'.
+    # output (derived by checking SemVer2 itself for any `-` segment: develop
+    # produces `0.X.Y-g<sha>`, main produces clean `0.X.Y`). Stable iff
+    # Prerelease == 'false'.
     if: needs.get-version.outputs.Prerelease == 'false'
 
     steps:
