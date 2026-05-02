@@ -10,7 +10,7 @@ A HACS-installable Home Assistant **custom integration** for PurpleAir air-quali
 
 - Pipeline is `feature → develop → main`. Both `develop` and `main` are protected; everything lands via PR.
 - **Feature → develop PRs squash-merge** (single commit on develop, PR title becomes the commit message; never rebase-merge).
-- **Develop → main PRs merge-commit** (one merge commit on main per release, develop's tip becomes a second parent and stays in main's ancestry — see [Develop → main promotion](#develop--main-promotion) below for why).
+- **Develop → main PRs merge-commit** (one merge commit on main per release, develop's tip becomes a second parent and stays in main's ancestry — see [Develop → Main Promotion](#develop--main-promotion) below for why).
 - Open feature PRs against `develop`. `develop → main` is how stable releases are cut.
 
 ## Commit messages and PR titles
@@ -54,7 +54,7 @@ The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Ner
 
 Bot-merged PRs (Dependabot, HA-version-bump) trigger the develop prerelease automatically — that's why [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml) authors its squash-merges with the App token (`GITHUB_TOKEN`-authored pushes are blocked from triggering downstream workflows by GitHub's recursion guard).
 
-## Develop → main promotion
+## Develop → Main Promotion
 
 Use the **"Create a merge commit"** option on develop → main PRs. Repo rulesets are split: PRs into `develop` are squash-only (linear history); PRs into `main` are merge-commit only. Clicking "Create a merge commit" on a develop → main PR produces a merge commit on main whose second parent is develop's tip — so develop becomes a real ancestor of main, and the *next* develop → main PR has a clean merge base (no recurring conflicts, no behind-base churn).
 

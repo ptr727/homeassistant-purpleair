@@ -199,7 +199,7 @@ PurpleAir charges API points per **field** per sensor per call. The integration 
 | `AVAILABILITY_FIELDS` | `last_seen`, `confidence`, `channel_state`, `channel_flags` | Every refresh (5 min) |
 | Per-entity fields | e.g. `temperature`, `humidity`, `pm2.5`, `pm2.5_24hour` | Every refresh, only for enabled entities |
 
-Reloading the config entry (**Settings → Devices & services → PurpleAir → ⋮ → Reload**) forces an immediate static re-fetch — useful after a firmware update or sensor relocation.
+Reloading the config entry (**Settings → Devices & Services → PurpleAir → ⋮ → Reload**) forces an immediate static re-fetch — useful after a firmware update or sensor relocation.
 
 **Measured cost** for a default install of **one sensor with the six enabled-by-default entities** (temperature, humidity, pressure, PM1.0/PM2.5/PM10 mass concentrations). Both rows query the same 16 fields (4 availability + 6 default-enabled entity fields + 6 static device fields); the difference is whether the static fields ride along on every refresh or only once per day:
 
@@ -269,7 +269,7 @@ There is no in-place downgrade until the built-in integration adopts schema v2. 
 ## Credits
 
 - **API library:** [aiopurpleair][aiopurpleair-pypi-link], authored by [@bachya][bachya-link].
-- **License:** Apache 2.0 — see [LICENSE](LICENSE).
+- **License:** Apache 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 - **Credits:** Original PurpleAir integration author [@bachya][bachya-link]; subentry redesign reviewed and supported by [@joostlek][joostlek-link].
 
 ## Issues and Discussions
