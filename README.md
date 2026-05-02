@@ -2,7 +2,7 @@
 
 A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir][purpleair-link] air-quality sensors.
 
-> **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in and migrates existing config entries forward — the upgrade is automatic and preserves entity IDs and history. **The downgrade is not:** if you later remove this custom integration, the built-in cannot read the migrated v2 entries until [core PR #140901][ha-core-pr-link] ships. See [Migration][migration-link] below for details. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
+> **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in and migrates existing config entries forward — the upgrade is automatic and preserves entity IDs and history. **The downgrade is not:** if you later remove this custom integration, the built-in cannot read the migrated v2 entries. See [Migration][migration-link] below for details. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ## Build and Distribution
 
@@ -24,29 +24,45 @@ A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir
 
 ### Release Notes
 
-Per-version release notes live on the [GitHub Releases page][releases-link]; the version itself is computed by [Nerdbank.GitVersioning][nbgv-link] from `version.json` plus git history, and the release notes are auto-generated from squashed PR titles by GitHub at publish time. Minimum supported Home Assistant: **2026.4.0**. See [Release History](./HISTORY.md) for a curated highlights summary.
+Release highlights — see [Release History](./HISTORY.md) for details.
 
-## Features beyond Home Assistant's built-in PurpleAir integration
+**Version 0.1**:
+
+- Private sensor support via per-sensor read keys (free API points when querying your own sensors).
+- Subentry layout — one subentry per sensor; automatic v1 → v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
+- Cost-aware field selection — only fields backing enabled entities are requested, and static device-info fields are fetched once per day.
+- Quality-aware availability — entities go unavailable on `confidence < 50`, `channel_state == 0` ("No PM"), or a stale `last_seen`.
+- Account-level **Remaining points** and **Consumption rate** diagnostic sensors (disabled by default), backed by a daily refresh of `GET /v1/organization`. A persistent repair issue fires when the balance drops below seven days of consumption or the API rejects requests with `PaymentRequiredError`.
+- Sensor selection from a map — pick nearby public sensors from a radius-filtered map picker.
+- Disabled-by-default derived entities: PM2.5 EPA mass concentration (US EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI from the 24-hour average, 2024 NAAQS breakpoints).
+- Disabled-by-default diagnostic entities: Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
+- Platinum-tier quality-scale compliance.
+
+See [GitHub Releases][releases-link] for per-release changes.\
+See [Release History](./HISTORY.md) for historic changes.
+
+## Features
+
+**Features beyond Home Assistant's built-in PurpleAir integration**:
 
 - **Private sensor support.** Each subentry can supply its own per-sensor **Read Key**, so the integration can query unlisted private sensors and query self-owned sensors at no API-point cost.
 - **Config subentries.** One subentry per sensor (the current HA model) instead of a single config entry holding a list of sensor indices.
 - **Sensor selection from a map.** Pick nearby public sensors from a radius-filtered map picker.
-- **Cost-aware field selection.** Only fields for *enabled* entities are requested, and static device-info fields are fetched once per day instead of every refresh. A typical 6-entity config uses roughly **37 % fewer field-fetches per day** than a naive implementation — see [API points and field selection](#api-points-and-field-selection).
+- **Cost-aware field selection.** Only fields for *enabled* entities are requested, and static device-info fields are fetched once per day instead of every refresh — see [API points and field selection](#api-points-and-field-selection).
 - **Quality-aware availability.** Entities are marked unavailable when the sensor's `confidence` drops below 50 %, when the two Plantower channels disagree (`channel_state == 0`), or when the sensor has stopped reporting (`last_seen` older than 10 min).
-- **Clear error messages in the config flow.** WRITE API keys, disabled API keys, and wrong per-sensor read keys each surface a distinct error on the right field.
 - **Remaining-points diagnostics.** Account-level **Remaining points** and **Consumption rate** sensors (disabled by default) plus a persistent repair issue when fewer than seven days of points remain or the API rejects requests with `PaymentRequiredError`.
-- **Platinum-tier quality scale.** Full HA quality-scale platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, ≥ 95 % test coverage, and more — see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
+- **Platinum-tier quality scale.** Full [HA quality-scale][qualityscale-rules-link] platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, ≥ 95 % test coverage, and more — see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
 - **Automatic v1 → v2 migration.** Existing config entries from the built-in integration are converted to the subentry layout on first load; entity IDs, devices, and history are preserved.
 
-## Why private sensor support matters
+**Why private sensor support matters**:
 
 **PurpleAir uses a points for data access model**, see [PurpleAir Community: API Pricing][purpleair-api-pricing-link] for details. New accounts start with enough points to run for about a month using this integration, before more points may need to be purchased.
 
-**Sensor owners can access data for their own sensors free of charge**, see [PurpleAir community: API points for sensor owners][free-points-link]. To run this integration long-term at no cost for your own sensors, use the Read Key that was provided via email during sensor registration.
+**Sensor owners can access data for their own sensors free of charge**, see [PurpleAir community: API points for sensor owners][free-points-link]. To run this integration long-term at no cost for your own sensors, use the **Read Key** that was provided via email during sensor registration.
 
 ## Installation
 
-### Via HACS (recommended)
+### Via HACS (Recommended)
 
 1. In HACS, open **Integrations → ⋮ → Custom repositories**.
 1. Add `https://github.com/ptr727/homeassistant-purpleair` with category **Integration**.
@@ -58,18 +74,18 @@ Copy `custom_components/purpleair/` into your Home Assistant `<config>/custom_co
 
 ## Configuration
 
-### 1. Get a PurpleAir API key
+### 1. Get a PurpleAir API Key
 
 - Create a free account at the [PurpleAir Developer Portal][purpleair-developer-link].
 - On the [API Keys page][purpleair-keys-link] create an API key.
 - On the [Projects page][purpleair-projects-link] buy points as required (not required for using your own sensors).
 - Return to the keys page and copy the API key (it looks like a GUID).
 
-### 2. Add the integration in Home Assistant
+### 2. Add the Integration in Home Assistant
 
 **Settings → Devices & Services → Add Integration → PurpleAir** and paste your API key.
 
-### 3. Add sensors
+### 3. Add Sensors
 
 Each sensor is added as a **subentry** under the integration. Two methods:
 
@@ -78,7 +94,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
   - The Read Key is **required for private sensors** that are not shown on the public sensor map.
   - The Read Key is **required for no cost API usage** of your own sensors (the Read Key is sent via email during sensor registration). Refer to [PurpleAir community: API points for sensor owners][free-points-link].
 
-## Sensor behavior and calibration
+## Sensor Behavior and Calibration
 
 These notes explain why entities report the values they do. The integration takes two different approaches depending on how settled the underlying math is:
 
@@ -87,7 +103,7 @@ These notes explain why entities report the values they do. The integration take
 
 All field semantics below are verified against the [official API documentation][purpleair-api-link].
 
-### PM2.5 mass concentration
+### PM2.5 Mass Concentration
 
 The `PM2.5 mass concentration` sensor returns the API's `pm2.5` field. On the real-time endpoint this field is **already**:
 
@@ -100,17 +116,17 @@ For the Wallace **ALT-CF3** variant (often preferred for wildfire smoke and low-
 
 For US EPA-corrected PM2.5, enable the opt-in **PM2.5 EPA mass concentration** entity — see [EPA-corrected PM2.5](#epa-corrected-pm25-pm25-epa-mass-concentration) below for the formula and source.
 
-### Rolling averages
+### Rolling Averages
 
 The disabled-by-default **PM2.5 10/30/60-minute**, **6/24-hour**, and **1-week average** sensors expose the API's running-average fields. These are the preferred input for AQI-style reporting (e.g. the US EPA AQI is defined against a 24-hour average). Same indoor/outdoor auto-selection applies.
 
-### Temperature and humidity are INTERNAL to the sensor housing
+### Internal Temperature and Humidity
 
-Per the API docs:
+The `temperature` and `humidity` entities expose readings from **inside the sensor housing**, not ambient conditions. Per the API docs:
 
 > *This matches the "Operating Temperature" map layer and is not representative of ambient conditions. Formulas can be applied to estimate ambient temperature.*
 
-In practice, a PA-II reads roughly **8 °F hotter** and **4 %RH drier** than the ambient air around it. The `temperature` and `humidity` entities expose the raw sensor readings with no correction applied.
+In practice, a PA-II reads roughly **8 °F hotter** and **4 %RH drier** than the ambient air around it. No correction is applied to the entity values — they are the raw sensor readings.
 
 If you need an ambient estimate, use a template sensor. Example:
 
@@ -136,7 +152,7 @@ template:
 
 The raw internal readings are also available via the disabled-by-default **Internal temperature**, **Internal humidity**, and **Internal pressure** diagnostic entities.
 
-### EPA-corrected PM2.5 (`PM2.5 EPA mass concentration`)
+### EPA-Corrected PM2.5 (`PM2.5 EPA Mass Concentration`)
 
 A disabled-by-default sensor that applies the US EPA's published correction to the raw PurpleAir PM2.5 output. Reference: **"Fire and Smoke Map Sensor Data Processing"**, EPA Office of Research and Development, revised 2021, page 26 of [`dirEntryId=353088`][epa-pm25-link].
 
@@ -149,7 +165,7 @@ Implementation details:
 
 The code lives in `_pm25_epa_correction` in [`sensor.py`](custom_components/purpleair/sensor.py). The implementation has unit tests that verify each region's formula and the continuity of every boundary.
 
-### US AQI from 24-hour PM2.5 (`PM2.5 air quality index`)
+### US AQI from 24-Hour PM2.5 (`PM2.5 Air Quality Index`)
 
 A disabled-by-default sensor that reports the US EPA Air Quality Index for PM2.5 based on the sensor's 24-hour rolling average.
 
@@ -159,11 +175,7 @@ A disabled-by-default sensor that reports the US EPA Air Quality Index for PM2.5
 
 The breakpoint table and lookup live in `_pm25_aqi` in [`sensor.py`](custom_components/purpleair/sensor.py); unit tests cover every band edge.
 
-### Implementing your own corrections
-
-If you prefer different calibration (e.g. ambient-temperature offset, alternative AQI schema), template sensors in `configuration.yaml` work fine. The integration exposes the raw fields needed for any such derivation via its opt-in entities (PM2.5, ALT, 24-hour average, rolling averages, raw internal temp/humidity).
-
-### Availability signals
+### Availability Signals
 
 Entities become **unavailable** when any of:
 
@@ -173,13 +185,13 @@ Entities become **unavailable** when any of:
 
 Each transition is logged once at `INFO` under the `custom_components.purpleair` logger.
 
-### API points and field selection
+### API Points and Field Selection
 
 PurpleAir charges API points per **field** per sensor per call. The integration takes two steps to minimize that cost:
 
 **1. Only fetch fields for enabled entities.** Each [`PurpleAirSensorEntityDescription`](custom_components/purpleair/sensor.py) declares its required API fields; at refresh time the coordinator walks the entity registry for the config entry and unions the `api_fields` of every enabled description. Disabled entities contribute zero API fields to the outgoing request. Enabling or disabling an entity in the UI triggers an immediate refresh so the field set reflects reality on the next cycle.
 
-**2. Static fields are cached for 24 hours.** The API's field catalogue mixes values that change every reading (PM2.5, humidity, `confidence`, `last_seen`) with values that only change on firmware updates or user actions (`name`, `hardware`, `model`, `firmware_version`, `latitude`, `longitude`). The coordinator splits them into two sets:
+**2. Static fields are cached for 24 hours.** The API's field catalog mixes values that change every reading (PM2.5, humidity, `confidence`, `last_seen`) with values that only change on firmware updates or user actions (`name`, `hardware`, `model`, `firmware_version`, `latitude`, `longitude`). The coordinator splits them into two sets:
 
 | Set | Fields | Fetch cadence |
 | --- | --- | --- |
@@ -189,18 +201,20 @@ PurpleAir charges API points per **field** per sensor per call. The integration 
 
 Reloading the config entry (**Settings → Devices & services → PurpleAir → ⋮ → Reload**) forces an immediate static re-fetch — useful after a firmware update or sensor relocation.
 
-**Measured cost** for a default install of **one sensor with the six enabled-by-default entities** (temperature, humidity, pressure, PM1.0/PM2.5/PM10 mass concentrations):
+**Measured cost** for a default install of **one sensor with the six enabled-by-default entities** (temperature, humidity, pressure, PM1.0/PM2.5/PM10 mass concentrations). Both rows query the same 16 fields (4 availability + 6 default-enabled entity fields + 6 static device fields); the difference is whether the static fields ride along on every refresh or only once per day:
 
 | Scenario | Fields per refresh | Refreshes per day | Field-fetches per day |
 | --- | --- | --- | --- |
-| Hard-coded full field list (naive) | 16 | 288 | **4,608** |
-| This integration | 10 + 6 once daily | 288 + 1 | **2,886** (≈ 37 % less) |
+| Same fields, refetched every cycle (naive) | 16 | 288 | **4,608** |
+| This integration (static fields cached 24 h) | 10 + 6 once daily | 288 + 1 | **2,886** (≈ 37 % less) |
 
-Enabling every optional entity (PM particle counts, RSSI, uptime, ALT, six rolling averages, diagnostics) raises the per-refresh set to roughly 26 fields; disabling a sensor you aren't using immediately drops its fields out of the next refresh.
+The savings here come from the static-cache split alone. A second saving comes from **not** fetching fields for disabled entities: the integration declares 32 unique fields across all entities, but a default install only fetches 16 of them. Enabling every optional entity (PM particle counts, RSSI, uptime, ALT, six rolling averages, diagnostics) raises the per-refresh set to 26 fields; disabling a sensor you aren't using immediately drops its fields out of the next refresh.
 
 Free points are available for sensor owners who use their own sensor's Read Key; see [API points for sensor owners][free-points-link].
 
-## Upstream dependency: `aiopurpleair` fork
+## Upstream PRs
+
+### Upstream `aiopurpleair` PR
 
 This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes][purpleair-api-link] collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
 
@@ -216,7 +230,7 @@ A pull request against [bachya/aiopurpleair][bachya-aiopurpleair-link] is open. 
 
 All error codes and semantics in the fork are verified against the [official PurpleAir API documentation][purpleair-api-link].
 
-## Relationship to the upstream Home Assistant PR
+### Upstream Home Assistant PR
 
 An earlier version of this integration was submitted for inclusion in Home Assistant core as [home-assistant/core#140901][ha-core-pr-link] (with accompanying docs at [home-assistant/home-assistant.io#38063][ha-docs-pr-link]). That PR has been pending review for some time.
 
@@ -224,9 +238,9 @@ In the meantime, this version has continued to move forward — it now **superse
 
 The original core PR will not be kept in lockstep with these changes, and may be abandoned. The HACS release stream may be the maintained path going forward.
 
-## Migration from the built-in integration
+## Migration from the Built-in Integration
 
-### Upgrade: built-in → custom
+### Upgrade: Built-in → Custom
 
 1. Install this custom integration via [HACS][hacs-xyz-link] or by copying `custom_components/purpleair/` into your Home Assistant config directory.
 1. Restart Home Assistant. The installation has no effect until HA restarts — integrations are loaded once at startup.
@@ -241,28 +255,30 @@ The original core PR will not be kept in lockstep with these changes, and may be
 
 If migration fails, the entry is marked `SETUP_ERROR`. Check **Settings → System → Repairs** and the log; empty v1 entries raise a targeted repair issue.
 
-### Downgrade: custom → built-in — **requires manual work**
+### Downgrade: Custom → Built-in
 
-This custom integration uses config-entry schema **version 2** (one subentry per sensor). The built-in integration in Home Assistant core is still on schema **version 1**. If you simply delete `custom_components/purpleair/` and restart, the built-in cannot read v2 entries and the integration will fail to set up with `Config entry for purpleair is from a future version`.
+**Downgrading requires manual work.** This custom integration uses config-entry schema **version 2** (one subentry per sensor). The built-in integration in Home Assistant core is still on schema **version 1**. If you simply delete `custom_components/purpleair/` and restart, the built-in cannot read v2 entries and the integration will fail to set up with `Config entry for purpleair is from a future version`.
 
 Two recovery options:
 
-- **Wait for [home-assistant/core#140901][ha-core-pr-link] to merge.** That PR moves the built-in to schema v2 with the same subentry layout, at which point the downgrade works automatically.
+- **Wait for the built-in integration to support schema v2.** Once the built-in adopts the same subentry layout, it can read existing v2 entries and the downgrade works automatically.
 - **Rebuild the entry manually.** In Home Assistant go to **Settings → Devices & Services → PurpleAir → … → Delete**, then remove `custom_components/purpleair/`, restart, and re-add the built-in integration from scratch. Long-term-statistics history tied to the migrated entity IDs is lost.
 
-There is no in-place downgrade until the core PR merges. Plan accordingly before installing.
+There is no in-place downgrade until the built-in integration adopts schema v2. Plan accordingly before installing.
 
 ## Credits
 
 - **API library:** [aiopurpleair][aiopurpleair-pypi-link], authored by [@bachya][bachya-link].
-- **License:** Apache 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+- **License:** Apache 2.0 — see [LICENSE](LICENSE).
 - **Credits:** Original PurpleAir integration author [@bachya][bachya-link]; subentry redesign reviewed and supported by [@joostlek][joostlek-link].
 
-## Issues and discussions
+## Issues and Discussions
 
 Bug reports and feature requests are welcome on the [issue tracker][issues-link]. For questions, troubleshooting help, or ideas you're not sure are bugs, use [GitHub Discussions][discussions-link].
 
 ## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow (branching, lint/test commands, PR guidelines) and [AGENTS.md](AGENTS.md) for the deeper contributor/agent reference (release flow, code style, devcontainer notes).
 
 The repo includes a VS Code devcontainer and helper scripts:
 
@@ -312,7 +328,7 @@ Additional useful tasks in the same file:
 - **Setup: aiopurpleair deps (poetry)** — run `aiopurpleair/script/setup` inside that venv.
 - **Test: aiopurpleair pytest (venv)** — run aiopurpleair tests inside that venv.
 
-### Devcontainer setup
+### Devcontainer Setup
 
 The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (SSH signing key, GitHub CLI auth) work inside it without re-setup:
 
@@ -328,7 +344,7 @@ If you do not sign commits or use `gh` and don't want to set this up, delete the
 
 Configuration below applies to Debian or Ubuntu distros.
 
-#### WSL host setup
+#### WSL Host Setup
 
 Apply this configuration if you are running linux distros from WSL on Windows.
 
@@ -348,7 +364,7 @@ Restart WSL if required, run from a Windows PowerShell terminal:
 wsl --shutdown
 ```
 
-#### Linux host setup
+#### Linux Host Setup
 
 Apply this configuration from the linux docker host that will run the devcontainer.
 
@@ -438,7 +454,7 @@ ssh-add -l
 ps aux | grep ssh-agent | grep -v grep
 ```
 
-#### Open in devcontainer
+#### Open in Devcontainer
 
 Connect to the host from VS Code, direct, over SSH, or over WSL, and clone the repo to the local filesystem.\
 Open the directory, and then open the workspace in a devcontainer, **do not clone into a volume** as `${localEnv:HOME}` will not resolve and the container will fail to open.
@@ -479,7 +495,7 @@ ssh-add -l
 [ha-custom-integration-link]: https://developers.home-assistant.io/docs/creating_integration_file_structure/
 [ha-docs-pr-link]: https://github.com/home-assistant/home-assistant.io/pull/38063
 [hacs-link]: https://github.com/hacs/integration
-[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
 [hacs-xyz-link]: https://hacs.xyz/
 [haversion-link]: https://www.home-assistant.io/blog/categories/release-notes/
 [haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.4.0%2B-41BDF5?logo=homeassistant
@@ -490,7 +506,6 @@ ssh-add -l
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
 [license-link]: ./LICENSE
 [license-shield]: https://img.shields.io/github/license/ptr727/homeassistant-purpleair?label=License
-[nbgv-link]: https://github.com/dotnet/Nerdbank.GitVersioning
 [prereleaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?include_prereleases&label=GitHub%20Pre-Release&logo=github&color=orange
 [purpleair-api-link]: https://api.purpleair.com/
 [purpleair-api-pm25-link]: https://api.purpleair.com/#api-sensors-get-sensor-data
@@ -501,6 +516,7 @@ ssh-add -l
 [purpleair-link]: https://www.purpleair.com/
 [purpleair-projects-link]: https://develop.purpleair.com/dashboards/projects
 [qualityscale-link]: ./custom_components/purpleair/quality_scale.yaml
-[qualityscale-shield]: https://img.shields.io/badge/Quality_scale-Platinum-9C27B0?logo=homeassistant
+[qualityscale-rules-link]: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/
+[qualityscale-shield]: https://img.shields.io/badge/Quality_Scale-Platinum-9C27B0?logo=homeassistant
 [releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
 [releaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?logo=github&label=GitHub%20Release

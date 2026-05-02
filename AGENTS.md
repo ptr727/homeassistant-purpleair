@@ -16,6 +16,18 @@ A HACS-installable Home Assistant **custom integration** for PurpleAir air-quali
 
 PR titles are descriptive and have no versioning effect. NBGV computes the version from [version.json](version.json) plus the git commit-height since that base version was last bumped, so commit messages are not parsed and don't need a Conventional-Commits prefix. Write a clear imperative subject — that's it. Bodies are optional; use them when *why* is non-obvious. Don't add `Co-Authored-By:` lines for AI tools unless the user explicitly asks.
 
+## Writing style
+
+Use **US English spelling** in code comments, identifiers, commit messages, PR descriptions, and documentation: *behavior* (not behaviour), *color* (not colour), *favorite* (not favourite), *recognize* (not recognise), *organize* (not organise), *cancel/canceled* (not cancelled), and so on. Existing files predate this rule and may still contain British spellings — fix them when you happen to touch the surrounding lines, but a wholesale sweep isn't required.
+
+**Headings** are title case with lowercase short bind words: a, an, the, and, but, or, of, in, on, at, to, by, for, from. Verbs (including *is/are/was*) and other content words are capitalized. Hyphenated compounds capitalize the second part unless it's a short preposition — *Built-in*, *EPA-Corrected*, *24-Hour*. Keep headings short; long qualifiers belong in the first sentence under the heading rather than in the heading itself.
+
+**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized), not inline URLs. Write one logical paragraph per line — line-length isn't enforced ([.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc) disables MD013) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim.
+
+**Cross-reference scoping**: the fact that an upstream Home Assistant core PR exists is intentionally confined to the **Upstream Home Assistant PR** section in [README.md](README.md). Don't introduce or re-introduce mentions of it in other sections (Migration, lead block-quote, etc.) — describe the limitation in terms of what would resolve it ("until the built-in integration adopts schema v2") rather than the current upstream effort. The maintainer may abandon the PR, and scattered references would all need updating.
+
+**Quantitative claims** in [README.md](README.md) (percentages, counts, timings) must be verified against current code or a reproducible measurement before being added or carried forward. When a claim depends on a source-side constant (`STATIC_DEVICE_FIELDS`, `UPDATE_INTERVAL`, the default-enabled entity set, etc.), put a one-line marker in the source comment that the README depends on this value, so a future refactor knows to update both.
+
 ## Versioning
 
 The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) from [version.json](version.json) and git history — nothing in the working tree carries the actual version number.
@@ -40,6 +52,40 @@ The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Ner
 - **`workflow_dispatch` on `main`** — manual stable release. After merging `develop → main`, a maintainer runs `gh workflow run publish-release.yml --ref main`. The `gate` job rejects dispatches from any other ref. NBGV computes a clean version like `0.1.6` (no `-g{sha}` because `main` matches `publicReleaseRefSpec`), and the same build-release path produces a non-prerelease GitHub Release.
 
 Bot-merged PRs (Dependabot, HA-version-bump) trigger the develop prerelease automatically — that's why [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml) authors its squash-merges with the App token (`GITHUB_TOKEN`-authored pushes are blocked from triggering downstream workflows by GitHub's recursion guard).
+
+## Develop → main promotion
+
+Squash-merging develop → main collapses develop's ancestry into a single commit on main. The merged commit's only parent is the previous main tip, not develop, so git's merge-base for the *next* develop → main PR stays anchored at the original divergence point. As a result, the next promotion sees both branches as having modified the same files — every file that's changed on develop since the previous promotion shows up as a conflict, even though develop's tree is a strict superset.
+
+The accepted pattern (one push per cycle):
+
+1. Locally, on `develop`: `git merge origin/main --no-ff` and resolve conflicts with `--ours` for every file (the merge tree equals develop's tree — pure ancestry sync, zero content delta).
+2. Admin-bypass push: `git push origin develop`. The `required_linear_history` rule on the develop ruleset blocks merge commits, but admins are listed as bypass actors. The push reports the bypass in the audit log and proceeds.
+3. The next develop → main PR now has main's previous tip as a real ancestor of develop and merges without conflicts.
+
+Future PRs back to develop continue to squash-merge normally and produce linear history; the merge commit is the only non-linear node added per cycle. This is the case the original TODO acknowledged with "re-merging main to develop may occasionally be done or required when there is lots of drift" — it's required, once per develop → main promotion.
+
+## PR review etiquette
+
+Branch protection's `copilot_code_review` rule reviews on push, but `mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
+
+```sh
+PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
+gh pr view <N> --json reviews --jq \
+  '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
+  | grep -q "$PR_HEAD"
+```
+
+When that grep matches, read the comments submitted at-or-after that review's `submittedAt`:
+
+```sh
+LATEST=$(gh pr view <N> --json reviews --jq \
+  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt')
+gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
+  "[.[] | select(.created_at >= \"$LATEST\")]"
+```
+
+Zero comments at or after the latest review's timestamp is the explicit sign-off. Any earlier check is a race against an in-progress review and can ship bugs that landed in the last review pass (it has).
 
 ## Code style
 
@@ -79,6 +125,15 @@ yamllint .github/workflows/                               # silent expected
 - Top-level workflows have a `concurrency:` block keyed on `${{ github.workflow }}-${{ github.ref }}`.
 - Shell scripts start with `set -euo pipefail`.
 - After editing any workflow, validate with `actionlint .github/workflows/*.yml` (preinstalled in the devcontainer; see "Linters available in the devcontainer" below).
+
+### Gotchas (each one bit us at least once)
+
+- **Multi-line `if` conditions use `if: >-` (folded scalar), not `if: |` (literal).** The folded form joins lines with single spaces; literal preserves newlines, which the GitHub expression parser handles oddly.
+- **Boolean inputs differ between `workflow_call` and `workflow_dispatch`.** `workflow_call` delivers them as actual booleans; `workflow_dispatch` delivers them as the *strings* `"true"`/`"false"`. Any `if:` consuming a boolean input must compare against both forms — `if: ${{ inputs.foo == true || inputs.foo == 'true' }}`. A bare `if: ${{ inputs.foo }}` reads `"false"` as truthy on the dispatch path.
+- **Mirror inputs across both triggers** when a workflow supports `workflow_call` *and* `workflow_dispatch`. An input declared only on one side is `null` on the other and the if-condition silently misbehaves.
+- **Job-level `permissions:` in a reusable workflow are validated against the caller's permissions before the `if:` condition runs.** A `release` job with `permissions: contents: write` and `if: ${{ inputs.publish }}` will still cause `startup_failure` on a caller that doesn't grant `contents: write`, even though the job would have been skipped. Either declare permissions at the call site, or omit the inner block and inherit.
+- **Allowlist `success` and `skipped` explicitly when chaining jobs across optional dependencies** — `!= 'failure'` lets `cancelled` through (timeout, runner failure, manual cancel). Use `(needs.X.result == 'success' || needs.X.result == 'skipped')`.
+- **`actions/upload-artifact` accepts duplicate names from sibling reusable-workflow invocations within the same parent run** (we hit this with two `purpleair-zip` uploads). It's undocumented behavior — don't rely on it. Gate the duplicate path with an input flag instead.
 
 ## Bot identity and secrets
 
@@ -126,7 +181,7 @@ Installation:
 ## Tooling pointers
 
 - **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount (see [README.md](README.md#devcontainer-setup)).
-- **HA core API reference**: when adding/modifying entity behaviour, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
+- **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
 - **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
 
 [workspace-link]: homeassistant-purpleair.code-workspace
