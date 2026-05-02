@@ -11,11 +11,9 @@ Contributions are welcome — bug reports, fixes, feature proposals, and documen
 1. Run the test suite with `pytest` (install `requirements-test.txt` first).
 1. Open a pull request against `develop` with a clear, descriptive title.
 
-For upstream-relevant functional changes, please also raise them on [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) so the fix lands in Home Assistant core and benefits all users.
-
 ## PR titles and versioning
 
-PR titles are descriptive and have no versioning effect — write a clear imperative subject summarizing the change. The repository's merge method is locked to **squash-only**, so the PR title becomes the single commit message on `develop` / `main`.
+PR titles are descriptive and have no versioning effect — write a clear imperative subject summarizing the change. Feature → develop PRs **squash-merge** (PR title becomes the single commit on develop). Develop → main PRs **merge-commit** (one merge commit on main per release, preserving develop's history as a parent so the next promotion has a clean merge base). Both methods are pinned in branch rulesets — the PR UI will only offer the correct option for each target.
 
 Versioning is handled by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning), which derives the SemVer string from [version.json](version.json) (base `major.minor`) plus the git commit-height since that base was last bumped. The patch component and any prerelease suffix are computed automatically; nothing in the working tree carries the version number, and commit messages aren't parsed.
 
