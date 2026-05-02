@@ -98,8 +98,8 @@ jobs:
           branch: ha-version-bump/${{ steps.resolve.outputs.ha }}
           delete-branch: true
           sign-commits: true
-          title: "fix: bump Home Assistant test matrix to ${{ steps.resolve.outputs.ha }}"
-          commit-message: "fix: bump Home Assistant test matrix to ${{ steps.resolve.outputs.ha }}"
+          title: "Bump Home Assistant test matrix to ${{ steps.resolve.outputs.ha }}"
+          commit-message: "Bump Home Assistant test matrix to ${{ steps.resolve.outputs.ha }}"
           body: |
             Bumps the `latest` HA pin in `.github/ha-test-versions.json` to
             `${{ steps.resolve.outputs.ha }}` (via
@@ -109,5 +109,5 @@ jobs:
             - pytest-homeassistant-custom-component release: https://pypi.org/project/pytest-homeassistant-custom-component/${{ steps.resolve.outputs.hacc }}/
 
             Tests run against the new version on this PR. If they pass,
-            merge-bot auto-merges into develop and the bump rolls into the next
-            release-please prerelease.
+            merge-bot auto-merges into develop and the bump rolls into the
+            next prerelease published from develop.
