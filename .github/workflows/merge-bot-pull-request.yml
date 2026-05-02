@@ -1,5 +1,4 @@
 ---
-# yamllint disable rule:line-length rule:comments
 name: Merge bot pull request action
 
 "on":
