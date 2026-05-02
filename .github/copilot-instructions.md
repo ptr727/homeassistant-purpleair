@@ -15,9 +15,9 @@ PRs squash-merge, so the PR title becomes the single commit message on `develop`
 
 ### Rules
 
-- Don't write `update stuff`, `wip`, `Bump X from Y to Z`, or other vague titles.
+- Don't write `update stuff`, `wip`, or other vague titles. (Dependabot's default `Bump X from Y to Z` titles are fine — keep them.)
 - Don't add `Co-Authored-By:` lines unless the user explicitly asks.
-- Don't include version numbers or "minor"/"patch" in the title — NBGV handles versioning.
+- Don't put release-bump magnitude in the title — no "minor", "patch", "release v0.2.0", etc. NBGV computes the next release version from `version.json` + git history. Dependency versions in dependency-bump titles are fine and expected.
 
 ### Examples
 
