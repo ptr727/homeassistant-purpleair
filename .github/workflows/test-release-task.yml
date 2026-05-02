@@ -2,7 +2,31 @@ name: Test release task
 
 on:
   workflow_call:
+    inputs:
+      # Controls whether the no-publish build-release child job runs.
+      # PR-trigger callers (test-pull-request.yml) want it true so the
+      # build path is validated end-to-end on every PR. The
+      # publish-release.yml caller wants it false because create-release
+      # builds the artifact for real immediately after; running both
+      # would double the build cost and produce two purpleair-zip
+      # artifacts in the same workflow run, which only works because of
+      # an undocumented quirk of actions/upload-artifact.
+      build:
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
+    # Mirror the workflow_call input so manual `gh workflow run
+    # test-release-task.yml` dispatches behave the same. Without this,
+    # `inputs.build` is unset on dispatch and the `if: ${{ inputs.build }}`
+    # condition on build-release evaluates falsy regardless of the
+    # workflow_call default.
+    inputs:
+      build:
+        description: "Whether to run the no-publish build-release child job."
+        required: false
+        type: boolean
+        default: true
 
 jobs:
 
@@ -143,6 +167,12 @@ jobs:
   build-release:
     name: Build release without publishing job
     needs: [ruff, mypy, pytest, hassfest, hacs]
+    # workflow_call delivers inputs.build as a real boolean (`true`/`false`)
+    # but workflow_dispatch delivers it as the *string* `"true"`/`"false"`,
+    # and the GitHub expression parser treats any non-empty string as truthy
+    # — so a bare `if: ${{ inputs.build }}` would run this job even on a
+    # manual dispatch with build=false. Compare against both forms.
+    if: ${{ inputs.build == true || inputs.build == 'true' }}
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     with:
