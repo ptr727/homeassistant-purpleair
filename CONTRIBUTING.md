@@ -43,4 +43,4 @@ Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) — confi
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE). By contributing, you agree that your contributions will be licensed under the same terms.
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). By contributing, you agree that your contributions will be licensed under the same terms.
