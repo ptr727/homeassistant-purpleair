@@ -167,7 +167,12 @@ jobs:
   build-release:
     name: Build release without publishing job
     needs: [ruff, mypy, pytest, hassfest, hacs]
-    if: ${{ inputs.build }}
+    # workflow_call delivers inputs.build as a real boolean (`true`/`false`)
+    # but workflow_dispatch delivers it as the *string* `"true"`/`"false"`,
+    # and the GitHub expression parser treats any non-empty string as truthy
+    # — so a bare `if: ${{ inputs.build }}` would run this job even on a
+    # manual dispatch with build=false. Compare against both forms.
+    if: ${{ inputs.build == true || inputs.build == 'true' }}
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     with:
