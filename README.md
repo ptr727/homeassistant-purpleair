@@ -500,9 +500,18 @@ ssh -T git@github.com
 echo $SSH_AUTH_SOCK
 ssh-add -l
 
-# Linux/WSL only — confirm the user-level service is running:
-systemctl --user status ssh-agent.socket
+# Confirm an ssh-agent process is running (any platform / any setup path)
 ps aux | grep ssh-agent | grep -v grep
+
+# Linux/WSL only, and only if you used the systemd path (skip if you used
+# the ~/.bashrc fallback — that path doesn't register a systemd service):
+systemctl --user status ssh-agent.socket
+
+# macOS only — confirm `gh` actually wrote the token to the file. Empty
+# output here means you ran plain `gh auth login` instead of
+# `--insecure-storage`, the token is in Keychain, and the bind-mount will
+# carry no token into the container even though the file is present.
+grep -c '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml
 ```
 
 #### Open in Devcontainer
