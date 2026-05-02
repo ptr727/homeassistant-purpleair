@@ -94,6 +94,10 @@ Each sensor is added as a **subentry** under the integration. Two methods:
   - The Read Key is **required for private sensors** that are not shown on the public sensor map.
   - The Read Key is **required for no cost API usage** of your own sensors (the Read Key is sent via email during sensor registration). Refer to [PurpleAir community: API points for sensor owners][free-points-link].
 
+### Account-Level Diagnostics
+
+In addition to the per-sensor subentries, the integration registers a single per-config-entry **organization** device (named `<entry-title> organization` — e.g. "PurpleAir organization" for the default integration title) that surfaces account-level information shared across all sensors under the same API key. It currently backs the **Remaining points** and **Consumption rate** diagnostic sensors (both disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
+
 ## Sensor Behavior and Calibration
 
 These notes explain why entities report the values they do. The integration takes two different approaches depending on how settled the underlying math is:
@@ -212,6 +216,13 @@ The savings here come from the static-cache split alone. A second saving comes f
 
 Free points are available for sensor owners who use their own sensor's Read Key; see [API points for sensor owners][free-points-link].
 
+The integration tracks remaining points and consumption rate via the [Account-Level Diagnostics](#account-level-diagnostics) and raises a **PurpleAir API points are running low** repair issue when fewer than seven days of points remain at the current consumption rate. New small accounts can hit the threshold soon after install while the consumption rate stabilizes; that's expected. Two ways to clear the warning:
+
+- **Buy more points** at the [PurpleAir Developer dashboard][purpleair-projects-link].
+- **Use a per-sensor Read Key** for sensors you own. Queries to your own sensors with their Read Key cost zero points. For new sensors, enter the Read Key when adding (see [3. Add Sensors](#3-add-sensors)). For sensors migrated from the built-in integration that don't yet have a Read Key, see [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key).
+
+A separate **PurpleAir API points are exhausted** repair issue fires (severity error) if the account runs out of points entirely; it clears automatically on the next successful refresh after points are restored.
+
 ## Upstream PRs
 
 ### Upstream `aiopurpleair` PR
@@ -254,6 +265,17 @@ The original core PR will not be kept in lockstep with these changes, and may be
     HA emits it for every custom integration and it is not a problem.
 
 If migration fails, the entry is marked `SETUP_ERROR`. Check **Settings → System → Repairs** and the log; empty v1 entries raise a targeted repair issue.
+
+### Switch an Existing Sensor to a Read Key
+
+The built-in integration didn't support per-sensor Read Keys, so subentries migrated from it have only the sensor **Index** populated. If you own a sensor, switching it to use a per-sensor Read Key makes its API queries free — see [PurpleAir community: API points for sensor owners][free-points-link]. This is the recommended remediation when the [low-points repair issue](#api-points-and-field-selection) fires on a small account.
+
+For now, the only path is delete-and-re-add:
+
+1. In **Settings → Devices & Services → PurpleAir**, click ⋮ next to the migrated sensor → **Delete**.
+2. Click **Add PurpleAir sensor** and re-add via **Manual entry** with both the **Index** and the **Read Key**.
+
+Long-term-statistics history tied to the deleted sensor's entity IDs is lost in this flow. A future release will add an in-place **Configure** option on the subentry's ⋮ menu so a Read Key can be added without losing history.
 
 ### Downgrade: Custom → Built-in
 
