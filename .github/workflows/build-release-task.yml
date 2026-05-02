@@ -43,15 +43,22 @@ jobs:
           echo "Stamped manifest.json version: $(jq -r .version custom_components/purpleair/manifest.json)"
 
       - name: Build purpleair.zip step
-        # Directory-at-root layout: the zip contains `purpleair/manifest.json`
-        # so users extracting into HA's `custom_components/` get the right path.
+        # Files-at-root layout — REQUIRED by HACS when hacs.json sets
+        # `zip_release: true` + `filename`. HACS extracts the asset directly
+        # into <config>/custom_components/<domain>/, so the zip's contents
+        # must be the integration's files at root (manifest.json,
+        # __init__.py, ...). A zip that nests them under a purpleair/
+        # directory ends up at <config>/custom_components/purpleair/purpleair/,
+        # which HA can't find. Manual installers should still be able to
+        # extract this zip into a directory of their choosing
+        # (e.g. <config>/custom_components/purpleair/) and have it work.
         # Exclude __pycache__/*.pyc as defense in depth (a clean CI checkout
         # won't have them, but local re-runs of this script might).
         run: |
           set -euo pipefail
-          cd custom_components
-          zip -r ../purpleair.zip purpleair -x 'purpleair/__pycache__/*' '*.pyc'
-          cd ..
+          cd custom_components/purpleair
+          zip -r ../../purpleair.zip . -x '__pycache__/*' '*.pyc'
+          cd ../..
           unzip -l purpleair.zip
 
       - name: Upload release artifact step
