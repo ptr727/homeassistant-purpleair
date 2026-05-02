@@ -55,15 +55,9 @@ Bot-merged PRs (Dependabot, HA-version-bump) trigger the develop prerelease auto
 
 ## Develop → main promotion
 
-Squash-merging develop → main collapses develop's ancestry into a single commit on main. The merged commit's only parent is the previous main tip, not develop, so git's merge-base for the *next* develop → main PR stays anchored at the original divergence point. As a result, the next promotion sees both branches as having modified the same files — every file that's changed on develop since the previous promotion shows up as a conflict, even though develop's tree is a strict superset.
+Use the **"Create a merge commit"** option on develop → main PRs. Repo rulesets are split: PRs into `develop` are squash-only (linear history); PRs into `main` are merge-commit only. Clicking "Create a merge commit" on a develop → main PR produces a merge commit on main whose second parent is develop's tip — so develop becomes a real ancestor of main, and the *next* develop → main PR has a clean merge base (no recurring conflicts, no behind-base churn).
 
-The accepted pattern (one push per cycle):
-
-1. Locally, on `develop`: `git merge origin/main --no-ff` and resolve conflicts with `--ours` for every file (the merge tree equals develop's tree — pure ancestry sync, zero content delta).
-2. Admin-bypass push: `git push origin develop`. The `required_linear_history` rule on the develop ruleset blocks merge commits, but admins are listed as bypass actors. The push reports the bypass in the audit log and proceeds.
-3. The next develop → main PR now has main's previous tip as a real ancestor of develop and merges without conflicts.
-
-Future PRs back to develop continue to squash-merge normally and produce linear history; the merge commit is the only non-linear node added per cycle. This is the case the original TODO acknowledged with "re-merging main to develop may occasionally be done or required when there is lots of drift" — it's required, once per develop → main promotion.
+This was a recurring pain point under the previous squash-only setup: each develop → main squash dropped develop's ancestry and required a per-cycle admin-bypass merge commit on develop to resync. With merge-commit on main, that resync is unnecessary — main's history shows one merge commit per release (a feature, not a defect: each promotion is visible as a single auditable node), and develop stays linear.
 
 ## PR review etiquette
 
