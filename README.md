@@ -17,7 +17,7 @@ A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir
 
 [![Release Version][releaseversion-shield]][releases-link]\
 [![Pre-Release Version][prereleaseversion-shield]][releases-link]\
-[![HACS Default][hacs-shield]][hacs-link]\
+[![HACS Custom][hacs-shield]][hacs-link]\
 [![Quality Scale][qualityscale-shield]][qualityscale-link]\
 [![Home Assistant][haversion-shield]][haversion-link]\
 [![License][license-shield]][license-link]

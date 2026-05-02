@@ -22,7 +22,7 @@ Use **US English spelling** in code comments, identifiers, commit messages, PR d
 
 **Headings** are title case with lowercase short bind words: a, an, the, and, but, or, of, in, on, at, to, by, for, from. Verbs (including *is/are/was*) and other content words are capitalized. Hyphenated compounds capitalize the second part unless it's a short preposition — *Built-in*, *EPA-Corrected*, *24-Hour*. Keep headings short; long qualifiers belong in the first sentence under the heading rather than in the heading itself.
 
-**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized), not inline URLs. Write one logical paragraph per line — line-length isn't enforced ([.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc) disables MD013) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim.
+**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized) for shields, external URLs, and any URL referenced more than once — see [README.md](README.md) for the canonical layout. Single-use relative links to local repo files (e.g. `[.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)`) are fine inline; that's the established convention in this file and [CONTRIBUTING.md](CONTRIBUTING.md). Write one logical paragraph per line — line-length isn't enforced (MD013 is disabled in `.markdownlint-cli2.jsonc`) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim.
 
 **Cross-reference scoping**: the fact that an upstream Home Assistant core PR exists is intentionally confined to the **Upstream Home Assistant PR** section in [README.md](README.md). Don't introduce or re-introduce mentions of it in other sections (Migration, lead block-quote, etc.) — describe the limitation in terms of what would resolve it ("until the built-in integration adopts schema v2") rather than the current upstream effort. The maintainer may abandon the PR, and scattered references would all need updating.
 
@@ -92,7 +92,7 @@ Zero comments at or after the latest review's timestamp is the explicit sign-off
 - Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
 - **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
-- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
+- **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
 - **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 
 ### Linter cleanliness — fix what you see in the IDE
