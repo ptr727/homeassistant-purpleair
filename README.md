@@ -365,7 +365,7 @@ The host-side setup below covers Linux, WSL, and macOS as a single common set of
 
 #### WSL Host Prep
 
-Apply this configuration if you are running linux distros from WSL on Windows.
+Apply this configuration if you are running Linux distros from WSL on Windows.
 
 Enable `Use the WSL 2 based engine` in Docker Desktop under Settings / General.\
 Enable `Enable integration with my default WSL distro` and `Enable integration with additional distros` in Docker Desktop under Settings / Resources / WSL integration.
@@ -473,14 +473,15 @@ Load the key into the agent once so the passphrase persists across reboots:
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 ```
 
-Run the host's `gh auth login` exactly as in the common steps — the token lands in macOS Keychain, which is fine for use *on the host*. Don't pass `--insecure-storage`. The host's Keychain-stored token is invisible to the container (the bind-mount carries `~/.config/gh/hosts.yml` — which has no `oauth_token` — but not Keychain), so authenticate `gh` *inside the container* the first time you open the devcontainer:
+Run the host's `gh auth login` exactly as in the common steps — the token lands in macOS Keychain, which is fine for use *on the host*. The Keychain-stored token isn't visible to the container, though, so the bind-mounted `~/.config/gh/hosts.yml` carries no `oauth_token`. There are two ways to handle that, both deliberate trade-offs:
+
+- **Skip container `gh` entirely.** Run all `gh` invocations from the Mac host (where the token stays Keychain-only). Inside the container, `gh` will fail until you authenticate it. Pick this if you want host credential storage to remain Keychain-only.
+- **Authenticate `gh` once inside the devcontainer.** No Keychain in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml`, which is the bind-mount target — meaning the token now exists as plaintext on your host (mode 600, same on-disk posture as `~/.ssh/id_ed25519`). Pick this if container `gh` convenience is worth that trade-off; the host's `gh` continues to read from Keychain unchanged.
 
 ```shell
-# Inside the devcontainer (one-time, after first opening)
+# Inside the devcontainer (one-time, only if you chose the second option)
 gh auth login
 ```
-
-The container has no Keychain, so the token is written to `~/.config/gh/hosts.yml`. That file is the bind-mount target, so the token persists back to the host and survives container rebuilds. The host's `gh` keeps using Keychain unchanged; the container's `gh` uses the file.
 
 #### Verify Host Setup
 

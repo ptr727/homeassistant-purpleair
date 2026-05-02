@@ -148,7 +148,7 @@ yamllint .github/workflows/                               # silent expected
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key, `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed and `gh` is pre-authenticated. See [README.md](README.md#devcontainer-setup).
+[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key, `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed and `gh` is pre-authenticated. macOS hosts are an exception: the host's `gh` token lives in Keychain by default, so the bind-mount carries no token — `gh` inside the container is unauthenticated until you opt into one of the trade-offs documented in [README.md](README.md#devcontainer-setup).
 
 ## Linters available in the devcontainer
 
