@@ -66,8 +66,9 @@ jobs:
     needs: [gate, test-release]
     # Two paths are valid:
     # - workflow_dispatch on main: gate=success, test-release=success.
-    # - push to develop: gate=skipped, test-release=skipped (intentionally,
-    #   develop is already tested via the PR that landed each commit).
+    # - push to develop: gate=skipped, test-release=skipped (the same
+    #   suite runs in parallel via test-pull-request.yml; gating here
+    #   would duplicate it without strengthening the prerelease gate).
     # Explicitly allowlist success/skipped on each dependency so a
     # `cancelled` outcome (timeout, manual cancel, runner failure) blocks
     # publish — != 'failure' alone would let cancelled through.
