@@ -361,9 +361,9 @@ The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the c
 
 If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before opening, or simply don't use the devcontainer.
 
-Configuration below applies to Debian or Ubuntu distros.
+The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite (Docker Desktop integration + systemd) before the common steps.
 
-#### WSL Host Setup
+#### WSL Host Prep
 
 Apply this configuration if you are running linux distros from WSL on Windows.
 
@@ -383,9 +383,9 @@ Restart WSL if required, run from a Windows PowerShell terminal:
 wsl --shutdown
 ```
 
-#### Linux Host Setup
+#### Host Setup
 
-Apply this configuration from the linux docker host that will run the devcontainer.
+Run on the host that will run the devcontainer. macOS users: read the macOS deltas section below first — one of the `gh` flags differs.
 
 ```shell
 # Configure git identity
@@ -411,19 +411,16 @@ git config --global user.signingkey '~/.ssh/id_ed25519.pub'
 git config --global gpg.ssh.allowedSignersFile '~/.config/git/allowed_signers'
 git config --global commit.gpgsign true
 
-# Login to GitHub
+# Login to GitHub — see "macOS deltas" below for the --insecure-storage variant
 gh auth login
 
 # Register SSH key with GitHub
 gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) auth"
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) signing" --type signing
-
-# Enable the user-level ssh-agent service
-systemctl --user enable --now ssh-agent.socket
 ```
 
-Edit `~/.ssh/config` to add SSH keys to the agent:
+Edit `~/.ssh/config` so the agent caches the key on first use:
 
 ```ini
 Host *
@@ -431,7 +428,15 @@ Host *
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-Edit `~/.bashrc` as fallback:
+##### Linux/WSL deltas
+
+Enable the user-level `ssh-agent` service so it's available across shells:
+
+```shell
+systemctl --user enable --now ssh-agent.socket
+```
+
+If `systemctl --user` isn't available in your shell (some minimal WSL distros), add this fallback to `~/.bashrc`:
 
 ```shell
 # Reuse a shared ssh-agent if systemd's isn't available in this shell
@@ -449,6 +454,33 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
 fi
 ```
 
+##### macOS deltas
+
+macOS uses launchd (not systemd) for `ssh-agent` and integrates `gh` and SSH with the system Keychain. Three commands above need adjusting; the `systemctl` line and the `~/.bashrc` agent fallback do not apply.
+
+Replace `gh auth login` with the `--insecure-storage` variant. By default `gh` stores the token in macOS Keychain, but the devcontainer bind-mount only carries `~/.config/gh/hosts.yml`, so a Keychain-stored token never reaches the container. `--insecure-storage` writes the token to `hosts.yml` (mode 600 — same security posture as your `~/.ssh/id_ed25519`):
+
+```shell
+gh auth login --insecure-storage
+```
+
+Use this `~/.ssh/config` instead of the common one — `UseKeychain yes` caches the passphrase in Keychain:
+
+```ini
+Host *
+    AddKeysToAgent yes
+    UseKeychain yes
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Load the key into the agent once so the passphrase persists across reboots:
+
+```shell
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+#### Verify Host Setup
+
 Open a new terminal and verify configuration:
 
 ```shell
@@ -464,12 +496,12 @@ git config --list --show-origin
 gh ssh-key list
 ssh -T git@github.com
 
-# SSH socket and keys should be available via ssh-agent
-systemctl --user status ssh-agent.socket
+# SSH socket and key should be available via the agent
 echo $SSH_AUTH_SOCK
 ssh-add -l
 
-# Should show one ssh-agent process per user
+# Linux/WSL only — confirm the user-level service is running:
+systemctl --user status ssh-agent.socket
 ps aux | grep ssh-agent | grep -v grep
 ```
 
