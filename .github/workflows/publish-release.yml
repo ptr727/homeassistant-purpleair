@@ -1,22 +1,15 @@
 name: Publish project release action
 
 on:
+  # Stable releases are manual: dispatched from main when a maintainer is
+  # ready to ship. Pushes to main do not auto-publish — that lets dependabot
+  # / HA-version-bump PRs merge to main without cutting a release.
+  workflow_dispatch: {}
+  # Pre-releases are automatic on every develop push so beta testers always
+  # have the latest. The -gSHA prerelease segment in the NBGV version keeps
+  # successive prereleases from colliding on the same tag.
   push:
-    # Trigger on SemVer-shaped tag push (release-please pushes tags after
-    # merging its release PR; this repo's tags are bare SemVer like 0.2.0 or
-    # 0.2.0-beta.1, no v prefix). The `[0-9]*` filter admits anything starting
-    # with a digit — the guard job below rejects tags that pass the filter
-    # but don't match manifest.json's version (e.g. an accidentally-pushed
-    # human tag).
-    #
-    # The normal flow is: release-please.yml creates the GitHub Release with
-    # auto-generated notes when its release PR merges, and pushes the tag.
-    # The tag push then triggers this workflow, which builds purpleair.zip
-    # and uploads it as an asset to that release. If a tag is pushed manually
-    # (recovery), build-release-task's softprops fallback creates the release
-    # with notes + asset in one shot.
-    tags: ['[0-9]*']
-  workflow_dispatch:
+    branches: [develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,35 +17,28 @@ concurrency:
 
 jobs:
 
-  guard:
-    name: Guard tag matches manifest version job
-    # On tag-push, refuse to proceed unless the pushed tag matches the version
-    # in the checked-out manifest.json. This catches a manually-pushed tag
-    # that happens to start with a digit but isn't a release we want to
-    # publish (the App is in tag-bypass and could in principle push such a
-    # tag). Skipped on workflow_dispatch — the dispatcher is trusted.
-    if: github.event_name == 'push'
+  gate:
+    name: Gate dispatch ref job
+    # Reject manual dispatches from anywhere other than main. The push trigger
+    # is already constrained to develop by `on.push.branches`, so it doesn't
+    # need an equivalent check.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Assert tag matches manifest version step
+      - name: Assert dispatch is from main step
         run: |
           set -euo pipefail
-          MANIFEST=$(jq -r .version custom_components/purpleair/manifest.json)
-          if [ "${{ github.ref_name }}" != "$MANIFEST" ]; then
-              echo "::error::Tag ${{ github.ref_name }} does not match manifest version $MANIFEST; refusing to publish."
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+              echo "::error::Stable releases must be dispatched from main; got ${{ github.ref }}."
               exit 1
           fi
-          echo "Tag ${{ github.ref_name }} matches manifest version $MANIFEST."
 
   create-release:
     name: Publish project release job
-    needs: [guard]
-    # `needs.guard.result == 'skipped'` covers workflow_dispatch (where guard
-    # is intentionally skipped) and 'success' covers the tag-push path.
-    if: ${{ always() && (needs.guard.result == 'success' || needs.guard.result == 'skipped') }}
+    needs: [gate]
+    # `gate` is skipped on push (only runs on workflow_dispatch); accept both
+    # outcomes so the develop-push path proceeds without a real gate result.
+    if: ${{ always() && (needs.gate.result == 'success' || needs.gate.result == 'skipped') }}
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     permissions:

@@ -2,48 +2,31 @@
 
 Repository conventions for GitHub Copilot (and any other agent reading this file).
 
-The **canonical guide is [AGENTS.md](../AGENTS.md)** at the repo root — read it first. It covers project layout, branch flow, code style, the release pipeline, and what NOT to touch (e.g. `manifest.json` `version`, the HA test matrix). Treat AGENTS.md as the source of truth; this file just summarizes the commit/PR-title rules so the VS Code AI commit-message and PR-title generators get them without an extra fetch.
+The **canonical guide is [AGENTS.md](../AGENTS.md)** at the repo root — read it first. It covers project layout, branch flow, code style, the release pipeline, and what NOT to touch (e.g. the placeholder `manifest.json` `version` and the HA test matrix). Treat AGENTS.md as the source of truth; this file just summarizes the commit/PR-title rules so the VS Code AI commit-message and PR-title generators get them without an extra fetch.
 
 ## Commit messages and pull request titles
 
-PRs squash-merge, so the PR title becomes the single commit message on `develop` / `main`. A required CI check blocks merge on non-conformant titles. Versioning is automated by release-please reading the title.
+PRs squash-merge, so the PR title becomes the single commit message on `develop` / `main`. Titles are descriptive and have no versioning effect — versioning is handled by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) reading [version.json](../version.json) and git history, not by parsing commit messages.
 
 ### Format
 
-```text
-<type>(<optional scope>): <imperative summary, lowercase, no trailing period>
-
-[optional body, wrapped at 72 chars, blank-line separated, explains *why*]
-
-[optional BREAKING CHANGE: ... footer]
-```
-
-### Allowed types and their effect on the next release
-
-- `feat:` → minor bump (new user-visible capability)
-- `fix:` / `perf:` → patch bump (bug fixes, perf wins)
-- `<type>!:` or `BREAKING CHANGE:` footer → major bump (`feat!:`, `fix!:`, `refactor!:`, etc.; `!` on any type signals a breaking change per Conventional Commits)
-- `chore:` / `docs:` / `refactor:` / `test:` / `build:` / `ci:` / `revert:` → no release
-
-If you're unsure whether the change should ship as a release, prefer `chore:`. Dependency bumps use `chore(deps): ...`.
+- Imperative subject summarizing the change, ≤ 72 characters, no trailing period. ("Add 24-hour PM2.5 average sensor", not "Added X" or "Adds X".)
+- Optional body, blank-line separated, explaining *why* the change is being made when that's non-obvious. The diff shows *what*.
 
 ### Rules
 
-- Subject ≤ 72 characters, lowercase first word, **no trailing period**.
-- Imperative mood: "add X" not "added X" / "adds X".
-- Use `(scope)` when it narrows usefully: `(coordinator)`, `(sensor)`, `(workflows)`, `(deps)`, `(docs)`.
-- Don't put bump magnitude in the title ("minor", "patch") — the type carries that.
-- Don't write `update stuff`, `wip`, `Bump X from Y to Z`, or other vague titles — the lint will reject them.
+- Don't write `update stuff`, `wip`, or other vague titles. (Dependabot's default `Bump X from Y to Z` titles are fine — keep them.)
 - Don't add `Co-Authored-By:` lines unless the user explicitly asks.
+- Don't put release-bump magnitude in the title — no "minor", "patch", "release v0.2.0", etc. NBGV computes the next release version from `version.json` + git history. Dependency versions in dependency-bump titles are fine and expected.
 
 ### Examples
 
 ```text
-feat: surface 24-hour PM2.5 average as a separate sensor
-fix(coordinator): skip empty PurpleAir API responses during polling
-feat!: drop support for Home Assistant < 2026.4
-chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
-docs: clarify HACS install steps in README
+Surface 24-hour PM2.5 average as a separate sensor
+Skip empty PurpleAir API responses during polling
+Drop support for Home Assistant < 2026.4
+Bump aiopurpleair from 2025.08.1 to 2025.09.0
+Clarify HACS install steps in README
 ```
 
 ## When in doubt

@@ -4,52 +4,63 @@ on:
   workflow_call:
     outputs:
       SemVer2:
-        description: "Version string from manifest.json (raw)."
+        description: "SemVer2-shaped version computed by Nerdbank.GitVersioning from version.json + git history."
         value: ${{ jobs.get-version.outputs.SemVer2 }}
       Tag:
-        description: "Git tag / release name to use (matches SemVer2 verbatim)."
+        description: "Git tag / release name to use (matches SemVer2 verbatim, no v prefix)."
         value: ${{ jobs.get-version.outputs.Tag }}
       Prerelease:
-        description: "'true' if the manifest version contains a SemVer prerelease segment (e.g. 0.2.0-beta.1), 'false' for stable versions (e.g. 0.2.0). Derived from the version string itself, not from the triggering ref."
+        description: "'true' on non-public refs (NBGV emits a -gSHA prerelease segment), 'false' on public refs (clean SemVer like 0.1.5)."
         value: ${{ jobs.get-version.outputs.Prerelease }}
 
 jobs:
 
   get-version:
-    name: Read version from manifest.json job
+    name: Compute version with Nerdbank.GitVersioning job
     runs-on: ubuntu-latest
     outputs:
-      SemVer2: ${{ steps.read.outputs.SemVer2 }}
-      Tag: ${{ steps.read.outputs.Tag }}
-      Prerelease: ${{ steps.read.outputs.Prerelease }}
+      SemVer2: ${{ steps.out.outputs.SemVer2 }}
+      Tag: ${{ steps.out.outputs.Tag }}
+      Prerelease: ${{ steps.out.outputs.Prerelease }}
 
     steps:
 
       - name: Checkout the repository step
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # NBGV walks history height; shallow clone breaks version computation.
+          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Read and validate version step
-        id: read
-        # `jq -e` exits non-zero when `select(...)` filters the value out, so a
-        # version that doesn't match SemVer2 fails the workflow before any
-        # expensive downstream job runs. Prerelease is derived from the version
-        # string itself (SemVer prerelease segment introduced by '-') rather
-        # than from github.ref_name, because publish-release.yml is triggered
-        # by tag push and ref_name is the tag, never the branch.
+      - name: Setup .NET SDK step
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: '10'
+
+      - name: Run Nerdbank.GitVersioning step
+        id: nbgv
+        uses: dotnet/nbgv@3cf2d96c2aa00675081b59f401356ac1fb81092f # v0.5.1
+
+      - name: Compose workflow outputs step
+        id: out
+        # NBGV's PrereleaseVersion output only carries the `-tag` segment from
+        # version.json's `version` field (e.g. `-beta`); it's empty when
+        # version.json has a bare `0.1`. The auto-appended `-g{sha}` segment
+        # lives in SemVer2 itself but is NOT exposed in PrereleaseVersion.
+        # Detect prerelease by checking SemVer2 for any `-` segment instead:
+        # that's true for `0.1.5-g1a2b3c4` (develop) and false for `0.1.5`
+        # (main, public). This also keeps a manual workflow_dispatch from the
+        # wrong branch honest about its prerelease status.
+        env:
+          SEMVER2: ${{ steps.nbgv.outputs.SemVer2 }}
         run: |
           set -euo pipefail
-          VERSION=$(jq -e -r '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"))' custom_components/purpleair/manifest.json)
-          echo "SemVer2=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Tag=$VERSION" >> "$GITHUB_OUTPUT"
-          # SemVer: prerelease is the segment after the first '-' and before
-          # any '+...' build metadata. Strip build metadata first so that a
-          # stable version with a hyphenated build tag (e.g. 1.0.0+build-1)
-          # isn't misclassified as prerelease.
-          VERSION_NO_BUILD="${VERSION%%+*}"
-          if [[ "$VERSION_NO_BUILD" == *-* ]]; then
+          echo "SemVer2=$SEMVER2" >> "$GITHUB_OUTPUT"
+          echo "Tag=$SEMVER2" >> "$GITHUB_OUTPUT"
+          if [[ "$SEMVER2" == *-* ]]; then
               PRERELEASE=true
           else
               PRERELEASE=false
           fi
           echo "Prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION (prerelease: $PRERELEASE)"
+          echo "Version: $SEMVER2 (prerelease: $PRERELEASE)"

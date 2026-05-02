@@ -1,196 +1,64 @@
 # Agent guide
 
-Notes for AI coding agents working in this repo. Keep responses concise; prefer
-editing existing files over creating new ones; never narrate internal
-deliberation.
+Notes for AI coding agents working in this repo. Keep responses concise; prefer editing existing files over creating new ones; never narrate internal deliberation.
 
 ## What this is
 
-A HACS-installable Home Assistant **custom integration** for PurpleAir
-air-quality sensors. Code lives in
-[custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only,
-`mypy --strict`, ruff, [platinum quality scale][qs].
+A HACS-installable Home Assistant **custom integration** for PurpleAir air-quality sensors. Code lives in [custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only, `mypy --strict`, ruff, [platinum quality scale][qs].
 
 ## Branches and merging
 
-- Pipeline is `feature → develop → main`. Both `develop` and `main` are
-  protected; everything lands via PR.
-- **Squash-only merges.** PR title becomes the commit message. Never use merge
-  commits or rebase merges — release-please parses the squashed PR title.
-- Open feature PRs against `develop`. `develop → main` is how stable releases
-  are cut.
+- Pipeline is `feature → develop → main`. Both `develop` and `main` are protected; everything lands via PR.
+- **Squash-only merges.** PR title becomes the commit message. Never use merge commits or rebase merges.
+- Open feature PRs against `develop`. `develop → main` is how stable releases are cut.
 
-## Commit messages and PR titles (enforced)
+## Commit messages and PR titles
 
-PR titles drive versioning via
-[release-please](https://github.com/googleapis/release-please). PRs
-squash-merge, so the PR title becomes the single commit message on `develop` /
-`main`. [test-pull-request.yml](.github/workflows/test-pull-request.yml) has a
-required `pr-title-lint` job that blocks merge on non-conformant titles. Tag
-protection means the release App is the only writer for SemVer-shaped tags, so
-non-conformant titles can't accidentally produce a release.
+PR titles are descriptive and have no versioning effect. NBGV computes the version from [version.json](version.json) plus the git commit-height since that base version was last bumped, so commit messages are not parsed and don't need a Conventional-Commits prefix. Write a clear imperative subject — that's it. Bodies are optional; use them when *why* is non-obvious. Don't add `Co-Authored-By:` lines for AI tools unless the user explicitly asks.
 
-### Format
+## Versioning
 
-```text
-<type>(<optional scope>): <imperative summary, lowercase, no trailing period>
+The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) from [version.json](version.json) and git history — nothing in the working tree carries the actual version number.
 
-[optional body, wrapped at 72 chars, blank-line separated]
-
-[optional BREAKING CHANGE: ... footer]
-```
-
-### Types and bump effect
-
-| Prefix                                  | Bump on next release | Use for                                                       |
-| --------------------------------------- | -------------------- | ------------------------------------------------------------- |
-| `<type>!:` or `BREAKING CHANGE:` footer | major                | API/behaviour breaks for end users                            |
-| `feat:`                                 | minor                | New user-visible capability                                   |
-| `fix:` / `perf:`                        | patch                | Bug fixes, perf wins                                          |
-| `chore:`                                | none                 | Dep bumps, internal cleanup, tooling                          |
-| `docs:`                                 | none                 | Doc-only changes                                              |
-| `refactor:`                             | none                 | Restructuring without behaviour change                        |
-| `test:`                                 | none                 | Test-only changes                                             |
-| `build:` / `ci:`                        | none                 | Build system / CI config                                      |
-| `revert:`                               | none                 | Reverting a previous commit (use `git revert`-style PR title) |
-
-Per Conventional Commits, `!` after any type marks a breaking change and forces
-a major bump — `feat!:`, `fix!:`, `refactor!:`, etc. are all valid.
-
-### Rules
-
-- Subject ≤ 72 characters, lowercase first word, **no trailing period**.
-- Use the imperative mood ("add X", not "added X" or "adds X").
-- Use `(scope)` when narrowing helps: `(coordinator)`, `(sensor)`,
-  `(workflows)`, `(deps)` for dep bumps, `(docs)` for docs.
-- Body explains **why**, not what. The diff shows what.
-- Bump magnitude flows from the **type**, so don't say "minor" / "patch" in the
-  title — pick the right type instead.
-- For Dependabot-shaped PRs, use `chore(deps): ...` so they don't trigger a
-  release. A maintainer may retitle a security update to `fix(deps): ...` before
-  merge if it should ship a patch.
-- If you're unsure whether to release, prefer `chore:`.
-
-### Examples
-
-```text
-feat: surface 24-hour PM2.5 average as a separate sensor
-fix(coordinator): skip empty PurpleAir API responses during polling
-feat!: drop support for Home Assistant < 2026.4
-chore(deps): bump aiopurpleair from 2025.08.1 to 2025.09.0
-docs: clarify HACS install steps in README
-ci: pin actionlint to v1.7.7
-```
-
-### What NOT to do
-
-- Don't manually bump `version` in `manifest.json` — release-please owns that.
-- Don't open a PR titled `update stuff`, `wip`, or `Bump X from Y to Z`
-  (Dependabot's default; configure `commit-message.prefix: "chore"` in
-  `dependabot.yml` to avoid this).
-- Don't add `Co-Authored-By:` lines for AI tools unless the user explicitly
-  asks.
-
-## Versioning — DO NOT touch manually
-
-- The `version` field in [`manifest.json`][manifest-link] is owned by
-  **release-please**. Do not bump it in feature PRs — release-please
-  opens its own PR that does that, and merging your PR with a manual bump will
-  desync `.release-please-manifest.json` and
-  `.release-please-manifest-develop.json`.
-- Each manifest file tracks a specific branch:
-  - `.release-please-manifest.json` — tracks `main`; correct value matches
-    `manifest.json` `version` on `main`.
-  - `.release-please-manifest-develop.json` — tracks `develop`; correct value
-    matches the latest beta version on `develop`.
-- **When reviewing `develop → main` PRs**, these files will legitimately show
-  bumped version values — they were written by the release-please bot as part
-  of the beta release cycle on `develop`, not manually edited. Do not flag or
-  revert them. The only time a revert is warranted is if the value is a
-  placeholder string (not a semver) or mismatches the corresponding
-  `manifest.json` version on that branch.
-- [hacs.json](hacs.json) has no `version` field; HACS reads the integration
-  version from `manifest.json`. Don't add one.
-- The `homeassistant` field in `hacs.json` is the **minimum** required HA
-  version (hand-maintained alongside the pin in
-  [requirements.txt](requirements.txt) and the `minimum` entry in
-  [.github/ha-test-versions.json](.github/ha-test-versions.json)).
+- [version.json](version.json) holds the base `major.minor` (currently `0.1`) and the `publicReleaseRefSpec` regex matching `^refs/heads/main$`. NBGV adds the commit height as the patch component, and on non-public refs (anything not matching `publicReleaseRefSpec`) appends a `-g{sha}` prerelease segment. So `main` produces clean SemVer like `0.1.5`; `develop` produces prereleases like `0.1.5-g1a2b3c4`.
+- Bump `version.json`'s base `version` field manually only when cutting a new minor or major series (e.g. `0.1` → `0.2`). NBGV handles patch (height) automatically.
+- The `version` field in [custom_components/purpleair/manifest.json](custom_components/purpleair/manifest.json) is a `0.0.0` placeholder. Do not edit it. [build-release-task.yml](.github/workflows/build-release-task.yml) overwrites it with the NBGV-computed version on the runner before zipping the released artifact, so the published HACS zip carries the real version while git stays clean.
+- [hacs.json](hacs.json) has no `version` field; HACS reads the integration version from the manifest stamped at build time.
+- The `homeassistant` field in `hacs.json` is the **minimum** required HA version (hand-maintained alongside the pin in [requirements.txt](requirements.txt) and the `minimum` entry in [.github/ha-test-versions.json](.github/ha-test-versions.json)).
 
 ## HA test matrix — DO NOT touch manually
 
-- [.github/ha-test-versions.json](.github/ha-test-versions.json) drives the
-  pytest matrix in
-  [test-release-task.yml](.github/workflows/test-release-task.yml). Two pinned
-  versions: `minimum` (hand-maintained) and `latest` (bot-maintained by
-  [check-ha-version.yml](.github/workflows/check-ha-version.yml), which derives
-  both `ha` and `pytest-hacc` from PyPI's latest
-  `pytest-homeassistant-custom-component` release).
-- Bumping the **minimum** is intentional and rare — do it in a `feat!:` PR
-  that also updates `hacs.json` `homeassistant`, the `requirements.txt` pin,
-  and any code that needs the new HA API.
-- **Don't** add `homeassistant` to Dependabot updates (it's explicitly
-  ignored in [dependabot.yml](.github/dependabot.yml)) —
-  `check-ha-version.yml` owns it.
+- [.github/ha-test-versions.json](.github/ha-test-versions.json) drives the pytest matrix in [test-release-task.yml](.github/workflows/test-release-task.yml). Two pinned versions: `minimum` (hand-maintained) and `latest` (bot-maintained by [check-ha-version.yml](.github/workflows/check-ha-version.yml), which derives both `ha` and `pytest-hacc` from PyPI's latest `pytest-homeassistant-custom-component` release).
+- Bumping the **minimum** is intentional and rare — do it in a regular PR that also updates `hacs.json` `homeassistant`, the `requirements.txt` pin, and any code that needs the new HA API. Consider raising the base `major.minor` in [version.json](version.json) at the same time, since it's a breaking change for users on older HA versions.
+- **Don't** add `homeassistant` to Dependabot updates (it's explicitly ignored in [dependabot.yml](.github/dependabot.yml)) — `check-ha-version.yml` owns it.
 
-## Release flow (so you understand what to expect)
+## Release flow
 
-1. Your `feat:`/`fix:` PR squash-merges into `develop` → push triggers
-   [release-please.yml](.github/workflows/release-please.yml).
-1. The bot (App `ptr727-codegen[bot]`) opens a release PR titled
-   `chore(develop): release X.Y.Z-beta.N` that bumps `manifest.json` and
-   `.release-please-manifest-develop.json`.
-1. [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml)
-   auto-merges the release PR once CI passes. **The merge runs under the App
-   token** (not GITHUB_TOKEN) so the resulting push triggers
-   release-please.yml again — without that, GitHub's recursion guard would
-   suppress the trigger and no tag would ever be pushed.
-1. release-please.yml's second run pushes tag `X.Y.Z-beta.N` and creates the
-   GitHub Release with auto-generated notes. The tag push triggers
-   [publish-release.yml](.github/workflows/publish-release.yml) →
-   [build-release-task.yml](.github/workflows/build-release-task.yml), which
-   builds `purpleair.zip` and uploads it as an asset to the just-created
-   release.
-1. To ship stable, open `develop → main` PR. Same loop produces
-   `chore(main): release X.Y.Z` with no `-beta` suffix.
+[publish-release.yml](.github/workflows/publish-release.yml) drives both prereleases and stable releases off the same [build-release-task.yml](.github/workflows/build-release-task.yml). It triggers two ways:
+
+- **Push to `develop`** — automatic prerelease. Merging any PR into `develop` (feature, bug fix, dependabot, HA-matrix bump) runs the workflow, which calls [get-version-task.yml](.github/workflows/get-version-task.yml) for an NBGV-computed version like `0.1.5-g1a2b3c4`, stamps that into `manifest.json`, builds `purpleair.zip`, and creates a prerelease GitHub Release with auto-generated notes. Beta testers always have the latest develop snapshot.
+- **`workflow_dispatch` on `main`** — manual stable release. After merging `develop → main`, a maintainer runs `gh workflow run publish-release.yml --ref main`. The `gate` job rejects dispatches from any other ref. NBGV computes a clean version like `0.1.6` (no `-g{sha}` because `main` matches `publicReleaseRefSpec`), and the same build-release path produces a non-prerelease GitHub Release.
+
+Bot-merged PRs (Dependabot, HA-version-bump) trigger the develop prerelease automatically — that's why [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml) authors its squash-merges with the App token (`GITHUB_TOKEN`-authored pushes are blocked from triggering downstream workflows by GitHub's recursion guard).
 
 ## Code style
 
-- Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint`
-  to verify (matches CI: ruff format --check + ruff check + mypy --strict).
+- Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
-- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle
-  invariant, workaround. Don't explain *what* the code does. No multi-paragraph
-  docstrings; one-line comment max.
-- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_`
-  for unused vars** — just delete.
-- **Don't add error handling for impossible cases** — trust internal code;
-  only validate at boundaries.
+- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
+- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
+- **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 
 ### Linter cleanliness — fix what you see in the IDE
 
-**Before committing, the VS Code Problems pane should be quiet for the
-files you touched.** That means:
+**Before committing, the VS Code Problems pane should be quiet for the files you touched.** That means:
 
-- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, hassfest
-  TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
-- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]`
-  in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via
-  [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the
-  `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`,
-  `yamllint`.
+- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, hassfest TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
+- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`, `yamllint`.
 
-**For Python linters**, false positives are common — HA's `dataclass(kw_only=True)`
-confuses pylint's argument resolution, pytest fixtures look like unused
-arguments, etc. Prefer to **disable recurring false positives project-wide in
-the linter's config file** (with a comment explaining why), rather than
-scattering inline suppressions. Avoid unjustified `# noqa` or
-`# pylint: disable=...` annotations; if an inline suppression is truly needed,
-keep it narrow and explain why.
+**For Python linters**, false positives are common — HA's `dataclass(kw_only=True)` confuses pylint's argument resolution, pytest fixtures look like unused arguments, etc. Prefer to **disable recurring false positives project-wide in the linter's config file** (with a comment explaining why), rather than scattering inline suppressions. Avoid unjustified `# noqa` or `# pylint: disable=...` annotations; if an inline suppression is truly needed, keep it narrow and explain why.
 
-**For markdown**, what counts as a real warning is whatever the davidanson
-extension shows in the IDE — not what some external CLI tool reports. The repo
-config disables MD013 (line-length) because long prose lines are intentional
-here. Other rules stay on; fix the source when one fires.
+**For markdown**, what counts as a real warning is whatever the davidanson extension shows in the IDE — not what some external CLI tool reports. The repo config disables MD013 (line-length) because long prose lines are intentional here. Other rules stay on; fix the source when one fires.
 
 Verifying locally:
 
@@ -206,64 +74,35 @@ yamllint .github/workflows/                               # silent expected
 
 ## Workflow YAML conventions
 
-- Pin actions to a SHA with a trailing `# vX.Y.Z` comment, e.g.
-  `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`.
-  Dependabot bumps these.
+- Pin actions to a SHA with a trailing `# vX.Y.Z` comment, e.g. `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`. Dependabot bumps these.
 - Step names end in `step`, job names end in `job`.
-- Top-level workflows have a `concurrency:` block keyed on
-  `${{ github.workflow }}-${{ github.ref }}`.
+- Top-level workflows have a `concurrency:` block keyed on `${{ github.workflow }}-${{ github.ref }}`.
 - Shell scripts start with `set -euo pipefail`.
-- After editing any workflow, validate with `actionlint .github/workflows/*.yml`
-  (preinstalled in the devcontainer; see "Linters available in the devcontainer"
-  below).
+- After editing any workflow, validate with `actionlint .github/workflows/*.yml` (preinstalled in the devcontainer; see "Linters available in the devcontainer" below).
 
 ## Bot identity and secrets
 
 - App: `ptr727-codegen[bot]`. Repo secrets:
-  - `CODEGEN_APP_CLIENT_ID` — the App's Client ID (Settings → Developer
-    settings → GitHub Apps → your App → "Client ID").
+  - `CODEGEN_APP_CLIENT_ID` — the App's Client ID.
   - `CODEGEN_APP_PRIVATE_KEY` — the App's private key (PEM contents).
-- With no "Require approvals" on `develop`/`main`, bot PRs auto-merge as soon as
-  `check-workflow-status` is green — no branch-protection bypass needed. If
-  approvals get turned on, both `ptr727-codegen[bot]` and `dependabot[bot]` need
-  to be on the bypass list. If a tag ruleset restricts pushing,
-  `ptr727-codegen[bot]` needs to be on the tag-bypass list (release-please
-  pushes the release tag directly after the release PR merges).
-- Generate tokens with `actions/create-github-app-token` — never hard-code or
-  use a PAT.
-- Bot PRs are auto-merged by
-  [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml)
-  which has guarded jobs for: Dependabot (skips semver-major), release-please
-  (branch prefix `release-please--branches--`), and HA-version bumps (branch
-  prefix `ha-version-bump/`).
+- The App authors squash-merges in [merge-bot-pull-request.yml](.github/workflows/merge-bot-pull-request.yml) (Dependabot PRs, HA-version-bump PRs) and authors the HA-version-bump PR itself in [check-ha-version.yml](.github/workflows/check-ha-version.yml). It is *not* used by [publish-release.yml](.github/workflows/publish-release.yml) — that path uses the default `GITHUB_TOKEN` because it doesn't need to fire a downstream workflow.
+- With no "Require approvals" on `develop`/`main`, bot PRs auto-merge as soon as `check-workflow-status` is green. If approvals get turned on, both `ptr727-codegen[bot]` and `dependabot[bot]` need to be on the bypass list. If a tag ruleset restricts pushing, ensure `github-actions[bot]` is allowed to create release tags (publish-release uses `softprops/action-gh-release` under `GITHUB_TOKEN`, so the tag is created by `github-actions[bot]`).
+- Generate tokens with `actions/create-github-app-token` — never hard-code or use a PAT.
 
 ## Common tasks
 
-- **Add a feature**: feature branch from `develop` → code + tests →
-  `scripts/fix` → `scripts/lint` → `pytest` → `feat: …` PR against
-  `develop`.
-- **Fix a bug**: same as above with `fix: …` title.
-- **Add a Dependabot config / new ecosystem**: edit
-  [.github/dependabot.yml](.github/dependabot.yml); ensure
-  `commit-message.prefix: "chore"` (else PR-title lint fails).
-- **Investigate a failing release-please run**: check that
-  `.release-please-manifest*.json` versions match the latest published tag for
-  that branch. Off-by-one means manual seeding is needed.
+- **Add a feature / fix a bug**: feature branch from `develop` → code + tests → `scripts/fix` → `scripts/lint` → `pytest` → PR against `develop` with a descriptive title.
+- **Add a Dependabot config / new ecosystem**: edit [.github/dependabot.yml](.github/dependabot.yml).
+- **Cut a stable release**: merge `develop → main`, then `gh workflow run publish-release.yml --ref main`.
 - **Don't manually create GitHub releases.** The pipeline owns this end-to-end.
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key,
-`~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the
-container are SSH-signed and `gh` is pre-authenticated. See
-[README.md](README.md#devcontainer-host-prerequisites).
+[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key, `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed and `gh` is pre-authenticated. See [README.md](README.md#devcontainer-setup).
 
 ## Linters available in the devcontainer
 
-The devcontainer ships these CLIs out of the box. Use them locally before
-pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but
-actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local
-runs are the only gate.
+The devcontainer ships these CLIs out of the box. Use them locally before pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local runs are the only gate.
 
 | Tool                | What it lints                                                                          | Quick command                             |
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -277,36 +116,19 @@ runs are the only gate.
 
 Installation:
 
-- `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` —
-  `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
-- Node.js LTS — `node:2` feature in [.devcontainer.json](.devcontainer.json),
-  needed for `markdownlint-cli2`.
-- `markdownlint-cli2` — pinned `npm install -g` step in
-  [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are
-  installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
-- `actionlint` — SHA256-pinned tarball download in
-  [scripts/setup](scripts/setup).
-- `pylint` is configured via `[tool.pylint."MESSAGES CONTROL"]` in
-  [pyproject.toml](pyproject.toml); the disable list is annotated with
-  why each rule is silenced.
-- The matching VS Code extensions (`arahata.linter-actionlint`,
-  `timonwong.shellcheck`, `davidanson.vscode-markdownlint`,
-  `ms-python.python`) are recommended in [the workspace file][workspace-link],
-  so opening a file gets inline diagnostics.
+- `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` — `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
+- Node.js LTS — `node:2` feature in [.devcontainer.json](.devcontainer.json), needed for `markdownlint-cli2`.
+- `markdownlint-cli2` — pinned `npm install -g` step in [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
+- `actionlint` — SHA256-pinned tarball download in [scripts/setup](scripts/setup).
+- `pylint` is configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml); the disable list is annotated with why each rule is silenced.
+- The matching VS Code extensions (`arahata.linter-actionlint`, `timonwong.shellcheck`, `davidanson.vscode-markdownlint`, `ms-python.python`) are recommended in [the workspace file][workspace-link], so opening a file gets inline diagnostics.
 
 ## Tooling pointers
 
-- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`,
-  `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh`
-  bind mount (see [README.md](README.md#devcontainer-host-prerequisites)).
-- **HA core API reference**: when adding/modifying entity behaviour, check
-  upstream conventions in `home-assistant/core` (e.g., entity registry semantics
-  changed in 2026.4 — that's why `minimum` is pinned there).
-- **Upstream PR for shared work**:
-  [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of
-  this integration; mirror functional changes there when relevant.
+- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount (see [README.md](README.md#devcontainer-setup)).
+- **HA core API reference**: when adding/modifying entity behaviour, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
+- **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
 
-[manifest-link]: custom_components/purpleair/manifest.json
 [workspace-link]: homeassistant-purpleair.code-workspace
 [qs]: https://developers.home-assistant.io/docs/core/integration-quality-scale
 [ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
