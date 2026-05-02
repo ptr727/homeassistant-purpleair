@@ -76,6 +76,11 @@ jobs:
   date-badge:
     name: Create BYOB date badge job
     needs: [create-release]
+    # Stable releases only arrive via workflow_dispatch on main (the gate
+    # job enforces this). Skip the entire reusable workflow on develop-push
+    # prereleases so we don't pay for a checkout + NBGV setup just to skip
+    # the badge update.
+    if: github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/build-datebadge-task.yml
     secrets: inherit
     permissions:

@@ -5,23 +5,14 @@ on:
 
 jobs:
 
-  get-version:
-    name: Get version information job
-    uses: ./.github/workflows/get-version-task.yml
-    secrets: inherit
-
   date-badge:
     name: Build BYOB date badge job
     runs-on: ubuntu-latest
-    needs: [get-version]
-    # Only update the "Last Build" badge for stable releases. publish-release.yml
-    # is dispatched manually from main for stable releases and runs on push
-    # to develop for prereleases — branch-name checks would have to know
-    # which event fired, so we just reuse get-version-task's Prerelease
-    # output (derived by checking SemVer2 itself for any `-` segment: develop
-    # produces `0.X.Y-g<sha>`, main produces clean `0.X.Y`). Stable iff
-    # Prerelease == 'false'.
-    if: needs.get-version.outputs.Prerelease == 'false'
+    # Caller (publish-release.yml) is responsible for restricting invocation
+    # to stable releases — workflow_dispatch on main only. This task no
+    # longer self-checks via NBGV's Prerelease output, since doing so paid
+    # for a full get-version checkout + setup-dotnet + nbgv run on every
+    # develop-push prerelease only to skip the badge update.
 
     steps:
 
