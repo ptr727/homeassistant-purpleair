@@ -58,7 +58,13 @@ jobs:
     # - workflow_dispatch on main: gate=success, test-release=success.
     # - push to develop: gate=skipped, test-release=skipped (intentionally,
     #   develop is already tested via the PR that landed each commit).
-    if: ${{ always() && needs.gate.result != 'failure' && needs.test-release.result != 'failure' }}
+    # Explicitly allowlist success/skipped on each dependency so a
+    # `cancelled` outcome (timeout, manual cancel, runner failure) blocks
+    # publish — != 'failure' alone would let cancelled through.
+    if: |
+      always() &&
+      (needs.gate.result == 'success' || needs.gate.result == 'skipped') &&
+      (needs.test-release.result == 'success' || needs.test-release.result == 'skipped')
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     permissions:
