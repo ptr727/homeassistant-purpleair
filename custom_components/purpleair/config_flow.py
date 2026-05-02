@@ -401,8 +401,15 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
         self._flow_data[CONF_NEARBY_SENSOR_LIST] = nearby_sensor_list
         return True
 
-    async def _async_validate_sensor(self) -> bool:
-        """Validate sensor."""
+    async def _async_validate_sensor(
+        self, *, exclude_subentry_id: str | None = None
+    ) -> bool:
+        """Validate sensor.
+
+        ``exclude_subentry_id`` skips a subentry from the duplicate-index
+        check — used by the reconfigure path so a subentry's existing
+        sensor index doesn't flag itself as already configured.
+        """
         self._errors = {}
 
         sensor_index: int = self._flow_data[CONF_SENSOR_INDEX]
@@ -454,11 +461,14 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
 
         # No duplicate sensor indices allowed across all config entries and subentries
         # (including disabled/ignored entries -- otherwise re-enabling a disabled entry
-        # could surface a duplicate that this flow let through).
+        # could surface a duplicate that this flow let through). exclude_subentry_id
+        # skips the subentry being reconfigured so its own existing index doesn't
+        # collide with itself.
         if sensor_index in (
             int(subentry.data[CONF_SENSOR_INDEX])
             for config_entry in self.hass.config_entries.async_entries(DOMAIN)
             for subentry in config_entry.subentries.values()
+            if subentry.subentry_id != exclude_subentry_id
         ):
             self._errors[CONF_SENSOR_INDEX] = CONF_ALREADY_CONFIGURED
             return False
@@ -640,3 +650,78 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             data=data,
             unique_id=str(sensor.sensor_index),
         )
+
+    @property
+    def reconfigure_schema(self) -> vol.Schema:
+        """Reconfigure schema — Read Key only.
+
+        Index stays fixed because changing it would break the subentry's
+        unique_id (str(sensor_index)) and detach existing entity history.
+        Users wanting a different sensor must delete and re-add.
+        """
+        current_read_key = self._flow_data.get(CONF_SENSOR_READ_KEY)
+        return vol.Schema(
+            {
+                vol.Optional(
+                    CONF_SENSOR_READ_KEY,
+                    default=vol.UNDEFINED
+                    if not current_read_key or len(str(current_read_key)) == 0
+                    else current_read_key,
+                ): cv.string,
+            }
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Reconfigure an existing subentry's Read Key.
+
+        Common case: a subentry migrated from the built-in HA integration
+        (which had no per-sensor Read Key support) needs a Read Key added
+        for free queries on the user's own sensor.
+        """
+        subentry = self._get_reconfigure_subentry()
+        entry = self._get_entry()
+
+        self._flow_data[CONF_API_KEY] = entry.data[CONF_API_KEY]
+        self._flow_data[CONF_SENSOR_INDEX] = int(subentry.data[CONF_SENSOR_INDEX])
+
+        if user_input is None:
+            self._flow_data[CONF_SENSOR_READ_KEY] = subentry.data.get(
+                CONF_SENSOR_READ_KEY
+            )
+            return self.async_show_form(
+                step_id=CONF_RECONFIGURE,
+                data_schema=self.reconfigure_schema,
+                description_placeholders={
+                    CONF_SENSOR_INDEX: str(self._flow_data[CONF_SENSOR_INDEX]),
+                },
+            )
+
+        self._flow_data[CONF_SENSOR_READ_KEY] = user_input.get(CONF_SENSOR_READ_KEY)
+        if not await self._async_validate_sensor(
+            exclude_subentry_id=subentry.subentry_id
+        ):
+            return self.async_show_form(
+                step_id=CONF_RECONFIGURE,
+                data_schema=self.reconfigure_schema,
+                errors=self._errors,
+                description_placeholders={
+                    CONF_SENSOR_INDEX: str(self._flow_data[CONF_SENSOR_INDEX]),
+                },
+            )
+
+        # Preserve the existing index; only the Read Key changes.
+        data: dict[str, Any] = {CONF_SENSOR_INDEX: self._flow_data[CONF_SENSOR_INDEX]}
+        read_key: str | None = self._flow_data[CONF_SENSOR_READ_KEY]
+        if read_key is not None and len(read_key) > 0:
+            data[CONF_SENSOR_READ_KEY] = read_key
+
+        # The integration registers update listeners on the parent entry,
+        # which means async_update_reload_and_abort() refuses to reload
+        # ("Cannot update and reload entry with update listeners"). Update
+        # without reloading and schedule the reload separately so the
+        # coordinator picks up the new Read Key on the next setup cycle.
+        result = self.async_update_and_abort(entry, subentry, data=data)
+        self.hass.config_entries.async_schedule_reload(entry.entry_id)
+        return result

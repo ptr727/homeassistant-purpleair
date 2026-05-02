@@ -1,5 +1,7 @@
 {
     "name": "PurpleAir",
     "homeassistant": "2026.4.0",
-    "hacs": "2.0.5"
+    "hacs": "2.0.5",
+    "zip_release": true,
+    "filename": "purpleair.zip"
 }
