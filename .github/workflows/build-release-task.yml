@@ -43,16 +43,54 @@ jobs:
           echo "Stamped manifest.json version: $(jq -r .version custom_components/purpleair/manifest.json)"
 
       - name: Build purpleair.zip step
-        # Directory-at-root layout: the zip contains `purpleair/manifest.json`
-        # so users extracting into HA's `custom_components/` get the right path.
+        # Files-at-root layout — REQUIRED by HACS when hacs.json sets
+        # `zip_release: true` + `filename`. HACS extracts the asset directly
+        # into <config>/custom_components/<domain>/, so the zip's contents
+        # must be the integration's files at root (manifest.json,
+        # __init__.py, ...). A zip that nests them under a purpleair/
+        # directory ends up at <config>/custom_components/purpleair/purpleair/,
+        # which HA can't find. Manual installers should still be able to
+        # extract this zip into a directory of their choosing
+        # (e.g. <config>/custom_components/purpleair/) and have it work.
         # Exclude __pycache__/*.pyc as defense in depth (a clean CI checkout
         # won't have them, but local re-runs of this script might).
+        # Force a fresh archive — `zip` updates in place if the file exists,
+        # which on a re-run could carry stale entries (e.g. the old nested
+        # purpleair/ wrapper) alongside the new root files.
         run: |
           set -euo pipefail
-          cd custom_components
-          zip -r ../purpleair.zip purpleair -x 'purpleair/__pycache__/*' '*.pyc'
-          cd ..
+          rm -f purpleair.zip
+          cd custom_components/purpleair
+          zip -r ../../purpleair.zip . -x '__pycache__/*' '*.pyc'
+          cd ../..
           unzip -l purpleair.zip
+
+      - name: Assert zip layout step
+        # Belt-and-braces guard against the HACS double-nesting regression
+        # this PR fixes: HACS extracts the asset into
+        # <config>/custom_components/<domain>/ directly, so manifest.json
+        # and __init__.py must be at the archive root. If a future change
+        # accidentally restores the nested-purpleair/ layout, fail the
+        # build here rather than ship a release that breaks every HACS
+        # install.
+        run: |
+          set -euo pipefail
+          if ! unzip -l purpleair.zip | awk '{print $NF}' | grep -qx 'manifest.json'; then
+              echo "::error::purpleair.zip missing manifest.json at root — HACS layout regression?"
+              unzip -l purpleair.zip
+              exit 1
+          fi
+          if ! unzip -l purpleair.zip | awk '{print $NF}' | grep -qx '__init__.py'; then
+              echo "::error::purpleair.zip missing __init__.py at root — HACS layout regression?"
+              unzip -l purpleair.zip
+              exit 1
+          fi
+          if unzip -l purpleair.zip | awk '{print $NF}' | grep -qE '^purpleair/'; then
+              echo "::error::purpleair.zip contains a top-level purpleair/ wrapper — HACS would extract one level too deep."
+              unzip -l purpleair.zip
+              exit 1
+          fi
+          echo "Zip layout OK: manifest.json + __init__.py at root, no purpleair/ wrapper."
 
       - name: Upload release artifact step
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
