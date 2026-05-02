@@ -81,7 +81,7 @@
         },
         "reconfigure": {
           "data": {
-            "sensor_read_key": "[%key:component::purpleair::config_subentries::sensor::step::add_sensor_index::data::sensor_read_key%]"
+            "sensor_read_key": "Sensor read key"
           },
           "description": "Update the read key for sensor index {sensor_index}. Leave blank to clear.",
           "title": "Reconfigure sensor"

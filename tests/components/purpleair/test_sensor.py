@@ -461,6 +461,15 @@ async def test_organization_native_value_none_without_data(
     assert entity.native_value is None
 
 
+def test_organization_sensor_default_enablement() -> None:
+    """Pin the documented default-enabled state for each org diagnostic sensor."""
+    defaults = {
+        desc.key: desc.entity_registry_enabled_default
+        for desc in ORGANIZATION_SENSOR_DESCRIPTIONS
+    }
+    assert defaults == {"remaining_points": True, "consumption_rate": False}
+
+
 @pytest.mark.parametrize(
     "get_sensors_mock",
     [
