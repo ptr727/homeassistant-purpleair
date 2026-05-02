@@ -9,7 +9,8 @@ A HACS-installable Home Assistant **custom integration** for PurpleAir air-quali
 ## Branches and merging
 
 - Pipeline is `feature → develop → main`. Both `develop` and `main` are protected; everything lands via PR.
-- **Squash-only merges.** PR title becomes the commit message. Never use merge commits or rebase merges.
+- **Feature → develop PRs squash-merge** (single commit on develop, PR title becomes the commit message; never rebase-merge).
+- **Develop → main PRs merge-commit** (one merge commit on main per release, develop's tip becomes a second parent and stays in main's ancestry — see [Develop → main promotion](#develop--main-promotion) below for why).
 - Open feature PRs against `develop`. `develop → main` is how stable releases are cut.
 
 ## Commit messages and PR titles
