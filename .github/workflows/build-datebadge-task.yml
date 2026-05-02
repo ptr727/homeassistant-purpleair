@@ -14,12 +14,16 @@ jobs:
     name: Build BYOB date badge job
     runs-on: ubuntu-latest
     needs: [get-version]
-    # Only update the "Last Build" badge for stable releases. publish-release.yml
-    # is dispatched manually from main for stable releases and runs on push
-    # to develop for prereleases — branch-name checks would have to know
-    # which event fired, so we just reuse get-version-task's Prerelease
-    # output (derived from NBGV's PrereleaseVersion: empty on main, -gSHA on
-    # develop). Stable iff Prerelease == 'false'.
+    # Two gates protect the badge update:
+    # 1. The caller (publish-release.yml) gates on workflow_dispatch so this
+    #    reusable workflow is never invoked on the develop-push prerelease
+    #    path — that gate is cheap (no jobs run at all).
+    # 2. This inner Prerelease check catches the residual case where
+    #    workflow_dispatch on main still produces a prerelease version,
+    #    e.g. if version.json's `version` field is set to a prerelease base
+    #    like `0.2-beta` for a beta-on-main cycle. NBGV's SemVer2 then
+    #    contains `-beta`, get-version-task flags Prerelease=true, and we
+    #    still skip the badge update.
     if: needs.get-version.outputs.Prerelease == 'false'
 
     steps:

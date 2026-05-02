@@ -33,12 +33,38 @@ jobs:
               exit 1
           fi
 
+  test-release:
+    name: Test release job
+    needs: [gate]
+    # Manual stable releases on main only. Reuses test-release-task.yml —
+    # the same suite that gates PR merges — so a maintainer dispatching
+    # `gh workflow run publish-release.yml --ref main` against a regressed
+    # main tip cannot ship: ruff, mypy --strict, pytest matrix, hassfest,
+    # HACS validation, plus a no-publish build that exercises NBGV
+    # stamping all have to pass first.
+    #
+    # Skipped on push-to-develop because develop's content has already
+    # passed exactly this suite via test-pull-request.yml when the PR
+    # that produced the develop commit merged. Re-running here would
+    # double CI time per merge for no extra signal.
+    if: github.event_name == 'workflow_dispatch' && needs.gate.result == 'success'
+    uses: ./.github/workflows/test-release-task.yml
+    secrets: inherit
+
   create-release:
     name: Publish project release job
-    needs: [gate]
-    # `gate` is skipped on push (only runs on workflow_dispatch); accept both
-    # outcomes so the develop-push path proceeds without a real gate result.
-    if: ${{ always() && (needs.gate.result == 'success' || needs.gate.result == 'skipped') }}
+    needs: [gate, test-release]
+    # Two paths are valid:
+    # - workflow_dispatch on main: gate=success, test-release=success.
+    # - push to develop: gate=skipped, test-release=skipped (intentionally,
+    #   develop is already tested via the PR that landed each commit).
+    # Explicitly allowlist success/skipped on each dependency so a
+    # `cancelled` outcome (timeout, manual cancel, runner failure) blocks
+    # publish — != 'failure' alone would let cancelled through.
+    if: >-
+      always() &&
+      (needs.gate.result == 'success' || needs.gate.result == 'skipped') &&
+      (needs.test-release.result == 'success' || needs.test-release.result == 'skipped')
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     permissions:
@@ -50,6 +76,11 @@ jobs:
   date-badge:
     name: Create BYOB date badge job
     needs: [create-release]
+    # Stable releases only arrive via workflow_dispatch on main (the gate
+    # job enforces this). Skip the entire reusable workflow on develop-push
+    # prereleases so we don't pay for a checkout + NBGV setup just to skip
+    # the badge update.
+    if: github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/build-datebadge-task.yml
     secrets: inherit
     permissions:
