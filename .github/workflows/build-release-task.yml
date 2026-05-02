@@ -27,6 +27,21 @@ jobs:
       - name: Checkout the repository step
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Stamp manifest.json with NBGV version step
+        # The checked-in manifest.json carries a "0.0.0" placeholder; the real
+        # SemVer2 lives in NBGV (computed from version.json + git history).
+        # Rewrite the field in-place on the runner before zipping so the zip
+        # uploaded to HACS carries the actual release version. The change is
+        # only on the runner workspace — no commit is created.
+        env:
+          SEMVER2: ${{ needs.get-version.outputs.SemVer2 }}
+        run: |
+          set -euo pipefail
+          jq --arg v "$SEMVER2" '.version=$v' \
+             custom_components/purpleair/manifest.json > custom_components/purpleair/manifest.json.tmp
+          mv custom_components/purpleair/manifest.json.tmp custom_components/purpleair/manifest.json
+          echo "Stamped manifest.json version: $(jq -r .version custom_components/purpleair/manifest.json)"
+
       - name: Build purpleair.zip step
         # Directory-at-root layout: the zip contains `purpleair/manifest.json`
         # so users extracting into HA's `custom_components/` get the right path.
@@ -51,6 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [get-version, build]
     if: ${{ inputs.github }}
+    permissions:
+      contents: write
 
     steps:
 
@@ -60,38 +77,11 @@ jobs:
           name: purpleair-zip
           path: ./Publish
 
-      - name: Detect existing release step
-        id: guard
-        # Normal flow: release-please.yml has already created the GitHub
-        # Release for this tag with auto-generated notes (and pushed the tag,
-        # which is what triggered this workflow). We just attach the build
-        # artifact. Fallback: if a tag was pushed manually (e.g. recovery for
-        # a release-please run that didn't create the release for some
-        # reason), softprops below creates the release with notes + asset in
-        # one shot.
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.get-version.outputs.Tag }}
-        run: |
-          set -euo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              echo "release-exists=true" >> "$GITHUB_OUTPUT"
-          else
-              echo "release-exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload purpleair.zip to existing release step
-        if: steps.guard.outputs.release-exists == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.get-version.outputs.Tag }}
-        # `--repo` is needed because this job has no checkout step, so `gh`
-        # cannot infer the target repo from a git remote (matches the
-        # adjacent `gh release view` invocation above).
-        run: gh release upload "$TAG" ./Publish/purpleair.zip --clobber --repo "$GITHUB_REPOSITORY"
-
       - name: Create GitHub release step
-        if: steps.guard.outputs.release-exists != 'true'
+        # softprops creates the underlying tag from `tag_name` if it does not
+        # already exist, so the workflow drives the entire release lifecycle:
+        # NBGV computes the version, this step creates the tag + release with
+        # auto-generated notes, and the artifact is attached in one shot.
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: ${{ needs.get-version.outputs.Tag }}

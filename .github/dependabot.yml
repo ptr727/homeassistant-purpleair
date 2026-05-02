@@ -1,10 +1,10 @@
 ---
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
-# commit-message.prefix is "chore" so PR titles satisfy the Conventional Commits
-# lint enforced on test-pull-request.yml and release-please treats them as
-# no-release. Security or behaviour-changing dep bumps that should ship
-# immediately can be re-titled to "fix:" by a maintainer before merge.
+# commit-message.prefix is "chore" because that's the type historically used
+# for dependency bumps; nothing parses these any more (NBGV computes versions
+# from version.json + git history, not from commit messages). The prefix is
+# preserved purely for human-readable PR titles.
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
