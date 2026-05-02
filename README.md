@@ -96,7 +96,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
 
 ### Account-Level Diagnostics
 
-In addition to the per-sensor subentries, the integration registers a single **PurpleAir organization** device that surfaces account-level information shared across all sensors under the same API key — currently the **Remaining points** and **Consumption rate** diagnostic sensors (both disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
+In addition to the per-sensor subentries, the integration registers a single per-config-entry **organization** device (named `<entry-title> organization` — e.g. "PurpleAir organization" for the default integration title) that surfaces account-level information shared across all sensors under the same API key. It currently backs the **Remaining points** and **Consumption rate** diagnostic sensors (both disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
 
 ## Sensor Behavior and Calibration
 
