@@ -456,13 +456,7 @@ fi
 
 ##### macOS Deltas
 
-macOS uses launchd (not systemd) for `ssh-agent` and integrates `gh` and SSH with the system Keychain. Three commands above need adjusting; the `systemctl` line and the `~/.bashrc` agent fallback do not apply.
-
-Replace `gh auth login` with the `--insecure-storage` variant. By default `gh` stores the token in macOS Keychain, so even though the devcontainer bind-mounts your entire `~/.config/gh` directory, the token isn't there to carry across — the file ends up with a username but no `oauth_token`. `--insecure-storage` writes the token to `hosts.yml` instead (mode 600 — same security posture as your `~/.ssh/id_ed25519`):
-
-```shell
-gh auth login --insecure-storage
-```
+macOS uses launchd (not systemd) for `ssh-agent` and integrates `gh` and SSH with the system Keychain. The `systemctl` line and the `~/.bashrc` agent fallback do not apply, and two of the host-side commands need adjusting.
 
 Use this `~/.ssh/config` instead of the common one — `UseKeychain yes` caches the passphrase in Keychain:
 
@@ -478,6 +472,15 @@ Load the key into the agent once so the passphrase persists across reboots:
 ```shell
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 ```
+
+Run the host's `gh auth login` exactly as in the common steps — the token lands in macOS Keychain, which is fine for use *on the host*. Don't pass `--insecure-storage`. The host's Keychain-stored token is invisible to the container (the bind-mount carries `~/.config/gh/hosts.yml` — which has no `oauth_token` — but not Keychain), so authenticate `gh` *inside the container* the first time you open the devcontainer:
+
+```shell
+# Inside the devcontainer (one-time, after first opening)
+gh auth login
+```
+
+The container has no Keychain, so the token is written to `~/.config/gh/hosts.yml`. That file is the bind-mount target, so the token persists back to the host and survives container rebuilds. The host's `gh` keeps using Keychain unchanged; the container's `gh` uses the file.
 
 #### Verify Host Setup
 
@@ -506,13 +509,9 @@ ps aux | grep ssh-agent | grep -v grep
 # Linux/WSL only, and only if you used the systemd path (skip if you used
 # the ~/.bashrc fallback — that path doesn't register a systemd service):
 systemctl --user status ssh-agent.socket
-
-# macOS only — confirm `gh` actually wrote the token to the file. Empty
-# output here means you ran plain `gh auth login` instead of
-# `--insecure-storage`, the token is in Keychain, and the bind-mount will
-# carry no token into the container even though the file is present.
-grep -c '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml
 ```
+
+On macOS, the token lives in Keychain, so `~/.config/gh/hosts.yml` has no `oauth_token` line on the host — that's expected. Verify it's present *inside* the devcontainer after running `gh auth login` there.
 
 #### Open in Devcontainer
 
