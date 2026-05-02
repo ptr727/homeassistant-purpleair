@@ -270,12 +270,9 @@ If migration fails, the entry is marked `SETUP_ERROR`. Check **Settings → Syst
 
 The built-in integration didn't support per-sensor Read Keys, so subentries migrated from it have only the sensor **Index** populated. If you own a sensor, switching it to use a per-sensor Read Key makes its API queries free — see [PurpleAir community: API points for sensor owners][free-points-link]. This is the recommended remediation when the [low-points repair issue](#api-points-and-field-selection) fires on a small account.
 
-For now, the only path is delete-and-re-add:
+In **Settings → Devices & Services → PurpleAir**, click ⋮ next to the sensor → **Configure**, then enter the sensor's Read Key. The integration validates the key against PurpleAir before saving and reloads on success — long-term-statistics history, entity IDs, and devices are preserved (only the sensor's API authentication changes). The same flow can clear an existing Read Key by leaving the field blank, or replace one that's been rotated.
 
-1. In **Settings → Devices & Services → PurpleAir**, click ⋮ next to the migrated sensor → **Delete**.
-2. Click **Add PurpleAir sensor** and re-add via **Manual entry** with both the **Index** and the **Read Key**.
-
-Long-term-statistics history tied to the deleted sensor's entity IDs is lost in this flow. A future release will add an in-place **Configure** option on the subentry's ⋮ menu so a Read Key can be added without losing history.
+The Read Key can also be added at sensor-add time for new sensors — see [3. Add Sensors](#3-add-sensors).
 
 ### Downgrade: Custom → Built-in
 
