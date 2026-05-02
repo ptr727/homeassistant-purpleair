@@ -40,7 +40,8 @@
     "sensor": {
       "entry_type": "PurpleAir sensor",
       "abort": {
-        "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+        "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]"
       },
       "error": {
         "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
@@ -77,6 +78,13 @@
           },
           "description": "Enter sensor identification details",
           "title": "Sensor details"
+        },
+        "reconfigure": {
+          "data": {
+            "sensor_read_key": "[%key:component::purpleair::config_subentries::sensor::step::add_sensor_index::data::sensor_read_key%]"
+          },
+          "description": "Update the read key for sensor index {sensor_index}. Leave blank to clear.",
+          "title": "Reconfigure sensor"
         },
         "select_sensor": {
           "data": {

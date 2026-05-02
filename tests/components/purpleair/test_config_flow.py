@@ -731,3 +731,154 @@ async def test_create_from_index_errors(
 
     hass.config_entries.subentries.async_abort(result[CONF_FLOW_ID])
     await hass.async_block_till_done()
+
+
+async def test_reconfigure_subentry_add_read_key(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Test reconfiguring a migrated subentry to add a Read Key.
+
+    The default config_subentry fixture has no Read Key set (mirrors a
+    subentry migrated from the built-in HA integration). The reconfigure
+    flow should accept a new Read Key and persist it without affecting
+    the sensor index, unique_id, or other entity registry data.
+    """
+    assert config_subentry.data[CONF_SENSOR_READ_KEY] is None
+
+    result = await config_entry.start_subentry_reconfigure_flow(
+        hass, config_subentry.subentry_id
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_STEP_ID] == CONF_RECONFIGURE
+
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY},
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
+
+    # Sensor index unchanged; new Read Key persisted; unique_id stable.
+    updated = config_entry.subentries[config_subentry.subentry_id]
+    assert updated.data[CONF_SENSOR_INDEX] == TEST_SENSOR_INDEX1
+    assert updated.data[CONF_SENSOR_READ_KEY] == TEST_SENSOR_READ_KEY
+    assert updated.unique_id == str(TEST_SENSOR_INDEX1)
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [
+        {
+            CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+            CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+        }
+    ],
+)
+async def test_reconfigure_subentry_clear_read_key(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Test that submitting an empty Read Key clears it from subentry data."""
+    assert config_subentry.data[CONF_SENSOR_READ_KEY] == TEST_SENSOR_READ_KEY
+
+    result = await config_entry.start_subentry_reconfigure_flow(
+        hass, config_subentry.subentry_id
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_STEP_ID] == CONF_RECONFIGURE
+
+    # Empty string clears the Read Key (the user wipes the prefilled field).
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={CONF_SENSOR_READ_KEY: ""},
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
+
+    updated = config_entry.subentries[config_subentry.subentry_id]
+    assert CONF_SENSOR_READ_KEY not in updated.data
+
+
+async def test_reconfigure_subentry_invalid_read_key(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Test that an invalid Read Key surfaces as a per-field error."""
+    result = await config_entry.start_subentry_reconfigure_flow(
+        hass, config_subentry.subentry_id
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_STEP_ID] == CONF_RECONFIGURE
+
+    with patch.object(
+        api.sensors,
+        "async_get_sensors",
+        AsyncMock(side_effect=InvalidDataReadKeyError),
+    ):
+        result = await hass.config_entries.subentries.async_configure(
+            result[CONF_FLOW_ID],
+            user_input={CONF_SENSOR_READ_KEY: "wrong-key"},
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_ERRORS] == {CONF_SENSOR_READ_KEY: CONF_INVALID_READ_KEY}
+
+    hass.config_entries.subentries.async_abort(result[CONF_FLOW_ID])
+    await hass.async_block_till_done()
+
+
+@pytest.mark.parametrize(
+    ("get_sensors_mock", "get_sensors_errors"),
+    [
+        (AsyncMock(side_effect=Exception), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=PurpleAirError), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=InvalidApiKeyError), {CONF_BASE: CONF_INVALID_API_KEY}),
+    ],
+)
+async def test_reconfigure_subentry_api_errors(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+    get_sensors_mock,
+    get_sensors_errors,
+) -> None:
+    """Test that API-side validation errors surface on the reconfigure form."""
+    result = await config_entry.start_subentry_reconfigure_flow(
+        hass, config_subentry.subentry_id
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_STEP_ID] == CONF_RECONFIGURE
+
+    with patch.object(api.sensors, "async_get_sensors", get_sensors_mock):
+        result = await hass.config_entries.subentries.async_configure(
+            result[CONF_FLOW_ID],
+            user_input={CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY},
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_ERRORS] == get_sensors_errors
+
+    hass.config_entries.subentries.async_abort(result[CONF_FLOW_ID])
+    await hass.async_block_till_done()
