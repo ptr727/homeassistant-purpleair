@@ -1,10 +1,11 @@
 # PurpleAir for Home Assistant — Release History
 
-Curated highlights of what's shipped. The canonical per-version release ledger (with auto-generated PR/commit detail and downloadable artifacts) is the [GitHub Releases][releases-link] page; this file just summarises the headline features that landed in each milestone.
+Curated highlights of what's shipped. The canonical per-version release ledger (with auto-generated PR/commit detail and downloadable artifacts) is the [GitHub Releases][releases-link] page; this file just summarizes the headline features that landed in each milestone.
 
 ## Release History
 
-- **Current release** (Requires Home Assistant 2026.4.0 or newer):
+- **Version 0.1**:
+  - Requires Home Assistant 2026.4.0 or newer.
   - Private sensor support via per-sensor read keys (free API points when querying your own sensors).
   - Subentry layout — one subentry per sensor; automatic v1 → v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
   - Cost-aware field selection — only fields backing enabled entities are requested, and static device-info fields are fetched once per day. Roughly 37 % fewer field-fetches per day than a naive implementation for a default install.

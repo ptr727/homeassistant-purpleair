@@ -11,8 +11,6 @@ Contributions are welcome — bug reports, fixes, feature proposals, and documen
 1. Run the test suite with `pytest` (install `requirements-test.txt` first).
 1. Open a pull request against `develop` with a clear, descriptive title.
 
-For upstream-relevant functional changes, please also raise them on [home-assistant/core#140901](https://github.com/home-assistant/core/pull/140901) so the fix lands in Home Assistant core and benefits all users.
-
 ## PR titles and versioning
 
 PR titles are descriptive and have no versioning effect — write a clear imperative subject summarizing the change. The repository's merge method is locked to **squash-only**, so the PR title becomes the single commit message on `develop` / `main`.
@@ -45,4 +43,4 @@ Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) — confi
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). By contributing, you agree that your contributions will be licensed under the same terms.
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE). By contributing, you agree that your contributions will be licensed under the same terms.
