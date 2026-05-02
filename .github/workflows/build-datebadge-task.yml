@@ -5,14 +5,26 @@ on:
 
 jobs:
 
+  get-version:
+    name: Get version information job
+    uses: ./.github/workflows/get-version-task.yml
+    secrets: inherit
+
   date-badge:
     name: Build BYOB date badge job
     runs-on: ubuntu-latest
-    # Caller (publish-release.yml) is responsible for restricting invocation
-    # to stable releases — workflow_dispatch on main only. This task no
-    # longer self-checks via NBGV's Prerelease output, since doing so paid
-    # for a full get-version checkout + setup-dotnet + nbgv run on every
-    # develop-push prerelease only to skip the badge update.
+    needs: [get-version]
+    # Two gates protect the badge update:
+    # 1. The caller (publish-release.yml) gates on workflow_dispatch so this
+    #    reusable workflow is never invoked on the develop-push prerelease
+    #    path — that gate is cheap (no jobs run at all).
+    # 2. This inner Prerelease check catches the residual case where
+    #    workflow_dispatch on main still produces a prerelease version,
+    #    e.g. if version.json's `version` field is set to a prerelease base
+    #    like `0.2-beta` for a beta-on-main cycle. NBGV's SemVer2 then
+    #    contains `-beta`, get-version-task flags Prerelease=true, and we
+    #    still skip the badge update.
+    if: needs.get-version.outputs.Prerelease == 'false'
 
     steps:
 
