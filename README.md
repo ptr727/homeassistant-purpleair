@@ -349,7 +349,7 @@ Additional useful tasks in the same file:
 
 ### Devcontainer Setup
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (SSH signing key, GitHub CLI auth) work inside it without re-setup:
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth on Linux/WSL) work inside it without re-setup. macOS is partially excluded — the host's `gh` token lives in Keychain by default, which the bind-mount doesn't carry, so container `gh` is unauthenticated until you opt into one of the trade-offs documented in the macOS Deltas below.
 
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
@@ -512,7 +512,7 @@ ps aux | grep ssh-agent | grep -v grep
 systemctl --user status ssh-agent.socket
 ```
 
-On macOS, the host's `gh` uses Keychain, so `~/.config/gh/hosts.yml` on the host won't show an `oauth_token` line until you've run `gh auth login` once *inside* the devcontainer (per the macOS deltas above). After that, the bind-mount carries the token back and `grep oauth_token ~/.config/gh/hosts.yml` returns a hit on the host too.
+On macOS, the host's `gh` uses Keychain, so `~/.config/gh/hosts.yml` on the host won't show an `oauth_token` line unless you've run `gh auth login` once *inside* the devcontainer (per the macOS Deltas above). After that, the bind-mount carries the token back and `grep -c '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml` returns `1` (use `-c` so the actual token never lands in scrollback).
 
 #### Open in Devcontainer
 
@@ -530,13 +530,18 @@ ls -la ~/.config/gh
 # Show git config
 git config --list --show-origin
 
-# Test github SSH login
-gh ssh-key list
-ssh -T git@github.com
-
 # SSH socket and keys should be available via ssh-agent
 echo $SSH_AUTH_SOCK
 ssh-add -l
+
+# Test GitHub SSH connectivity (does not need `gh`)
+ssh -T git@github.com
+
+# Test gh — only if you authenticated `gh` in the container (Linux/WSL
+# always; macOS only if you took the in-container login path). The
+# Keychain-only macOS path leaves container `gh` unauthenticated and
+# this command will fail by design.
+gh ssh-key list
 ```
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
