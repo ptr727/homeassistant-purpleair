@@ -43,20 +43,21 @@ jobs:
 
       - name: Compose workflow outputs step
         id: out
-        # NBGV emits PrereleaseVersion as `-g<sha>` on non-public refs and an
-        # empty string on public refs (those matching publicReleaseRefSpec in
-        # version.json). That's the canonical "is this a prerelease" signal,
-        # so we derive Prerelease from it directly rather than from
-        # github.ref — keeps a manual workflow_dispatch from the wrong branch
-        # honest about its prerelease status.
+        # NBGV's PrereleaseVersion output only carries the `-tag` segment from
+        # version.json's `version` field (e.g. `-beta`); it's empty when
+        # version.json has a bare `0.1`. The auto-appended `-g{sha}` segment
+        # lives in SemVer2 itself but is NOT exposed in PrereleaseVersion.
+        # Detect prerelease by checking SemVer2 for any `-` segment instead:
+        # that's true for `0.1.5-g1a2b3c4` (develop) and false for `0.1.5`
+        # (main, public). This also keeps a manual workflow_dispatch from the
+        # wrong branch honest about its prerelease status.
         env:
           SEMVER2: ${{ steps.nbgv.outputs.SemVer2 }}
-          PRE: ${{ steps.nbgv.outputs.PrereleaseVersion }}
         run: |
           set -euo pipefail
           echo "SemVer2=$SEMVER2" >> "$GITHUB_OUTPUT"
           echo "Tag=$SEMVER2" >> "$GITHUB_OUTPUT"
-          if [ -n "$PRE" ]; then
+          if [[ "$SEMVER2" == *-* ]]; then
               PRERELEASE=true
           else
               PRERELEASE=false
