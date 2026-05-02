@@ -428,7 +428,7 @@ Host *
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-##### Linux/WSL deltas
+##### Linux/WSL Deltas
 
 Enable the user-level `ssh-agent` service so it's available across shells:
 
@@ -454,11 +454,11 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
 fi
 ```
 
-##### macOS deltas
+##### macOS Deltas
 
 macOS uses launchd (not systemd) for `ssh-agent` and integrates `gh` and SSH with the system Keychain. Three commands above need adjusting; the `systemctl` line and the `~/.bashrc` agent fallback do not apply.
 
-Replace `gh auth login` with the `--insecure-storage` variant. By default `gh` stores the token in macOS Keychain, but the devcontainer bind-mount only carries `~/.config/gh/hosts.yml`, so a Keychain-stored token never reaches the container. `--insecure-storage` writes the token to `hosts.yml` (mode 600 — same security posture as your `~/.ssh/id_ed25519`):
+Replace `gh auth login` with the `--insecure-storage` variant. By default `gh` stores the token in macOS Keychain, so even though the devcontainer bind-mounts your entire `~/.config/gh` directory, the token isn't there to carry across — the file ends up with a username but no `oauth_token`. `--insecure-storage` writes the token to `hosts.yml` instead (mode 600 — same security posture as your `~/.ssh/id_ed25519`):
 
 ```shell
 gh auth login --insecure-storage
