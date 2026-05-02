@@ -6,7 +6,7 @@ on:
   # / HA-version-bump PRs merge to main without cutting a release.
   workflow_dispatch: {}
   # Pre-releases are automatic on every develop push so beta testers always
-  # have the latest. Build metadata in the NBGV version (-gSHA suffix) keeps
+  # have the latest. The -gSHA prerelease segment in the NBGV version keeps
   # successive prereleases from colliding on the same tag.
   push:
     branches: [develop]
