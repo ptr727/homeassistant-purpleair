@@ -35,7 +35,7 @@ A Home Assistant [custom integration][ha-custom-integration-link] for
 
 **Version 0.1**:
 
-- Initial reelease.
+- Initial release.
 - Requires Home Assistant 2026.4.0 or newer.
 
 See [Release History](./HISTORY.md) for complete release notes and older
@@ -129,7 +129,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
     Read Key is sent via email during sensor registration). Refer to
     [PurpleAir community: API points for sensor owners][free-points-link].
 
-## Sensor behaviour and calibration
+## Sensor behavior and calibration
 
 These notes explain why entities report the values they do. The integration
 takes two different approaches depending on how settled the underlying math is:
@@ -283,7 +283,7 @@ logger.
 ### API points and field selection
 
 PurpleAir charges API points per **field** per sensor per call. The integration
-takes two steps to minimise that cost:
+takes two steps to minimize that cost:
 
 **1. Only fetch fields for enabled entities.** Each
 [`PurpleAirSensorEntityDescription`](custom_components/purpleair/sensor.py)
@@ -368,6 +368,7 @@ PyPI, and this section can be removed.
 
 All error codes and semantics in the fork are verified against a snapshot of the
 official docs at `.claude/API - PurpleAir.mhtml`.
+TODO: remove mhtml ref and point to online docs.
 
 ## Relationship to the upstream Home Assistant PR
 
@@ -505,7 +506,7 @@ Additional useful tasks in the same file:
   that venv.
 - **Test: aiopurpleair pytest (venv)** — run aiopurpleair tests inside that venv.
 
-### Devcontainer host prerequisites
+### Devcontainer setup
 
 The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the
 container so existing host credentials (SSH signing key, GitHub CLI auth) work
@@ -524,50 +525,95 @@ If you do not sign commits or use `gh` and don't want to set this up, delete the
 `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before
 opening, or simply don't use the devcontainer.
 
-**Setup on the host**:
+Configuration below applies to Debian or Ubuntu distros.
 
-Execute on the linux host where the devcontainer will run, direct terminal, remote SSH, or from a WSL terminal.
+#### WSL host setup
+
+Apply this configuration if you are running linux distros from WSL on Windows.
+
+Enable `Use the WSL 2 based engine` in Docker Desktop under Settings / General.\
+Enable `Enable integration with my default WSL distro` and `Enable integration with additional distros` in Docker Desktop under Settings / Resources / WSL integration.
+
+Edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
+
+```ini
+[boot]
+systemd = true
+```
+
+Restart WSL if required, run from a Windows PowerShell terminal:
 
 ```shell
-# Configure git
+wsl --shutdown
+```
+
+#### Linux host setup
+
+Apply this configuration from the linux docker host that will run the devcontainer.
+
+```shell
+# Configure git identity
 git config --global user.name "[Your Name]"
 git config --global user.email "[Your Email]"
+
+# Create ~/.ssh/config file
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+touch ~/.ssh/config && chmod 600 ~/.ssh/config
 
 # Generate a SSH signing key pair
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
 
-# Create the allowed_signers file (uses git email)
+# Create allowed_signers file
 SIGNER_LINE="$(git config --get user.email) namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)"
 mkdir -p ~/.config/git
 touch ~/.config/git/allowed_signers
 grep -qxF "$SIGNER_LINE" ~/.config/git/allowed_signers || echo "$SIGNER_LINE" >> ~/.config/git/allowed_signers
 
-# Use SSH for git signing — keep ~ literal in config so it works across host and containers
+# Use SSH for git signing
 git config --global gpg.format ssh
 git config --global user.signingkey '~/.ssh/id_ed25519.pub'
 git config --global gpg.ssh.allowedSignersFile '~/.config/git/allowed_signers'
 git config --global commit.gpgsign true
 
-# Login to GitHub using web browser
+# Login to GitHub
 gh auth login
 
 # Register SSH key with GitHub
 gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) auth"
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) signing" --type signing
+
+# Enable the user-level ssh-agent service
+systemctl --user enable --now ssh-agent.socket
 ```
 
-Edit `~/.bashrc` to persist SSH agent forwarding:
+Edit `~/.ssh/config` to add SSH keys to the agent:
+
+```ini
+Host *
+    AddKeysToAgent yes
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Edit `~/.bashrc` as fallback:
 
 ```shell
-# Make ssh-agent persistent
-if [ -z "$SSH_AUTH_SOCK" ] || ! ssh-add -l >/dev/null 2>&1; then
-  eval "$(ssh-agent -s)" >/dev/null
-  ssh-add ~/.ssh/id_ed25519 >/dev/null 2>&1
+# Reuse a shared ssh-agent if systemd's isn't available in this shell
+SSH_AGENT_ENV="$HOME/.ssh/agent.env"
+if [ -z "$SSH_AUTH_SOCK" ]; then
+    if [ -r "$SSH_AGENT_ENV" ]; then
+        . "$SSH_AGENT_ENV" >/dev/null
+    fi
+    if ! ssh-add -l >/dev/null 2>&1; then
+        ssh-agent -s > "$SSH_AGENT_ENV"
+        chmod 600 "$SSH_AGENT_ENV"
+        . "$SSH_AGENT_ENV" >/dev/null
+        ssh-add ~/.ssh/id_ed25519 >/dev/null 2>&1
+    fi
 fi
 ```
 
-Test configuration on the host:
+Open a new terminal and verify configuration:
 
 ```shell
 # Test paths
@@ -582,16 +628,39 @@ git config --list --show-origin
 gh ssh-key list
 ssh -T git@github.com
 
-# Verify SSH agent
-echo "$SSH_AUTH_SOCK"
-ls -l "$SSH_AUTH_SOCK"
+# SSH socket and keys should be available via ssh-agent
+systemctl --user status ssh-agent.socket
+echo $SSH_AUTH_SOCK
 ssh-add -l
+
+# Should show one ssh-agent process per user
+ps aux | grep ssh-agent | grep -v grep
 ```
 
-Connect to the host from VS Code, direct, over SSH, or over WSL, and clone the repo to the local filesystem.\
-Open the directory, and then open the workspace in a devcontainer, do not clone into a volume as `${localEnv:HOME}` will not resolve and the container will fail to open.
+#### Open in devcontainer
 
-Open a terminal in VS Code from the devcontainer, and test the configuration following the same steps as above for the host.
+Connect to the host from VS Code, direct, over SSH, or over WSL, and clone the repo to the local filesystem.\
+Open the directory, and then open the workspace in a devcontainer, **do not clone into a volume** as `${localEnv:HOME}` will not resolve and the container will fail to open.
+
+Open a terminal in VS Code from the devcontainer, and test the configuration:
+
+```shell
+# Test paths
+ls -la ~/.ssh
+ls -la ~/.config/git
+ls -la ~/.config/gh
+
+# Show git config
+git config --list --show-origin
+
+# Test github SSH login
+gh ssh-key list
+ssh -T git@github.com
+
+# SSH socket and keys should be available via ssh-agent
+echo $SSH_AUTH_SOCK
+ssh-add -l
+```
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
 [aiopurpleair-fork-link]: https://github.com/ptr727/bachya-aiopurpleair/tree/feat/organization-endpoint-and-error-codes

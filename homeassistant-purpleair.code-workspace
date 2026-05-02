@@ -43,6 +43,26 @@
             {
                 "file": ".github/copilot-instructions.md"
             }
+        ],
+        "cSpell.words": [
+            "aiopurpleair",
+            "aresponses",
+            "bachya",
+            "distros",
+            "gpgsign",
+            "HACS",
+            "Hassfest",
+            "joostlek",
+            "mypy",
+            "NAAQS",
+            "Plantower",
+            "purpleair",
+            "Pydantic",
+            "pyproject",
+            "pytest",
+            "RSSI",
+            "signingkey",
+            "venv"
         ]
     },
     "extensions": {
