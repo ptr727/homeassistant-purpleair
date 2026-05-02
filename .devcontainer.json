@@ -1,15 +1,9 @@
 {
     "name": "ptr727/homeassistant-purpleair",
     "image": "mcr.microsoft.com/devcontainers/base:debian",
-    "runArgs": [
-        "--security-opt",
-        "seccomp=unconfined",
-        "--security-opt",
-        "apparmor=unconfined"
-    ],
     "mounts": [
         "source=${localEnv:HOME}/.ssh/id_ed25519.pub,target=/home/vscode/.ssh/id_ed25519.pub,type=bind,readonly",
-        "source=${localEnv:HOME}/.config/git,target=/home/vscode/.config/git,type=bind,readonly",
+        "source=${localEnv:HOME}/.config/git/allowed_signers,target=/home/vscode/.config/git/allowed_signers,type=bind,readonly",
         "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind"
     ],
     "postCreateCommand": "scripts/setup",
@@ -22,6 +16,7 @@
             "onAutoForward": "notify"
         }
     },
+    "updateRemoteUserUID": true,
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/devcontainers/features/python:1": {
@@ -33,6 +28,27 @@
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers/features/node:2": {
             "version": "lts"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "anthropic.claude-code",
+                "arahata.linter-actionlint",
+                "charliermarsh.ruff",
+                "davidanson.vscode-markdownlint",
+                "github.vscode-pull-request-github",
+                "ms-azuretools.vscode-docker",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-vscode-remote.remote-containers",
+                "openai.chatgpt",
+                "redhat.vscode-xml",
+                "redhat.vscode-yaml",
+                "ryanluker.vscode-coverage-gutters",
+                "streetsidesoftware.code-spell-checker",
+                "timonwong.shellcheck"
+            ]
         }
     }
 }
