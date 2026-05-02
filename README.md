@@ -221,7 +221,7 @@ The integration tracks remaining points and consumption rate via the [Account-le
 - **Buy more points** at the [PurpleAir Developer dashboard][purpleair-projects-link].
 - **Use a per-sensor Read Key** for sensors you own. Queries to your own sensors with their Read Key cost zero points. For new sensors, enter the Read Key when adding (see [3. Add Sensors](#3-add-sensors)). For sensors migrated from the built-in integration that don't yet have a Read Key, see [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key).
 
-A separate **PurpleAir API is rejecting requests** repair issue fires (severity error) if the account runs out of points entirely; it clears automatically on the next successful refresh after points are restored.
+A separate **PurpleAir API points are exhausted** repair issue fires (severity error) if the account runs out of points entirely; it clears automatically on the next successful refresh after points are restored.
 
 ## Upstream PRs
 
