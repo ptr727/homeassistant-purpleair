@@ -94,7 +94,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
   - The Read Key is **required for private sensors** that are not shown on the public sensor map.
   - The Read Key is **required for no cost API usage** of your own sensors (the Read Key is sent via email during sensor registration). Refer to [PurpleAir community: API points for sensor owners][free-points-link].
 
-### Account-level Diagnostics
+### Account-Level Diagnostics
 
 In addition to the per-sensor subentries, the integration registers a single **PurpleAir organization** device that surfaces account-level information shared across all sensors under the same API key — currently the **Remaining points** and **Consumption rate** diagnostic sensors (both disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
 
@@ -216,7 +216,7 @@ The savings here come from the static-cache split alone. A second saving comes f
 
 Free points are available for sensor owners who use their own sensor's Read Key; see [API points for sensor owners][free-points-link].
 
-The integration tracks remaining points and consumption rate via the [Account-level Diagnostics](#account-level-diagnostics) and raises a **PurpleAir API points are running low** repair issue when fewer than seven days of points remain at the current consumption rate. New small accounts can hit the threshold soon after install while the consumption rate stabilizes; that's expected. Two ways to clear the warning:
+The integration tracks remaining points and consumption rate via the [Account-Level Diagnostics](#account-level-diagnostics) and raises a **PurpleAir API points are running low** repair issue when fewer than seven days of points remain at the current consumption rate. New small accounts can hit the threshold soon after install while the consumption rate stabilizes; that's expected. Two ways to clear the warning:
 
 - **Buy more points** at the [PurpleAir Developer dashboard][purpleair-projects-link].
 - **Use a per-sensor Read Key** for sensors you own. Queries to your own sensors with their Read Key cost zero points. For new sensors, enter the Read Key when adding (see [3. Add Sensors](#3-add-sensors)). For sensors migrated from the built-in integration that don't yet have a Read Key, see [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key).
