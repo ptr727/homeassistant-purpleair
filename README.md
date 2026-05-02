@@ -385,7 +385,7 @@ wsl --shutdown
 
 #### Host Setup
 
-Run on the host that will run the devcontainer. macOS users: read the macOS deltas section below first — one of the `gh` flags differs.
+Run on the host that will run the devcontainer.
 
 ```shell
 # Configure git identity
@@ -411,7 +411,7 @@ git config --global user.signingkey '~/.ssh/id_ed25519.pub'
 git config --global gpg.ssh.allowedSignersFile '~/.config/git/allowed_signers'
 git config --global commit.gpgsign true
 
-# Login to GitHub — see "macOS deltas" below for the --insecure-storage variant
+# Login to GitHub
 gh auth login
 
 # Register SSH key with GitHub
@@ -511,7 +511,7 @@ ps aux | grep ssh-agent | grep -v grep
 systemctl --user status ssh-agent.socket
 ```
 
-On macOS, the token lives in Keychain, so `~/.config/gh/hosts.yml` has no `oauth_token` line on the host — that's expected. Verify it's present *inside* the devcontainer after running `gh auth login` there.
+On macOS, the host's `gh` uses Keychain, so `~/.config/gh/hosts.yml` on the host won't show an `oauth_token` line until you've run `gh auth login` once *inside* the devcontainer (per the macOS deltas above). After that, the bind-mount carries the token back and `grep oauth_token ~/.config/gh/hosts.yml` returns a hit on the host too.
 
 #### Open in Devcontainer
 
