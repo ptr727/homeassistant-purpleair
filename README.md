@@ -24,7 +24,7 @@ A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir
 
 ### Release Notes
 
-Per-version release notes live on the [GitHub Releases page][releases-link] (auto-generated from squashed PR titles by [Nerdbank.GitVersioning][nbgv-link] + the publish-release workflow). Minimum supported Home Assistant: **2026.4.0**. See [Release History](./HISTORY.md) for a curated highlights summary.
+Per-version release notes live on the [GitHub Releases page][releases-link]; the version itself is computed by [Nerdbank.GitVersioning][nbgv-link] from `version.json` plus git history, and the release notes are auto-generated from squashed PR titles by GitHub at publish time. Minimum supported Home Assistant: **2026.4.0**. See [Release History](./HISTORY.md) for a curated highlights summary.
 
 ## Features beyond Home Assistant's built-in PurpleAir integration
 
