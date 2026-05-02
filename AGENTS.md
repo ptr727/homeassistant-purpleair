@@ -1,15 +1,10 @@
 # Agent guide
 
-Notes for AI coding agents working in this repo. Keep responses concise; prefer
-editing existing files over creating new ones; never narrate internal
-deliberation.
+Notes for AI coding agents working in this repo. Keep responses concise; prefer editing existing files over creating new ones; never narrate internal deliberation.
 
 ## What this is
 
-A HACS-installable Home Assistant **custom integration** for PurpleAir
-air-quality sensors. Code lives in
-[custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only,
-`mypy --strict`, ruff, [platinum quality scale][qs].
+A HACS-installable Home Assistant **custom integration** for PurpleAir air-quality sensors. Code lives in [custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only, `mypy --strict`, ruff, [platinum quality scale][qs].
 
 ## Branches and merging
 
@@ -33,19 +28,9 @@ The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Ner
 
 ## HA test matrix — DO NOT touch manually
 
-- [.github/ha-test-versions.json](.github/ha-test-versions.json) drives the
-  pytest matrix in
-  [test-release-task.yml](.github/workflows/test-release-task.yml). Two pinned
-  versions: `minimum` (hand-maintained) and `latest` (bot-maintained by
-  [check-ha-version.yml](.github/workflows/check-ha-version.yml), which derives
-  both `ha` and `pytest-hacc` from PyPI's latest
-  `pytest-homeassistant-custom-component` release).
-- Bumping the **minimum** is intentional and rare — do it in a `feat!:` PR
-  that also updates `hacs.json` `homeassistant`, the `requirements.txt` pin,
-  and any code that needs the new HA API.
-- **Don't** add `homeassistant` to Dependabot updates (it's explicitly
-  ignored in [dependabot.yml](.github/dependabot.yml)) —
-  `check-ha-version.yml` owns it.
+- [.github/ha-test-versions.json](.github/ha-test-versions.json) drives the pytest matrix in [test-release-task.yml](.github/workflows/test-release-task.yml). Two pinned versions: `minimum` (hand-maintained) and `latest` (bot-maintained by [check-ha-version.yml](.github/workflows/check-ha-version.yml), which derives both `ha` and `pytest-hacc` from PyPI's latest `pytest-homeassistant-custom-component` release).
+- Bumping the **minimum** is intentional and rare — do it in a regular PR that also updates `hacs.json` `homeassistant`, the `requirements.txt` pin, and any code that needs the new HA API. Consider raising the base `major.minor` in [version.json](version.json) at the same time, since it's a breaking change for users on older HA versions.
+- **Don't** add `homeassistant` to Dependabot updates (it's explicitly ignored in [dependabot.yml](.github/dependabot.yml)) — `check-ha-version.yml` owns it.
 
 ## Release flow
 
@@ -58,42 +43,22 @@ Bot-merged PRs (Dependabot, HA-version-bump) trigger the develop prerelease auto
 
 ## Code style
 
-- Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint`
-  to verify (matches CI: ruff format --check + ruff check + mypy --strict).
+- Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
-- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle
-  invariant, workaround. Don't explain *what* the code does. No multi-paragraph
-  docstrings; one-line comment max.
-- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_`
-  for unused vars** — just delete.
-- **Don't add error handling for impossible cases** — trust internal code;
-  only validate at boundaries.
+- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
+- **Don't add backwards-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
+- **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 
 ### Linter cleanliness — fix what you see in the IDE
 
-**Before committing, the VS Code Problems pane should be quiet for the
-files you touched.** That means:
+**Before committing, the VS Code Problems pane should be quiet for the files you touched.** That means:
 
-- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, hassfest
-  TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
-- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]`
-  in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via
-  [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the
-  `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`,
-  `yamllint`.
+- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, hassfest TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
+- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`, `yamllint`.
 
-**For Python linters**, false positives are common — HA's `dataclass(kw_only=True)`
-confuses pylint's argument resolution, pytest fixtures look like unused
-arguments, etc. Prefer to **disable recurring false positives project-wide in
-the linter's config file** (with a comment explaining why), rather than
-scattering inline suppressions. Avoid unjustified `# noqa` or
-`# pylint: disable=...` annotations; if an inline suppression is truly needed,
-keep it narrow and explain why.
+**For Python linters**, false positives are common — HA's `dataclass(kw_only=True)` confuses pylint's argument resolution, pytest fixtures look like unused arguments, etc. Prefer to **disable recurring false positives project-wide in the linter's config file** (with a comment explaining why), rather than scattering inline suppressions. Avoid unjustified `# noqa` or `# pylint: disable=...` annotations; if an inline suppression is truly needed, keep it narrow and explain why.
 
-**For markdown**, what counts as a real warning is whatever the davidanson
-extension shows in the IDE — not what some external CLI tool reports. The repo
-config disables MD013 (line-length) because long prose lines are intentional
-here. Other rules stay on; fix the source when one fires.
+**For markdown**, what counts as a real warning is whatever the davidanson extension shows in the IDE — not what some external CLI tool reports. The repo config disables MD013 (line-length) because long prose lines are intentional here. Other rules stay on; fix the source when one fires.
 
 Verifying locally:
 
@@ -109,16 +74,11 @@ yamllint .github/workflows/                               # silent expected
 
 ## Workflow YAML conventions
 
-- Pin actions to a SHA with a trailing `# vX.Y.Z` comment, e.g.
-  `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`.
-  Dependabot bumps these.
+- Pin actions to a SHA with a trailing `# vX.Y.Z` comment, e.g. `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`. Dependabot bumps these.
 - Step names end in `step`, job names end in `job`.
-- Top-level workflows have a `concurrency:` block keyed on
-  `${{ github.workflow }}-${{ github.ref }}`.
+- Top-level workflows have a `concurrency:` block keyed on `${{ github.workflow }}-${{ github.ref }}`.
 - Shell scripts start with `set -euo pipefail`.
-- After editing any workflow, validate with `actionlint .github/workflows/*.yml`
-  (preinstalled in the devcontainer; see "Linters available in the devcontainer"
-  below).
+- After editing any workflow, validate with `actionlint .github/workflows/*.yml` (preinstalled in the devcontainer; see "Linters available in the devcontainer" below).
 
 ## Bot identity and secrets
 
@@ -138,17 +98,11 @@ yamllint .github/workflows/                               # silent expected
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key,
-`~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the
-container are SSH-signed and `gh` is pre-authenticated. See
-[README.md](README.md#devcontainer-host-prerequisites).
+[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key, `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed and `gh` is pre-authenticated. See [README.md](README.md#devcontainer-host-prerequisites).
 
 ## Linters available in the devcontainer
 
-The devcontainer ships these CLIs out of the box. Use them locally before
-pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but
-actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local
-runs are the only gate.
+The devcontainer ships these CLIs out of the box. Use them locally before pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local runs are the only gate.
 
 | Tool                | What it lints                                                                          | Quick command                             |
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -162,34 +116,18 @@ runs are the only gate.
 
 Installation:
 
-- `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` —
-  `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
-- Node.js LTS — `node:2` feature in [.devcontainer.json](.devcontainer.json),
-  needed for `markdownlint-cli2`.
-- `markdownlint-cli2` — pinned `npm install -g` step in
-  [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are
-  installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
-- `actionlint` — SHA256-pinned tarball download in
-  [scripts/setup](scripts/setup).
-- `pylint` is configured via `[tool.pylint."MESSAGES CONTROL"]` in
-  [pyproject.toml](pyproject.toml); the disable list is annotated with
-  why each rule is silenced.
-- The matching VS Code extensions (`arahata.linter-actionlint`,
-  `timonwong.shellcheck`, `davidanson.vscode-markdownlint`,
-  `ms-python.python`) are recommended in [the workspace file][workspace-link],
-  so opening a file gets inline diagnostics.
+- `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` — `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
+- Node.js LTS — `node:2` feature in [.devcontainer.json](.devcontainer.json), needed for `markdownlint-cli2`.
+- `markdownlint-cli2` — pinned `npm install -g` step in [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
+- `actionlint` — SHA256-pinned tarball download in [scripts/setup](scripts/setup).
+- `pylint` is configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml); the disable list is annotated with why each rule is silenced.
+- The matching VS Code extensions (`arahata.linter-actionlint`, `timonwong.shellcheck`, `davidanson.vscode-markdownlint`, `ms-python.python`) are recommended in [the workspace file][workspace-link], so opening a file gets inline diagnostics.
 
 ## Tooling pointers
 
-- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`,
-  `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh`
-  bind mount (see [README.md](README.md#devcontainer-host-prerequisites)).
-- **HA core API reference**: when adding/modifying entity behaviour, check
-  upstream conventions in `home-assistant/core` (e.g., entity registry semantics
-  changed in 2026.4 — that's why `minimum` is pinned there).
-- **Upstream PR for shared work**:
-  [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of
-  this integration; mirror functional changes there when relevant.
+- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount (see [README.md](README.md#devcontainer-host-prerequisites)).
+- **HA core API reference**: when adding/modifying entity behaviour, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
+- **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
 
 [workspace-link]: homeassistant-purpleair.code-workspace
 [qs]: https://developers.home-assistant.io/docs/core/integration-quality-scale

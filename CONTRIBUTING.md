@@ -1,7 +1,6 @@
 # Contribution guidelines
 
-Contributions are welcome — bug reports, fixes, feature proposals, and
-documentation improvements.
+Contributions are welcome — bug reports, fixes, feature proposals, and documentation improvements.
 
 ## Workflow
 
@@ -33,8 +32,7 @@ The `minimum` entry in [.github/ha-test-versions.json](.github/ha-test-versions.
 
 ## Reporting bugs
 
-File issues on the [issue tracker](../../issues/new/choose). Good reports
-include:
+File issues on the [issue tracker](../../issues/new/choose). Good reports include:
 
 - A quick summary and environment details (HA version, integration version).
 - Steps to reproduce.
@@ -43,13 +41,8 @@ include:
 
 ## Coding style
 
-Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) —
-configured in [.ruff.toml](.ruff.toml), and type-checked with `mypy --strict`.
-Use `scripts/fix` to auto-fix and `scripts/lint` to verify (CI only runs the
-latter).
+Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) — configured in [.ruff.toml](.ruff.toml), and type-checked with `mypy --strict`. Use `scripts/fix` to auto-fix and `scripts/lint` to verify (CI only runs the latter).
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 — see
-[LICENSE](LICENSE) and [NOTICE](NOTICE). By contributing, you agree that your
-contributions will be licensed under the same terms.
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). By contributing, you agree that your contributions will be licensed under the same terms.
