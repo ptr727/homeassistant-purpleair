@@ -36,10 +36,10 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-Copilot auto-review on push is configured, but it sometimes misses pushes. The reliable manual trigger is:
+Copilot auto-review on push is configured, but it sometimes misses pushes. **Always post the trigger comment immediately after every `git push`** — do not wait to see if auto-trigger fires:
 
 ```sh
-gh pr comment <N> --body "@Copilot review"
+git push && gh pr comment <N> --body "@Copilot review"
 ```
 
 Copilot may reply as either an issue comment (`repos/.../issues/<N>/comments`) or a formal review (`repos/.../pulls/<N>/reviews`). Check both.
@@ -87,11 +87,11 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-If a review did not run on the current head, retry with bounded attempts:
+If a review did not run on the current head after the initial push-time trigger, retry:
 
-1. Trigger with `@Copilot review`.
-1. Wait briefly and re-check head-SHA coverage.
-1. Retry up to three attempts.
+1. Wait briefly and check head-SHA coverage (see above).
+1. Post `@Copilot review` again.
+1. Retry up to two more times (three total including the push-time trigger).
 1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
 
 ### Reply and thread resolution workflow
