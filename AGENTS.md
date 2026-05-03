@@ -62,7 +62,16 @@ This was a recurring pain point under the previous squash-only setup: each devel
 
 ## PR review etiquette
 
-Branch protection's `copilot_code_review` rule reviews on push, but `mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
+The repo is configured to auto-trigger a Copilot review on every push, but the auto-trigger occasionally misses pushes (no review comes back even though the branch is updated). After every push to a PR, explicitly request a Copilot review so we never sit waiting on a review that won't fire:
+
+```sh
+gh api -X POST repos/<owner>/<repo>/pulls/<N>/requested_reviewers \
+  -f 'reviewers[]=Copilot'
+```
+
+Note the capitalised `Copilot` — that's the literal string GitHub routes to the bot. The lowercase `copilot-pull-request-reviewer` slug is rejected with HTTP 422 ("not a collaborator").
+
+`mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
 
 ```sh
 PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
@@ -81,6 +90,66 @@ gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
 ```
 
 Zero comments at or after the latest review's timestamp is the explicit sign-off. Any earlier check is a race against an in-progress review and can ship bugs that landed in the last review pass (it has).
+
+### Triaging Copilot review comments
+
+For each comment, classify before responding:
+
+- **Bug** — wrong behaviour, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when you're done.
+- **Style/convention** — the comment cites AGENTS.md or a repo convention. Two cases:
+  - The cited rule matches what the existing codebase already does → fix the offending code.
+  - The cited rule contradicts what's already in the tree, or industry norm → **update AGENTS.md instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. As a heuristic, three rounds on the same style category means the rule needs adjusting and the user needs to authorise it.
+- **Architectural opinion** — the comment proposes a different design ("constrain this to disabled-by-default", "move this elsewhere", "add a runtime guardrail"). This is judgement, not a bug. Surface it to the user with a recommendation; don't apply unilaterally.
+
+### Responding and resolving threads
+
+Reply inline and resolve in one shot via the GraphQL API; the REST endpoints don't expose thread resolution. List unresolved threads first:
+
+```sh
+gh api graphql -f query='
+{
+  repository(owner: "<owner>", name: "<repo>") {
+    pullRequest(number: <N>) {
+      reviewThreads(last: 20) {
+        nodes {
+          id isResolved path
+          comments(first: 1) { nodes { author { login } body } }
+        }
+      }
+    }
+  }
+}'
+```
+
+Reply on a thread, then resolve it:
+
+```sh
+gh api graphql -f query='
+mutation($threadId: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $threadId, body: $body }) {
+    comment { id }
+  }
+}' -F threadId="PRRT_..." -F body="Fixed in <SHA>: <one-line summary>."
+
+gh api graphql -f query='
+mutation($threadId: ID!) {
+  resolveReviewThread(input: { threadId: $threadId }) { thread { id isResolved } }
+}' -F threadId="PRRT_..."
+```
+
+Reply body conventions: cite the fixing commit SHA for bug fixes; cite the AGENTS.md rule (with line) and the existing-code precedent for style declines; for declined architectural opinions, give the *why* in one sentence (e.g. "docstring is the right home for this contract").
+
+After the final agent push on a PR, sweep-resolve any older threads from earlier rounds whose code paths no longer exist; otherwise the review tab keeps showing stale red dots that the reviewer has to manually clear.
+
+### Escalating to the user
+
+Bring the user in when:
+
+- **Genuine design trade-off** surfaces (fail-open vs fail-closed, narrow vs broad refactor scope, "should we add a guardrail or trust the docstring"). Triage, recommend, ask.
+- **Repeated friction** across rounds without convergence — that's the AGENTS.md-needs-updating signal. Stop, summarise the pattern, and let the user authorise the rule change.
+- **Architectural redesign** is requested rather than a strict bug fix. Surface with a recommendation; never apply unilaterally.
+
+Anti-pattern: don't keep flipping the code on the same style point. Flip the rule once and stick to the rule.
 
 ## Code style
 
