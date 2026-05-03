@@ -574,9 +574,13 @@ ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
 # "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B") and returns
 # True if the entity should be created. Fail-open on None: if hardware is
 # unexpectedly missing we create the entity rather than silently dropping
-# it — STATIC_DEVICE_FIELDS guarantees `hardware` post-first-refresh, so
-# this branch only fires on the rare case where the sensor is absent from
-# the API response entirely.
+# it. Two paths reach the None branch — (a) the sensor isn't in the API
+# response at all (e.g. mid-removal), and (b) the response carries the
+# sensor but with `hardware: null` (e.g. an upstream parsing edge case or
+# a future API change). Both are rare in production because
+# STATIC_DEVICE_FIELDS guarantees `hardware` post-first-refresh, but
+# entities still get created on either path so a partial response doesn't
+# silently strip them.
 #
 # Scope: this gates entity *creation* in async_setup_entry. The coordinator's
 # `_compute_requested_fields` (coordinator.py) walks the entity registry to
