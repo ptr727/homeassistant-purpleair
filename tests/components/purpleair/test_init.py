@@ -1,5 +1,6 @@
 """PurpleAir init and migration tests."""
 
+import logging
 from types import MappingProxyType
 
 from pytest_homeassistant_custom_component.common import (
@@ -800,4 +801,81 @@ async def test_async_migrate_integration_preserves_default_false_entities(
     assert (
         registry.async_get(orphan_entity.entity_id).disabled_by
         is er.RegistryEntryDisabler.INTEGRATION
+    )
+
+
+async def test_reconcile_logs_reenable_info_summary(
+    hass: HomeAssistant,
+    caplog,
+) -> None:
+    """Reconciliation emits an INFO summary and DEBUG per-entity log when re-enabling.
+
+    `last_seen` has entity_registry_enabled_default=True, so an INTEGRATION-disabled
+    entry with that key must be re-enabled and produce both an INFO summary and a
+    DEBUG per-entity message.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-last_seen",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    caplog.set_level(logging.DEBUG, logger="custom_components.purpleair")
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert any(
+        record.levelno == logging.INFO
+        and "Re-enabled 1 entity registry entries after default changes"
+        in record.message
+        for record in caplog.records
+    )
+    assert any(
+        record.levelno == logging.DEBUG
+        and "Re-enabled" in record.message
+        and "last_seen" in record.message
+        for record in caplog.records
+    )
+
+
+async def test_reconcile_logs_default_false_skip(
+    hass: HomeAssistant,
+    caplog,
+) -> None:
+    """Reconciliation emits a DEBUG log when an INTEGRATION-disabled entity stays disabled.
+
+    `rssi` has entity_registry_enabled_default=False, so the reconciliation pass
+    must leave it disabled and emit a DEBUG message explaining the skip.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-rssi",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    caplog.set_level(logging.DEBUG, logger="custom_components.purpleair")
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert any(
+        record.levelno == logging.DEBUG
+        and "Keeping" in record.message
+        and "rssi" in record.message
+        for record in caplog.records
     )
