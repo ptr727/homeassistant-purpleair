@@ -52,22 +52,37 @@ Known non-working request paths (don't rely on them):
 
 ### Verify review covered current head
 
-Before merging, confirm Copilot reviewed the current PR head SHA:
+Before merging, confirm Copilot reviewed the current PR head SHA. Copilot may respond as either a formal review (carries an exact commit SHA) or an issue comment (no SHA — use the commit's push timestamp as a proxy). Check both.
 
 ```sh
 PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
+PUSHED_AT=$(gh api repos/<owner>/<repo>/commits/"$PR_HEAD" --jq '.commit.committer.date')
+
+# 1. Formal review — exact SHA match.
 gh pr view <N> --json reviews --jq \
   '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
-  | grep -q "$PR_HEAD"
+  | grep -q "$PR_HEAD" && echo "covered via formal review"
+
+# 2. Issue comment — posted on or after the head commit was pushed.
+gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
+  "[.[] | select(.user.login==\"copilot-pull-request-reviewer\" and .created_at >= \"$PUSHED_AT\")] | length"
 ```
 
-Then inspect comments at-or-after the latest Copilot review timestamp:
+Coverage is confirmed when either (1) exits 0 or (2) returns a count ≥ 1.
+
+Then inspect all Copilot comments at-or-after the latest response timestamp:
 
 ```sh
 LATEST=$(gh pr view <N> --json reviews --jq \
-  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt')
+  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt // "1970-01-01T00:00:00Z"')
+
+# Inline review comments (thread replies on diff hunks).
 gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
   "[.[] | select(.created_at >= \"$LATEST\")]"
+
+# Issue-level comments (Copilot sometimes posts findings here instead).
+gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
+  "[.[] | select(.user.login==\"copilot-pull-request-reviewer\" and .created_at >= \"$LATEST\")]"
 ```
 
 ### Bounded retry workflow
@@ -88,7 +103,7 @@ gh api graphql -f query='
 {
   repository(owner: "<owner>", name: "<repo>") {
     pullRequest(number: <N>) {
-      reviewThreads(last: 20) {
+      reviewThreads(last: 100) {
         nodes {
           id isResolved path
           comments(first: 1) { nodes { author { login } body } }
@@ -96,7 +111,7 @@ gh api graphql -f query='
       }
     }
   }
-}'
+}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
 ```
 
 Reply on a thread, then resolve it:

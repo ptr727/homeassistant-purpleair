@@ -866,3 +866,35 @@ async def test_async_migrate_integration_logs_debug_on_skip_default_false(
         await hass.async_block_till_done()
 
     assert any("default=False" in record.message for record in caplog.records)
+
+
+async def test_async_migrate_integration_logs_debug_scan_summary(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Reconciliation always emits a DEBUG scan-summary regardless of re-enable count.
+
+    Pins the tracing contract: the total-scanned / total-re-enabled counts
+    must be logged on every run so operators can confirm the pass executed.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-last_seen",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
+
+    assert any(
+        "Default reconciliation scanned" in record.message for record in caplog.records
+    )
