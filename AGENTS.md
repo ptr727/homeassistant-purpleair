@@ -62,14 +62,9 @@ This was a recurring pain point under the previous squash-only setup: each devel
 
 ## PR review etiquette
 
-The repo is configured to auto-trigger a Copilot review on every push, but the auto-trigger occasionally misses pushes (no review comes back even though the branch is updated). After every push to a PR, explicitly request a Copilot review so we never sit waiting on a review that won't fire:
+The repo is configured to auto-trigger a Copilot review on every push, but the auto-trigger occasionally misses pushes (no review comes back even though the branch is updated). There is **no reliable CLI/API mechanism** to manually queue a Copilot review — `POST /requested_reviewers` with `Copilot` returns 200 but silently no-ops (the `requested_reviewers` field stays empty), the lowercase `copilot-pull-request-reviewer` slug returns 422, and posting `@Copilot review` as a PR comment doesn't trigger the bot either. The only reliable manual trigger is the 🔄 *Re-request review* button next to Copilot in the PR's Reviewers sidebar, which calls an undocumented endpoint.
 
-```sh
-gh api -X POST repos/<owner>/<repo>/pulls/<N>/requested_reviewers \
-  -f 'reviewers[]=Copilot'
-```
-
-Note the capitalised `Copilot` — that's the literal string GitHub routes to the bot. The lowercase `copilot-pull-request-reviewer` slug is rejected with HTTP 422 ("not a collaborator").
+Workflow after a push: poll for a Copilot review on the new head SHA (see the verification block below). If no review appears within ~5 minutes, **ask the user to click the Re-request review button** rather than burning more agent time on API workarounds.
 
 `mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
 
