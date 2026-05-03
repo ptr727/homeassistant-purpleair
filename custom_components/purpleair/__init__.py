@@ -315,9 +315,18 @@ def _async_reconcile_entity_defaults(hass: HomeAssistant) -> None:
     )
 
     registry = er.async_get(hass)
+    scanned_entities = 0
+    reenabled_entities: list[str] = []
+    reenabled_by_entry: dict[str, int] = {}
     for entry in hass.config_entries.async_entries(DOMAIN):
         for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+            scanned_entities += 1
             if entity_entry.disabled_by is not er.RegistryEntryDisabler.INTEGRATION:
+                LOGGER.debug(
+                    "Skipping %s during default reconciliation (disabled_by=%s)",
+                    entity_entry.entity_id,
+                    entity_entry.disabled_by,
+                )
                 continue
             # Per-sensor unique IDs are `{sensor_index}-{key}`; org-level are
             # `{entry_id}-organization-{key}`. Splitting on the rightmost `-`
@@ -327,13 +336,44 @@ def _async_reconcile_entity_defaults(hass: HomeAssistant) -> None:
                 key
             ) or ORGANIZATION_DESCRIPTIONS_BY_KEY.get(key)
             if description is None:
+                LOGGER.debug(
+                    "Skipping %s during default reconciliation (unknown key=%s)",
+                    entity_entry.entity_id,
+                    key,
+                )
                 continue
             if description.entity_registry_enabled_default:
                 registry.async_update_entity(entity_entry.entity_id, disabled_by=None)
-                LOGGER.info(
-                    "Re-enabled %s (current default is enabled)",
-                    entity_entry.entity_id,
+                reenabled_entities.append(entity_entry.entity_id)
+                reenabled_by_entry[entry.entry_id] = (
+                    reenabled_by_entry.get(entry.entry_id, 0) + 1
                 )
+                LOGGER.debug(
+                    "Re-enabled %s during default reconciliation (entry_id=%s, key=%s)",
+                    entity_entry.entity_id,
+                    entry.entry_id,
+                    key,
+                )
+
+    if reenabled_entities:
+        per_entry_summary = ", ".join(
+            f"{entry_id}={count}"
+            for entry_id, count in sorted(reenabled_by_entry.items())
+        )
+        LOGGER.info(
+            (
+                "Re-enabled %d entity registry entries after default changes "
+                "(%d config entries: %s)"
+            ),
+            len(reenabled_entities),
+            len(reenabled_by_entry),
+            per_entry_summary,
+        )
+    LOGGER.debug(
+        "Default reconciliation scanned %d entities and re-enabled %d",
+        scanned_entities,
+        len(reenabled_entities),
+    )
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) -> bool:

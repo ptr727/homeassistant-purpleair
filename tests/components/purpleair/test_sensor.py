@@ -16,7 +16,12 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy import SnapshotAssertion
 
-from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
+from custom_components.purpleair.const import (
+    CONF_SENSOR,
+    CONF_SENSOR_INDEX,
+    CONF_SENSOR_READ_KEY,
+    DOMAIN,
+)
 from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
     CHANNEL_FLAGS_OPTIONS,
@@ -138,7 +143,7 @@ async def test_show_on_map_disabled_omits_location_attrs(
 
 @pytest.mark.parametrize(
     "config_subentry_data",
-    [{"sensor_index": TEST_SENSOR_INDEX_NO_LOCATION, "sensor_read_key": None}],
+    [{"sensor_index": TEST_SENSOR_INDEX_NO_LOCATION, CONF_SENSOR_READ_KEY: None}],
 )
 async def test_sensor_without_location_omits_attrs_even_when_show_on_map(
     hass: HomeAssistant,
@@ -179,7 +184,7 @@ async def test_voc_entity_created_for_voc_hardware(
 
 @pytest.mark.parametrize(
     "config_subentry_data",
-    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+    [{"sensor_index": TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}],
 )
 async def test_voc_entity_skipped_for_no_voc_hardware(
     hass: HomeAssistant,
@@ -211,7 +216,7 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
 
 @pytest.mark.parametrize(
     "config_subentry_data",
-    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+    [{"sensor_index": TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}],
 )
 @pytest.mark.parametrize(
     "pre_seed_disabled_by",
@@ -279,7 +284,7 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
             config_entry,
             ConfigSubentry(
                 data=MappingProxyType(
-                    {CONF_SENSOR_INDEX: sensor_index, "sensor_read_key": None}
+                    {CONF_SENSOR_INDEX: sensor_index, CONF_SENSOR_READ_KEY: None}
                 ),
                 subentry_type=CONF_SENSOR,
                 title=f"sensor {sensor_index}",
@@ -307,7 +312,7 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
 
 @pytest.mark.parametrize(
     "config_subentry_data",
-    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+    [{"sensor_index": TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}],
 )
 async def test_voc_entity_can_be_enabled_after_upgrade_on_no_voc_hardware(
     hass: HomeAssistant,
