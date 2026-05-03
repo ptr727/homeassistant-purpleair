@@ -443,10 +443,17 @@ SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
         api_fields=("pm2.5_1week",),
     ),
     PurpleAirSensorEntityDescription(
+        # Confidence, channel_state, and last_seen are enabled by default
+        # because they directly explain why the integration's availability
+        # gate marks a sensor unavailable. Their values come from the
+        # `AVAILABILITY_FIELDS` that the coordinator already requests on
+        # every refresh, so showing these entities adds zero API-point cost.
+        # channel_flags is left disabled because it's a more advanced
+        # diagnostic (A/B downgraded states) less useful for a default user.
         key="confidence",
         translation_key="confidence",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        entity_registry_enabled_default=True,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda sensor: sensor.confidence,
@@ -455,7 +462,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
         key="channel_state",
         translation_key="channel_state",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        entity_registry_enabled_default=True,
         device_class=SensorDeviceClass.ENUM,
         options=CHANNEL_STATE_OPTIONS,
         value_fn=_channel_state_value,
@@ -473,7 +480,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
         key="last_seen",
         translation_key="last_seen",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        entity_registry_enabled_default=True,
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda sensor: sensor.last_seen_utc,
     ),
@@ -542,7 +549,12 @@ ORGANIZATION_SENSOR_DESCRIPTIONS: Final[
         key="consumption_rate",
         translation_key="consumption_rate",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        # Backed by the same /v1/organization call as Remaining points, which
+        # runs every 24 h regardless of entity-enabled state (it drives the
+        # repair issues), so showing this entity costs zero extra API calls
+        # and pairs naturally with Remaining points: "X points left, spending
+        # Y/day."
+        entity_registry_enabled_default=True,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="points/d",
         value_fn=lambda response: response.consumption_rate,
