@@ -52,33 +52,35 @@ Known non-working request paths (don't rely on them):
 
 ### Verify review covered current head
 
-Before merging, confirm Copilot reviewed the current PR head SHA. Copilot may respond as either a formal review (carries an exact commit SHA) or an issue comment (no SHA — use the commit's push timestamp as a proxy). Check both.
+Before merging, confirm Copilot reviewed the current PR head SHA. Copilot may respond as either a formal review (carries an exact commit SHA) or an issue comment (no SHA — use the most recent Copilot comment for manual confirmation). Check both.
 
 ```sh
 PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
-PUSHED_AT=$(gh api repos/<owner>/<repo>/commits/"$PR_HEAD" --jq '.commit.committer.date')
 
 # 1. Formal review — exact SHA match.
 gh pr view <N> --json reviews --jq \
   '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
   | grep -q "$PR_HEAD" && echo "covered via formal review"
 
-# 2. Issue comment — posted on or after the head commit was pushed.
+# 2. Issue comment — show the most recent Copilot comment for manual confirmation.
 gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
-  "[.[] | select(.user.login==\"copilot-pull-request-reviewer\" and .created_at >= \"$PUSHED_AT\")] | length"
+  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body: .body[:200]}'
 ```
 
-Coverage is confirmed when either (1) exits 0 or (2) returns a count ≥ 1.
+Coverage is confirmed when either (1) exits 0, or (2) returns a comment whose `created_at` is after the push and whose body refers to the current changes.
 
 Then inspect all Copilot comments at-or-after the latest response timestamp:
 
 ```sh
-LATEST=$(gh pr view <N> --json reviews --jq \
+REVIEW_AT=$(gh pr view <N> --json reviews --jq \
   '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt // "1970-01-01T00:00:00Z"')
+COMMENT_AT=$(gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
+  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | .created_at // "1970-01-01T00:00:00Z"')
+LATEST=$(printf '%s\n%s\n' "$REVIEW_AT" "$COMMENT_AT" | sort | tail -1)
 
 # Inline review comments (thread replies on diff hunks).
 gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
-  "[.[] | select(.created_at >= \"$LATEST\")]"
+  "[.[] | select(.user.login==\"copilot-pull-request-reviewer\" and .created_at >= \"$LATEST\")]"
 
 # Issue-level comments (Copilot sometimes posts findings here instead).
 gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
@@ -96,7 +98,7 @@ If a review did not run on the current head after the initial push-time trigger,
 
 ### Reply and thread resolution workflow
 
-List unresolved threads:
+List unresolved threads (paginate with the `after` cursor if the PR has more than 100 threads):
 
 ```sh
 gh api graphql -f query='
