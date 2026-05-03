@@ -122,9 +122,6 @@
       "consumption_rate": {
         "name": "Consumption rate"
       },
-      "humidity_internal": {
-        "name": "Internal humidity"
-      },
       "last_seen": {
         "name": "Last seen"
       },
@@ -173,17 +170,11 @@
       "pm5_0_count_concentration": {
         "name": "PM5.0 count concentration"
       },
-      "pressure_internal": {
-        "name": "Internal pressure"
-      },
       "remaining_points": {
         "name": "Remaining points"
       },
       "rssi": {
         "name": "RSSI"
-      },
-      "temperature_internal": {
-        "name": "Internal temperature"
       },
       "uptime": {
         "name": "Uptime"
