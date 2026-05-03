@@ -562,6 +562,11 @@ ORGANIZATION_SENSOR_DESCRIPTIONS: Final[
 )
 
 
+ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
+    dict[str, PurpleAirOrganizationSensorEntityDescription]
+] = {desc.key: desc for desc in ORGANIZATION_SENSOR_DESCRIPTIONS}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: PurpleAirConfigEntry,
