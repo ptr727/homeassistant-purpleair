@@ -62,7 +62,11 @@ This was a recurring pain point under the previous squash-only setup: each devel
 
 ## PR review etiquette
 
-Branch protection's `copilot_code_review` rule reviews on push, but `mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
+The repo is configured to auto-trigger a Copilot review on every push, but the auto-trigger occasionally misses pushes. The reliable manual trigger is to post `@Copilot review` (note the capital `C`) as a PR comment via `gh pr comment <N> --body "@Copilot review"`. Copilot responds within 1–3 minutes — but the response is an **issue comment** (visible at `repos/.../issues/<N>/comments`), not always a formal review with inline `reviewThreads`. When the diff is clean, Copilot may just reply "no outstanding issues, ready to merge"; when something needs fixing, it posts a formal review with line-level comments at `repos/.../pulls/<N>/reviews`. Watch both endpoints, not just `pulls/<N>/reviews`, or you'll think Copilot is silent when it has actually responded.
+
+Mechanisms that look like they should work but don't: `POST /requested_reviewers` with `reviewers=[Copilot]` returns 200 but silently no-ops (the `requested_reviewers` field stays empty); the lowercase `copilot-pull-request-reviewer` slug returns 422 ("not a collaborator"); and the GraphQL `requestReviews` mutation rejects Copilot's bot node ID. Skip these — go straight to `@Copilot review` in a PR comment.
+
+`mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
 
 ```sh
 PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
@@ -82,11 +86,73 @@ gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
 
 Zero comments at or after the latest review's timestamp is the explicit sign-off. Any earlier check is a race against an in-progress review and can ship bugs that landed in the last review pass (it has).
 
+### Triaging Copilot review comments
+
+For each comment, classify before responding:
+
+- **Bug** — wrong behavior, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when you're done.
+- **Style/convention** — the comment cites AGENTS.md or a repo convention. Two cases:
+  - The cited rule matches what the existing codebase already does → fix the offending code.
+  - The cited rule contradicts what's already in the tree, or industry norm → **update AGENTS.md instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. As a heuristic, three rounds on the same style category means the rule needs adjusting and the user needs to authorize it.
+- **Architectural opinion** — the comment proposes a different design ("constrain this to disabled-by-default", "move this elsewhere", "add a runtime guardrail"). This is judgement, not a bug. Surface it to the user with a recommendation; don't apply unilaterally.
+
+### Responding and resolving threads
+
+Reply inline and resolve in one shot via the GraphQL API; the REST endpoints don't expose thread resolution. List unresolved threads first:
+
+```sh
+gh api graphql -f query='
+{
+  repository(owner: "<owner>", name: "<repo>") {
+    pullRequest(number: <N>) {
+      reviewThreads(last: 20) {
+        nodes {
+          id isResolved path
+          comments(first: 1) { nodes { author { login } body } }
+        }
+      }
+    }
+  }
+}'
+```
+
+Reply on a thread, then resolve it:
+
+```sh
+gh api graphql -f query='
+mutation($threadId: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $threadId, body: $body }) {
+    comment { id }
+  }
+}' -F threadId="PRRT_..." -F body="Fixed in <SHA>: <one-line summary>."
+
+gh api graphql -f query='
+mutation($threadId: ID!) {
+  resolveReviewThread(input: { threadId: $threadId }) { thread { id isResolved } }
+}' -F threadId="PRRT_..."
+```
+
+Reply body conventions: cite the fixing commit SHA for bug fixes; cite the AGENTS.md rule (with line) and the existing-code precedent for style declines; for declined architectural opinions, give the *why* in one sentence (e.g. "docstring is the right home for this contract").
+
+After the final agent push on a PR, sweep-resolve any older threads from earlier rounds whose code paths no longer exist; otherwise the review tab keeps showing stale red dots that the reviewer has to manually clear.
+
+### Escalating to the user
+
+Bring the user in when:
+
+- **Genuine design trade-off** surfaces (fail-open vs fail-closed, narrow vs broad refactor scope, "should we add a guardrail or trust the docstring"). Triage, recommend, ask.
+- **Repeated friction** across rounds without convergence — that's the AGENTS.md-needs-updating signal. Stop, summarize the pattern, and let the user authorize the rule change.
+- **Architectural redesign** is requested rather than a strict bug fix. Surface with a recommendation; never apply unilaterally.
+
+Anti-pattern: don't keep flipping the code on the same style point. Flip the rule once and stick to the rule.
+
 ## Code style
 
 - Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
+- **Always run `scripts/lint` before pushing or opening a PR** — running ruff in isolation does NOT cover `mypy --strict`, which is a CI gate. Skipping mypy locally means catching trivial type errors only after a CI round-trip (e.g. an inline `lambda` without annotations passed into a typed `dict.get(default=…)` will fail mypy strict but pass ruff). One command, no exceptions.
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
-- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
+- **Inline `#` comments**: keep tight (one line wherever it fits), and only for non-obvious *why* — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does; well-named identifiers handle that. Don't reference the current task ("added for X", "used by Y"); that belongs in PR descriptions.
+- **Docstrings (`"""..."""`)**: follow PEP 257. A short one-liner is fine for trivial functions and tests with self-documenting names. For non-trivial behavior — non-obvious test scenarios, contracts a test pins, edge cases callers must know about, design trade-offs that are load-bearing for future maintainers — write a one-line summary, blank line, then a details paragraph. Multi-paragraph docstrings are fine when the design rationale earns it (see [`PurpleAirSensorEntityDescription.hardware_gate`](custom_components/purpleair/sensor.py)). Design notes belong **in the code**: docstrings or inline comments live next to the code they describe and stay in sync with it. They do NOT belong in [HISTORY.md](HISTORY.md) — that file is end-user release notes (what changed, what to expect after upgrade), not a design log.
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
 - **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 

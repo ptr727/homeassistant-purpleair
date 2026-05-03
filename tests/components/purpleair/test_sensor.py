@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 import logging
 from math import nan
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.const import ChannelFlag, ChannelState
@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy import SnapshotAssertion
 
-from custom_components.purpleair.const import DOMAIN
+from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
 from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
     CHANNEL_FLAGS_OPTIONS,
@@ -31,6 +31,7 @@ from custom_components.purpleair.sensor import (
     _pm25_epa_correction,
 )
 from homeassistant.components.sensor import UnitOfTemperature
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
@@ -41,7 +42,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX_NO_LOCATION
+from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2, TEST_SENSOR_INDEX_NO_LOCATION
 
 
 async def test_sensor_snapshot(
@@ -104,9 +105,12 @@ async def test_sensor_device_info(
     )
     assert device is not None
     assert device.manufacturer == "PurpleAir, Inc."
-    assert device.model == "PA-II"
+    assert device.model == "PA-II-ZEN"
     assert device.name == "Test Sensor"
-    assert device.hw_version == "2.0+BME280+PMSX003-B+PMSX003-A"
+    assert (
+        device.hw_version
+        == "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B"
+    )
     assert device.sw_version == "7.02"
     assert device.configuration_url == "http://example.com"
 
@@ -147,6 +151,250 @@ async def test_sensor_without_location_omits_attrs_even_when_show_on_map(
     assert state is not None
     assert ATTR_LATITUDE not in state.attributes
     assert ATTR_LONGITUDE not in state.attributes
+
+
+async def test_voc_entity_created_for_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """BME68X hardware → VOC entity is created and value flows through.
+
+    Asserting state, not just registration, guards against a regression where
+    the entity exists in the registry but ``value_fn`` returns ``None``.
+    """
+    entry = entity_registry.async_get(
+        "sensor.test_sensor_volatile_organic_compounds_iaq"
+    )
+    assert entry is not None
+    entity_registry.async_update_entity(entry.entity_id, disabled_by=None)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    state = hass.states.get(entry.entity_id)
+    assert state is not None
+    assert state.state == "42.5"
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+)
+async def test_voc_entity_skipped_for_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """BME280 hardware → VOC entity is not created.
+
+    Look-up is by ``unique_id`` rather than ``entity_id``: VOC's
+    ``translation_key`` slugifies the entity_id, so a literal entity_id
+    assertion would silently pass on regression.
+    """
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        is None
+    )
+    # Sibling check — guards against a setup-failure regression.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-temperature"
+        )
+        is not None
+    )
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+)
+@pytest.mark.parametrize(
+    "pre_seed_disabled_by",
+    [
+        None,
+        er.RegistryEntryDisabler.INTEGRATION,
+        er.RegistryEntryDisabler.USER,
+    ],
+    ids=["enabled", "integration_disabled", "user_disabled"],
+)
+async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+    pre_seed_disabled_by,
+) -> None:
+    """Pre-seeded VOC entries on no-VOC hardware survive upgrade in any disabled_by state.
+
+    INTEGRATION-disabled is the common upgrade state since VOC ships disabled
+    by default; covering all three states (None, INTEGRATION, USER) pins the
+    contract that the gate's existing-registry bypass preserves the row's
+    ``disabled_by`` value verbatim and keeps a live entity behind enabled rows.
+    """
+    pre_seeded = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-voc",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+        original_name="Volatile organic compounds (IAQ)",
+        disabled_by=pre_seed_disabled_by,
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    after = entity_registry.async_get(pre_seeded.entity_id)
+    assert after is not None
+    # Registry entry preserved with the same disabled_by state.
+    assert after.disabled_by is pre_seed_disabled_by
+    # Live entity only present when the entry was enabled.
+    if pre_seed_disabled_by is None:
+        assert hass.states.get(pre_seeded.entity_id) is not None
+    else:
+        assert hass.states.get(pre_seeded.entity_id) is None
+
+
+async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
+    hass: HomeAssistant,
+    config_entry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Mixed-hardware entry: per-subentry VOC gate uses each sensor's own hardware.
+
+    Two subentries on one entry (123456 BME68X, 567890 BME280) — guards
+    against a regression that hoists hardware out of the per-subentry loop
+    and applies one sensor's value to the whole entry.
+    """
+    for sensor_index in (TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2):
+        hass.config_entries.async_add_subentry(
+            config_entry,
+            ConfigSubentry(
+                data=MappingProxyType(
+                    {CONF_SENSOR_INDEX: sensor_index, "sensor_read_key": None}
+                ),
+                subentry_type=CONF_SENSOR,
+                title=f"sensor {sensor_index}",
+                unique_id=str(sensor_index),
+            ),
+        )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    # BME68X sensor: VOC entity created.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX1}-voc"
+        )
+        is not None
+    )
+    # BME280 sensor: VOC entity skipped.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+)
+async def test_voc_entity_can_be_enabled_after_upgrade_on_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Re-enabling a pre-seeded INTEGRATION-disabled VOC entry surfaces a live entity.
+
+    Pins the ``existing_unique_ids`` bypass contract: even though the gate
+    would normally skip VOC creation on BME280 hardware, a pre-existing
+    registry row makes ``async_setup_entry`` create the entity object
+    anyway. Without that, re-enabling the row post-upgrade would leave it
+    orphaned with no live state.
+    """
+    pre_seeded = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-voc",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+        original_name="Volatile organic compounds (IAQ)",
+        disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    # Initially disabled → no state.
+    assert hass.states.get(pre_seeded.entity_id) is None
+    # User clears disabled_by; reload picks up the now-enabled entity.
+    entity_registry.async_update_entity(pre_seeded.entity_id, disabled_by=None)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(pre_seeded.entity_id) is not None
+
+
+async def test_voc_entity_skipped_when_hardware_unknown(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    get_sensors_response,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """``hardware=None`` → gate fails closed, VOC entity not created.
+
+    Failing closed for ``entity_registry_enabled_default=False`` gated
+    entities is preferable: a transient miss self-heals on next setup,
+    whereas failing open would permanently register an orphan entity on
+    every truly no-VOC device that the user would have to clean up.
+    """
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    no_hw_sensor = original.model_copy(update={"hardware": None})
+    no_hw_response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: no_hw_sensor,
+            }
+        }
+    )
+
+    async def _stub(*_args, **kwargs):
+        indices = kwargs.get("sensor_indices")
+        if not indices:
+            return no_hw_response
+        return no_hw_response.model_copy(
+            update={
+                "data": {
+                    idx: sensor
+                    for idx, sensor in no_hw_response.data.items()
+                    if idx in indices
+                }
+            }
+        )
+
+    api.sensors.async_get_sensors = AsyncMock(side_effect=_stub)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX1}-voc"
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize(

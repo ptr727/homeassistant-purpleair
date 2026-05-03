@@ -29,6 +29,7 @@ from homeassistant.const import (
     UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -208,6 +209,33 @@ class PurpleAirSensorEntityDescription(SensorEntityDescription):
 
     value_fn: Callable[[SensorModel], float | str | datetime | None]
     api_fields: tuple[str, ...] = field(default_factory=tuple)
+    hardware_gate: Callable[[str | None], bool] | None = None
+    """Skip entity creation when the predicate returns False against `sensor.hardware`.
+
+    Two consumers read this attribute with different semantics:
+
+    - ``async_setup_entry`` evaluates the predicate per-subentry and skips
+      entity creation on hardware that doesn't satisfy it. Falls closed on
+      ``hardware=None``: a transient miss self-heals on next setup; failing
+      open would orphan an unusable entity on truly no-hardware devices that
+      users would have to clean up manually.
+    - ``coordinator._compute_requested_fields`` only checks whether the gate
+      is set (hardware isn't known yet on first refresh) and excludes the
+      description's ``api_fields`` from the first-refresh fallback. The
+      registry walk on subsequent refreshes adds the field only if the
+      entity ends up registered AND enabled.
+
+    Today's only ``hardware_gate``-bearing entry (``voc``) is also
+    ``entity_registry_enabled_default=False``, so the gate transitively
+    suppresses its field request with no API-points cost. (Other
+    enabled-by-default descriptions in this file — ``confidence``,
+    ``channel_state``, ``last_seen``, the organization diagnostics — do
+    not set ``hardware_gate`` and are unaffected.) An
+    ``enabled_default=True`` gated entry would also need either (a)
+    explicit per-sensor predicate evaluation in the coordinator, or (b)
+    acceptance that its field is missing for the very first refresh and
+    recovered from the second refresh onward via the registry walk.
+    """
 
 
 SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
@@ -342,6 +370,7 @@ SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda sensor: sensor.voc,
         api_fields=("voc",),
+        hardware_gate=lambda hw: hw is not None and "BME68" in hw.upper(),
     ),
     # --- Phase 2 opt-in diagnostics (disabled by default) ---
     PurpleAirSensorEntityDescription(
@@ -573,13 +602,27 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up PurpleAir sensors based on a config entry."""
+    sensors_data = entry.runtime_data.sensors.data.data
+    # Bypass the gate for entities already present in the registry — preserves upgrade state.
+    registry = er.async_get(hass)
+    existing_unique_ids = {
+        entity.unique_id
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
     for subentry in entry.subentries.values():
+        sensor_index = int(subentry.data[CONF_SENSOR_INDEX])
+        hardware = (
+            sensors_data[sensor_index].hardware
+            if sensor_index in sensors_data
+            else None
+        )
         async_add_entities(
             (
-                PurpleAirSensorEntity(
-                    entry, int(subentry.data[CONF_SENSOR_INDEX]), description
-                )
+                PurpleAirSensorEntity(entry, sensor_index, description)
                 for description in SENSOR_DESCRIPTIONS
+                if description.hardware_gate is None
+                or description.hardware_gate(hardware)
+                or f"{sensor_index}-{description.key}" in existing_unique_ids
             ),
             update_before_add=False,
             config_subentry_id=subentry.subentry_id,
