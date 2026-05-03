@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 import logging
 from math import nan
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.const import ChannelFlag, ChannelState
@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy import SnapshotAssertion
 
-from custom_components.purpleair.const import DOMAIN
+from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
 from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
     CHANNEL_FLAGS_OPTIONS,
@@ -31,6 +31,7 @@ from custom_components.purpleair.sensor import (
     _pm25_epa_correction,
 )
 from homeassistant.components.sensor import UnitOfTemperature
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
@@ -251,6 +252,47 @@ async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
         assert hass.states.get(pre_seeded.entity_id) is None
 
 
+async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
+    hass: HomeAssistant,
+    config_entry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Each subentry's VOC gate uses its own sensor's hardware, not the entry's."""
+    # Two subentries on one entry: 123456 (BME68X) and 567890 (BME280).
+    # Regression guard against accidentally reusing one subentry's hardware for the whole entry.
+    for sensor_index in (TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2):
+        hass.config_entries.async_add_subentry(
+            config_entry,
+            ConfigSubentry(
+                data=MappingProxyType(
+                    {CONF_SENSOR_INDEX: sensor_index, "sensor_read_key": None}
+                ),
+                subentry_type=CONF_SENSOR,
+                title=f"sensor {sensor_index}",
+                unique_id=str(sensor_index),
+            ),
+        )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    # BME68X sensor: VOC entity created.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX1}-voc"
+        )
+        is not None
+    )
+    # BME280 sensor: VOC entity skipped.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        is None
+    )
+
+
 async def test_voc_entity_skipped_when_hardware_unknown(
     hass: HomeAssistant,
     config_entry,
@@ -261,9 +303,7 @@ async def test_voc_entity_skipped_when_hardware_unknown(
     mock_aiopurpleair,
 ) -> None:
     """`hardware=None` → gate fails closed, VOC entity not created."""
-    # Trade-off favors closed for enabled_default=False gated entities:
-    # a transient miss self-heals on next setup; failing open would
-    # permanently register an orphan on truly no-VOC devices.
+    # Fail-closed self-heals next setup; fail-open would orphan no-VOC devices forever.
     original = get_sensors_response.data[TEST_SENSOR_INDEX1]
     no_hw_sensor = original.model_copy(update={"hardware": None})
     no_hw_response = get_sensors_response.model_copy(

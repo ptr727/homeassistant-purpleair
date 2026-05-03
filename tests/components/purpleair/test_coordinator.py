@@ -94,6 +94,21 @@ async def test_coordinator_first_refresh_includes_static_fields(
         assert field in first_fields
 
 
+async def test_coordinator_first_refresh_skips_hardware_gated_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """First refresh must not request api_fields of hardware-gated descriptions."""
+    # Hardware isn't known yet on the very first call; the registry walk on
+    # the next refresh adds these fields once async_setup_entry has decided
+    # which entities to register.
+    first_fields = api.sensors.async_get_sensors.await_args_list[0].args[0]
+    assert "voc" not in first_fields
+
+
 async def test_coordinator_subsequent_refresh_skips_static_fields(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

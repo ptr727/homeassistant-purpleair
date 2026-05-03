@@ -241,10 +241,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
             registry, self.config_entry.entry_id
         )
         if not entries:
-            # First-refresh fallback — use every description enabled by default,
-            # except hardware-gated ones (we don't know hardware yet; the
-            # registry walk on the next refresh will add their fields once
-            # async_setup_entry has registered the surviving entities).
+            # First-refresh fallback skips hardware-gated descriptions (no hardware known yet); registry walk picks them up next refresh.
             for default_description in SENSOR_DESCRIPTIONS:
                 if (
                     default_description.entity_registry_enabled_default
