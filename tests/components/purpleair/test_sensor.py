@@ -191,6 +191,53 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
     assert entity_registry.async_get("sensor.test_sensor_2_temperature") is not None
 
 
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+)
+async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Pre-existing VOC registry entries on no-VOC hardware are kept on upgrade.
+
+    Simulates an install that registered a VOC entity for a BME280 sensor
+    in a prior version (before the hardware gate landed). On the first
+    setup after upgrade, async_setup_entry must still create the live
+    entity so its registry entry stays driven — orphaning it would
+    silently break the entity for users who had it enabled.
+
+    Sensor 567890 (TEST_SENSOR_INDEX2) keeps the BME280 fixture hardware,
+    so the gate would otherwise filter VOC out for a fresh registration.
+    """
+    # Pre-seed the registry as if a prior version had created the entity.
+    pre_seeded = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-voc",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+        original_name="Volatile organic compounds (IAQ)",
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    # Registry entry survives the upgrade.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        == pre_seeded.entity_id
+    )
+    # Live entity is registered behind it (state present in state machine,
+    # not just an orphan registry entry).
+    assert hass.states.get(pre_seeded.entity_id) is not None
+
+
 async def test_voc_entity_created_when_hardware_unknown(
     hass: HomeAssistant,
     config_entry,

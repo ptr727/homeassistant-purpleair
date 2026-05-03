@@ -29,6 +29,7 @@ from homeassistant.const import (
     UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -597,6 +598,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up PurpleAir sensors based on a config entry."""
     sensors_data = entry.runtime_data.sensors.data.data
+    # Hardware gates only filter on first registration. If an entity is
+    # already in the registry (e.g. from a prior version, or because the
+    # description's gate predicate changed), keep creating it so the
+    # registry entry stays live — orphaning it would silently break the
+    # entity for users who upgraded.
+    registry = er.async_get(hass)
+    existing_unique_ids = {
+        entity.unique_id
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
     for subentry in entry.subentries.values():
         sensor_index = int(subentry.data[CONF_SENSOR_INDEX])
         hardware = (
@@ -609,6 +620,7 @@ async def async_setup_entry(
                 PurpleAirSensorEntity(entry, sensor_index, description)
                 for description in SENSOR_DESCRIPTIONS
                 if HARDWARE_GATES.get(description.key, _hardware_gate_pass)(hardware)
+                or f"{sensor_index}-{description.key}" in existing_unique_ids
             ),
             update_before_add=False,
             config_subentry_id=subentry.subentry_id,
