@@ -350,7 +350,7 @@ Additional useful tasks in the same file:
 
 ### Devcontainer Setup
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (SSH signing key, GitHub CLI auth) work inside it without re-setup:
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where the token is file-backed) work inside it without re-setup. The `gh` part is conditional. `gh auth login` always writes the per-host config (username, git protocol, etc.) to `~/.config/gh/hosts.yml`, but it stores the **token** in a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and only writes the token to the file when no store is found or you passed `--insecure-storage`. So on credential-store hosts, `~/.config/gh/hosts.yml` exists but has no `oauth_token` line; the bind-mount therefore carries no token, and container `gh` is unauthenticated until you opt into one of the trade-offs documented below.
 
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
@@ -362,31 +362,33 @@ The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the c
 
 If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before opening, or simply don't use the devcontainer.
 
-Configuration below applies to Debian or Ubuntu distros.
+`.devcontainer.json` also runs an `onCreateCommand` that fixes `~/.ssh` ownership inside the container (Docker creates the bind-mount parent dir as `root:root 755`, which prevents writing `known_hosts`). `onCreateCommand` only runs at container *creation*, so contributors with an already-built container who pull a branch that introduces or changes that command must rebuild the container (VS Code typically prompts) or run the equivalent `chown`/`chmod` manually. Fresh-checkout contributors are unaffected.
 
-#### WSL Host Setup
+The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite for Docker Desktop integration; enabling systemd is recommended but not strictly required — the Linux/WSL Deltas section documents a `~/.bashrc` fallback for shells where `systemctl --user` isn't available.
 
-Apply this configuration if you are running linux distros from WSL on Windows.
+#### WSL Host Prep
+
+Apply this configuration if you are running Linux distros from WSL on Windows.
 
 Enable `Use the WSL 2 based engine` in Docker Desktop under Settings / General.\
 Enable `Enable integration with my default WSL distro` and `Enable integration with additional distros` in Docker Desktop under Settings / Resources / WSL integration.
 
-Edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
+Recommended (but not strictly required — see the Linux/WSL Deltas `~/.bashrc` fallback below if you prefer not to enable systemd): edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
 
 ```ini
 [boot]
 systemd = true
 ```
 
-Restart WSL if required, run from a Windows PowerShell terminal:
+Then restart WSL from a Windows PowerShell terminal:
 
 ```shell
 wsl --shutdown
 ```
 
-#### Linux Host Setup
+#### Host Setup
 
-Apply this configuration from the linux docker host that will run the devcontainer.
+Run on the host that will run the devcontainer.
 
 ```shell
 # Configure git identity
@@ -419,12 +421,9 @@ gh auth login
 gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) auth"
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) signing" --type signing
-
-# Enable the user-level ssh-agent service
-systemctl --user enable --now ssh-agent.socket
 ```
 
-Edit `~/.ssh/config` to add SSH keys to the agent:
+Edit `~/.ssh/config` so the agent caches the key on first use:
 
 ```ini
 Host *
@@ -432,7 +431,15 @@ Host *
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-Edit `~/.bashrc` as fallback:
+##### Linux/WSL Deltas
+
+Enable the user-level `ssh-agent` service so it's available across shells:
+
+```shell
+systemctl --user enable --now ssh-agent.socket
+```
+
+If `systemctl --user` isn't available in your shell (some minimal WSL distros), add this fallback to `~/.bashrc`:
 
 ```shell
 # Reuse a shared ssh-agent if systemd's isn't available in this shell
@@ -450,6 +457,49 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
 fi
 ```
 
+##### macOS Deltas
+
+macOS uses launchd (not systemd) for `ssh-agent` and integrates SSH with the system Keychain. The `systemctl` line and the `~/.bashrc` agent fallback do not apply, and the SSH steps differ.
+
+Use this `~/.ssh/config` instead of the common one — `UseKeychain yes` caches the passphrase in Keychain:
+
+```ini
+Host *
+    AddKeysToAgent yes
+    UseKeychain yes
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Load the key into the agent once so the passphrase persists across reboots:
+
+```shell
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+##### `gh` Credential-Store Hosts
+
+`gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops with the relevant daemon running. `--insecure-storage` is the opt-out that forces file storage. When the credential store is used, the token never lands in `~/.config/gh/hosts.yml`, and the devcontainer bind-mount therefore carries no `oauth_token`. (On Linux servers, WSL distros without a desktop session, and any host where you ran `gh auth login --insecure-storage`, the token IS in `hosts.yml` and container `gh` is pre-authenticated — skip this section.)
+
+If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
+
+- **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want the host's GitHub token to live only in the credential store.
+- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists on your host as a plaintext bearer token (mode 600). This is materially weaker than the credential-store entry: anyone or anything with read access to that file gets immediate GitHub auth, with no passphrase or unlock step. Your credential-store token is unchanged, and the host's `gh` will still prefer the credential-store one.
+
+```shell
+# Inside the devcontainer (one-time, only if you chose the second option).
+# Default scopes cover PR/issue work — `gh pr view`, `gh issue view`,
+# `gh api repos/.../pulls/N/comments`, `gh run list`, etc.
+gh auth login
+
+# Optional: only if you also want to manage SSH keys with `gh ssh-key add`
+# from the container, extend the token's scopes (note: `gh auth refresh`,
+# not `gh auth login -s`, which would re-do the whole login flow).
+# Most contributors don't need this; default scopes are fine.
+gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
+```
+
+#### Verify Host Setup
+
 Open a new terminal and verify configuration:
 
 ```shell
@@ -465,14 +515,19 @@ git config --list --show-origin
 gh ssh-key list
 ssh -T git@github.com
 
-# SSH socket and keys should be available via ssh-agent
-systemctl --user status ssh-agent.socket
+# SSH socket and key should be available via the agent
 echo $SSH_AUTH_SOCK
 ssh-add -l
 
-# Should show one ssh-agent process per user
+# Confirm an ssh-agent process is running (any platform / any setup path)
 ps aux | grep ssh-agent | grep -v grep
+
+# Linux/WSL only, and only if you used the systemd path (skip if you used
+# the ~/.bashrc fallback — that path doesn't register a systemd service):
+systemctl --user status ssh-agent.socket
 ```
+
+On credential-store hosts that haven't been authenticated inside the container yet, container `gh` will be unauthenticated — that's expected at this point. The in-container verify section below covers the post-container-auth check.
 
 #### Open in Devcontainer
 
@@ -490,13 +545,25 @@ ls -la ~/.config/gh
 # Show git config
 git config --list --show-origin
 
-# Test github SSH login
-gh ssh-key list
-ssh -T git@github.com
-
 # SSH socket and keys should be available via ssh-agent
 echo $SSH_AUTH_SOCK
 ssh-add -l
+
+# Test GitHub SSH connectivity (does not need `gh`)
+ssh -T git@github.com
+
+# Test gh — only if container `gh` is authenticated. It is when the
+# host stored the token in `~/.config/gh/hosts.yml` (Linux servers,
+# minimal WSL, or any host where you ran `gh auth login
+# --insecure-storage`); it isn't when the host's `gh` is using a
+# credential store (Keychain on macOS, libsecret/Secret Service on
+# Linux desktops — both the default when the store is available)
+# unless you ran `gh auth login` once inside the container. Skip in
+# the unauthenticated case — `gh auth status` will fail by design.
+# `gh auth status` works with default scopes; `gh ssh-key list`
+# requires the `admin:public_key` scope, only granted when you extend
+# the token via `gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key`.
+gh auth status
 ```
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
