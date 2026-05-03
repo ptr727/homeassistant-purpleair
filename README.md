@@ -361,7 +361,7 @@ The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the c
 
 If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before opening, or simply don't use the devcontainer.
 
-The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite (Docker Desktop integration + systemd) before the common steps.
+The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite for Docker Desktop integration; enabling systemd is recommended but not strictly required — the Linux/WSL Deltas section documents a `~/.bashrc` fallback for shells where `systemctl --user` isn't available.
 
 #### WSL Host Prep
 
@@ -516,7 +516,7 @@ ps aux | grep ssh-agent | grep -v grep
 systemctl --user status ssh-agent.socket
 ```
 
-On macOS, the host's `gh` uses Keychain, so `~/.config/gh/hosts.yml` on the host won't show an `oauth_token` line unless you've run `gh auth login` once *inside* the devcontainer (per the macOS Deltas above). After that, the bind-mount carries the token back. To check without printing the token, use `grep -q '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml && echo present || echo missing` — `gh` keeps a separate `oauth_token` per configured host, so `grep -c` legitimately returns more than one on multi-host setups; any positive match means the bind-mount path is working.
+On hosts whose `gh` defaults to a credential store (macOS Keychain, Linux libsecret) and where you didn't run `gh auth login --insecure-storage`, the host's `~/.config/gh/hosts.yml` won't have an `oauth_token` line until you authenticate `gh` *inside* the devcontainer (per "gh Credential-Store Hosts" above). After that, the bind-mount carries the token back. To check without printing the token, use `grep -q '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml && echo present || echo missing` — `gh` keeps a separate `oauth_token` per configured host, so multi-host setups have multiple matches; any positive match means the bind-mount path is working.
 
 #### Open in Devcontainer
 
