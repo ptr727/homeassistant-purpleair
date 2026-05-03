@@ -18,7 +18,7 @@ Curated highlights of what's shipped. The canonical per-version release ledger (
   - Sensor selection from a map — pick nearby public sensors from a radius-filtered map picker.
   - Disabled-by-default derived entities: PM2.5 EPA mass concentration (US EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI from the 24-hour average, 2024 NAAQS breakpoints).
   - Enabled-by-default diagnostic entities: Confidence, Channel state, Last seen — these surface the values the availability gate uses, so a sensor marked Unavailable can be diagnosed at a glance from its device card. They cost zero extra API points (already fetched on every refresh).
-  - Disabled-by-default diagnostic entities: Channel flags, Internal temperature/humidity/pressure, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
+  - Disabled-by-default diagnostic entities: Channel flags, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
   - Clear config-flow errors — WRITE API keys, disabled keys, and wrong per-sensor read keys each surface a targeted error on the right field.
   - Platinum-tier quality-scale compliance.
 
