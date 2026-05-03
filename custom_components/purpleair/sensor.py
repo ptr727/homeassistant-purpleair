@@ -573,15 +573,8 @@ def _hardware_gate_pass(_hardware: str | None) -> bool:
     return True
 
 
-# Per-description hardware gate: skip creating the entity at platform setup
-# when the predicate returns False. Failing closed on `hardware=None` means a
-# transient miss self-heals on next setup; failing open would permanently
-# register an orphan on truly no-hardware devices that users have to clean
-# up. Today's entries are all `entity_registry_enabled_default=False`, so
-# the gate also transitively suppresses the description's api_fields (the
-# coordinator's registry walk skips unregistered entities). For a future
-# enabled-by-default entry the coordinator's first-refresh fallback
-# (coordinator.py:243-248) would also need a parallel gate.
+# Skip creating the entity at platform setup when the predicate returns False.
+# Fails closed on `hardware=None`; coordinator caveat for future enabled-by-default entries documented in HISTORY.md.
 HARDWARE_GATES: Final[dict[str, Callable[[str | None], bool]]] = {
     "voc": lambda hw: hw is not None and "BME68" in hw.upper(),
 }
@@ -594,11 +587,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up PurpleAir sensors based on a config entry."""
     sensors_data = entry.runtime_data.sensors.data.data
-    # Hardware gates only filter on first registration. If an entity is
-    # already in the registry (e.g. from a prior version, or because the
-    # description's gate predicate changed), keep creating it so the
-    # registry entry stays live — orphaning it would silently break the
-    # entity for users who upgraded.
+    # Bypass the gate for entities already present in the registry — preserves upgrade state.
     registry = er.async_get(hass)
     existing_unique_ids = {
         entity.unique_id
