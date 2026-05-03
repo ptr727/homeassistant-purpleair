@@ -90,7 +90,7 @@ For each comment, classify before responding:
 
 ### Responding and resolution expectations
 
-Reply inline with either the fixing commit SHA (for accepted issues) or a concise rationale (for declines). Resolve threads/comments only when addressed or intentionally declined with rationale.
+Reply inline with either the fixing commit SHA (for accepted issues) or a concise rationale (for declines). Resolve review threads only when addressed or intentionally declined with rationale. Issue-level comments have no resolution action — acknowledge with a reply if needed and move on.
 
 After the final push on a PR, sweep old threads from earlier rounds whose code paths no longer exist; otherwise stale unresolved markers remain in the review UI.
 

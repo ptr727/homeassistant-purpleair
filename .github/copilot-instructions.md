@@ -63,24 +63,13 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
   '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body: .body[:200]}'
 ```
 
-Coverage is confirmed when (1) exits 0. For issue comments (path 2), `created_at` is a best-effort signal only: `git log -1 --format=%cI` is the **commit** timestamp, not the push timestamp, so amended or rebased commits can have a timestamp earlier than the actual push — an older Copilot comment could satisfy the time check even though Copilot never saw the current head. Treat path (2) as confirmed only when the comment body explicitly refers to the current changes.
+Coverage is confirmed when (1) exits 0. For issue comments (path 2), body content is the only reliable signal — `created_at` is not: `git log -1 --format=%cI` is the **commit** timestamp, not the push timestamp, so amended or rebased commits can have an earlier timestamp and an older Copilot comment could satisfy a time check even though Copilot never saw the current head. Treat path (2) as confirmed only when the comment body explicitly refers to the current changes.
 
-Then inspect all Copilot comments at-or-after the latest response timestamp:
+To enumerate findings, use the GraphQL unresolved-threads query in the "Reply and thread resolution workflow" section. For issue-level comments (Copilot sometimes posts summaries there), inspect manually:
 
 ```sh
-REVIEW_AT=$(gh pr view <N> --json reviews --jq \
-  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt // "1970-01-01T00:00:00Z"')
-COMMENT_AT=$(gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
-  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | .created_at // "1970-01-01T00:00:00Z"')
-LATEST=$(printf '%s\n%s\n' "$REVIEW_AT" "$COMMENT_AT" | sort | tail -1)
-
-# Inline review comments (thread replies on diff hunks).
-gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
-  "[.[] | select(.user.login==\"copilot-pull-request-reviewer\" and .created_at >= \"$LATEST\")]"
-
-# Issue-level comments (Copilot sometimes posts findings here instead).
 gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
-  "[.[] | select(.user.login==\"copilot-pull-request-reviewer\" and .created_at >= \"$LATEST\")]"
+  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body}'
 ```
 
 ### Bounded retry workflow
@@ -132,6 +121,8 @@ mutation($threadId: ID!) {
   resolveReviewThread(input: { threadId: $threadId }) { thread { id isResolved } }
 }' -F threadId="PRRT_..."
 ```
+
+Issue-level Copilot comments (those in `issues/<N>/comments`) have no resolution action — GitHub provides no API or UI to resolve them. Reply if the finding warrants it; no resolution step is needed or possible.
 
 Reply-body conventions:
 
