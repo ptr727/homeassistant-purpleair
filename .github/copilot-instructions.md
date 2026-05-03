@@ -30,6 +30,108 @@ Bump aiopurpleair from 2025.08.1 to 2025.09.0
 Clarify HACS install steps in README
 ```
 
+## GitHub Copilot Review Runbook
+
+Use this section for provider-specific mechanics. The expected review loop contract is defined in [AGENTS.md](../AGENTS.md); this section only describes how to make GitHub Copilot reliably execute it.
+
+### Triggering and polling
+
+Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. Request review through the GitHub PR UI (request `Copilot` as a reviewer) after every push.
+
+**Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which will make code changes rather than posting a review.
+
+Known non-working request paths (don't rely on them):
+
+- `POST /requested_reviewers` with `reviewers=[Copilot]` can return 200 but no-op.
+- `copilot-pull-request-reviewer` as a requested reviewer slug returns 422.
+- GraphQL `requestReviews` rejects Copilot's bot node.
+
+### Verify review covered current head
+
+Before merging, confirm Copilot reviewed the current PR head SHA. Copilot may respond as either a formal review (carries an exact commit SHA) or an issue comment (no SHA — use the most recent Copilot comment for manual confirmation). Check both.
+
+```sh
+PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
+
+# 1. Formal review — exact SHA match.
+gh pr view <N> --json reviews --jq \
+  '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
+  | grep -q "$PR_HEAD" && echo "covered via formal review"
+
+# 2. Issue comment — show the most recent Copilot comment for manual confirmation.
+gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
+  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body: .body[:200]}'
+```
+
+Coverage is confirmed when (1) exits 0. For issue comments (path 2), body content is the only reliable signal — `created_at` is not: `git log -1 --format=%cI` is the **commit** timestamp, not the push timestamp, so amended or rebased commits can have an earlier timestamp and an older Copilot comment could satisfy a time check even though Copilot never saw the current head. Treat path (2) as confirmed only when the comment body explicitly refers to the current changes.
+
+To enumerate findings, use the GraphQL unresolved-threads query in the "Reply and thread resolution workflow" section. For issue-level comments (Copilot sometimes posts summaries there), inspect manually:
+
+```sh
+gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
+  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body}'
+```
+
+### Bounded retry workflow
+
+If a review did not run on the current head, retry:
+
+1. Wait briefly and check head-SHA coverage (see above).
+1. Request review again via the GitHub PR UI.
+1. Retry up to two more times (three total).
+1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
+
+### Reply and thread resolution workflow
+
+List unresolved threads. Use `first: 100` with cursor-based pagination; if `hasNextPage` is true, re-run with `after: "<endCursor>"` to retrieve the next page:
+
+```sh
+gh api graphql -f query='
+{
+  repository(owner: "<owner>", name: "<repo>") {
+    pullRequest(number: <N>) {
+      reviewThreads(first: 100) {
+        nodes {
+          id isResolved path
+          comments(first: 1) { nodes { author { login } body } }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' | jq '
+  .data.repository.pullRequest.reviewThreads |
+  (.pageInfo | "hasNextPage=\(.hasNextPage) endCursor=\(.endCursor)"),
+  (.nodes[] | select(.isResolved == false))
+'
+```
+
+Reply on a thread, then resolve it:
+
+```sh
+gh api graphql -f query='
+mutation($threadId: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $threadId, body: $body }) {
+    comment { id }
+  }
+}' -F threadId="PRRT_..." -F body="Fixed in <SHA>: <one-line summary>."
+
+gh api graphql -f query='
+mutation($threadId: ID!) {
+  resolveReviewThread(input: { threadId: $threadId }) { thread { id isResolved } }
+}' -F threadId="PRRT_..."
+```
+
+Issue-level Copilot comments (those in `issues/<N>/comments`) have no resolution action — GitHub provides no API or UI to resolve them. Reply if the finding warrants it; no resolution step is needed or possible.
+
+Reply-body conventions:
+
+- Accepted bug/style fix: include fixing commit SHA.
+- Declined style comment: cite the AGENTS rule and existing-tree precedent.
+- Declined architecture proposal: one-sentence rationale.
+
+After final push, sweep-resolve stale older threads for removed code paths.
+
 ## When in doubt
 
 Read [AGENTS.md](../AGENTS.md) for the full picture (release flow, files you must not touch, code style, workflow YAML conventions). Don't restate this file's rules in commit bodies or PR descriptions — keep those focused on the change itself.
