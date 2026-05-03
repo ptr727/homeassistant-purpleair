@@ -567,6 +567,27 @@ async def test_organization_low_points_creates_repair_issue(
     }
 
 
+async def test_organization_low_points_negative_remaining_clamps_days_left(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """days_left must never be negative when the account balance goes below zero."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=-100, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders["days_left"] == "0"
+
+
 async def test_organization_recovery_clears_repair_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -657,10 +678,15 @@ async def test_sensors_payment_required_creates_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
+    # freezer must precede setup_config_entry: the org coordinator has a
+    # default-enabled listener (remaining_points) and schedules a 24 h refresh
+    # during setup. Without an already-active freezer, loop.time() (= patched
+    # monotonic) jumps forward when freezegun activates, marking the org task
+    # overdue so it fires on the first sensors tick and clears our issue.
+    freezer: FrozenDateTimeFactory,
     setup_config_entry,
     api,
     issue_registry: ir.IssueRegistry,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """A PaymentRequiredError on the sensors refresh also surfaces out-of-points.
 
@@ -689,10 +715,12 @@ async def test_sensors_recovery_clears_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
+    # See test_sensors_payment_required_creates_out_of_points_issue for why
+    # freezer must precede setup_config_entry.
+    freezer: FrozenDateTimeFactory,
     setup_config_entry,
     api,
     issue_registry: ir.IssueRegistry,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """A successful sensors refresh clears the out-of-points issue.
 

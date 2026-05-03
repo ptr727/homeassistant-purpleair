@@ -433,7 +433,7 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
         remaining = response.remaining_points
         low_points_id = _low_points_issue_id(self.config_entry.entry_id)
         if rate > 0 and remaining < rate * LOW_POINTS_DAYS_THRESHOLD:
-            days_left = remaining // rate
+            days_left = max(0, remaining // rate)
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

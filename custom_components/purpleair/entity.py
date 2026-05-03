@@ -23,7 +23,11 @@ MANUFACTURER: Final[str] = "PurpleAir, Inc."
 # - last_seen: sensors report every ~40 s; data can be up to 30 s behind
 #   data_time_stamp. 10 min gives comfortable headroom for a missed upload.
 # - confidence: 0-100; below 50 means the two PMS channels disagree too much to
-#   trust the averaged value.
+#   trust the averaged value. Only meaningful when both channels (PM-A *and*
+#   PM-B) are reporting — single-channel sensors (PA-I or one channel
+#   downgraded) report low confidence by definition because there's no second
+#   channel to cross-check against, and gating on it would mark working
+#   indoor/PA-I sensors permanently unavailable.
 # - channel_state NO_PM means no PM sensor was detected at all.
 STALE_THRESHOLD: Final[timedelta] = timedelta(minutes=10)
 MIN_CONFIDENCE: Final[int] = 50
@@ -124,7 +128,11 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
         sensor = self._maybe_sensor_data()
         if sensor is None:
             return False
-        if sensor.confidence is not None and sensor.confidence < MIN_CONFIDENCE:
+        if (
+            sensor.channel_state is ChannelState.PM_A_PM_B
+            and sensor.confidence is not None
+            and sensor.confidence < MIN_CONFIDENCE
+        ):
             return False
         if sensor.channel_state is ChannelState.NO_PM:
             return False
@@ -142,7 +150,11 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
         sensor = self._maybe_sensor_data()
         if sensor is None:
             return "not present in API response"
-        if sensor.confidence is not None and sensor.confidence < MIN_CONFIDENCE:
+        if (
+            sensor.channel_state is ChannelState.PM_A_PM_B
+            and sensor.confidence is not None
+            and sensor.confidence < MIN_CONFIDENCE
+        ):
             return f"confidence {sensor.confidence} below {MIN_CONFIDENCE}"
         if sensor.channel_state is ChannelState.NO_PM:
             return "no PM channel detected (channel_state=NO_PM)"

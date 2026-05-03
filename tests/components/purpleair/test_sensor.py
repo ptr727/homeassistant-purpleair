@@ -289,7 +289,14 @@ async def test_availability_guards(
 
     original = get_sensors_response.data[TEST_SENSOR_INDEX1]
     if mutate_field == "confidence":
-        bad_sensor = original.model_copy(update={"confidence": 10})
+        # Confidence is only gated when both PM channels are reporting; the
+        # fixture defaults channel_state to None, so set it explicitly here.
+        bad_sensor = original.model_copy(
+            update={
+                "channel_state": ChannelState.PM_A_PM_B,
+                "confidence": 10,
+            }
+        )
     elif mutate_field == "channel_state":
         bad_sensor = original.model_copy(update={"channel_state": ChannelState.NO_PM})
     else:  # last_seen
@@ -320,6 +327,56 @@ async def test_availability_guards(
     assert any(log_needle in record.message for record in caplog.records), (
         f"No log mentioning {log_needle!r}"
     )
+
+
+@pytest.mark.parametrize(
+    "single_channel_state",
+    [ChannelState.PM_A, ChannelState.PM_B],
+)
+async def test_low_confidence_does_not_gate_single_channel_sensors(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    get_sensors_response,
+    freezer,
+    single_channel_state,
+) -> None:
+    """Single-channel sensors keep working despite low confidence.
+
+    PA-I and downgraded-channel sensors report low confidence by definition
+    because there's no second channel to cross-check against. The
+    availability rule must only gate on confidence when both PM channels are
+    reporting (PM-A+PM-B); otherwise indoor PA-I sensors get marked
+    unavailable even when they're working fine.
+    """
+    assert hass.states.get("sensor.test_sensor_temperature") is not None
+
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    single_channel_sensor = original.model_copy(
+        update={
+            "channel_state": single_channel_state,
+            "confidence": 30,  # below MIN_CONFIDENCE; would gate if both channels
+        }
+    )
+    response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: single_channel_sensor,
+            }
+        }
+    )
+    api.sensors.async_get_sensors = AsyncMock(return_value=response)
+
+    freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.test_sensor_temperature")
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE
 
 
 async def test_sensor_unavailable_when_missing_from_response(
@@ -459,6 +516,15 @@ async def test_organization_native_value_none_without_data(
 
     config_entry.runtime_data.organization.data = None
     assert entity.native_value is None
+
+
+def test_organization_sensor_default_enablement() -> None:
+    """Pin the documented default-enabled state for each org diagnostic sensor."""
+    defaults = {
+        desc.key: desc.entity_registry_enabled_default
+        for desc in ORGANIZATION_SENSOR_DESCRIPTIONS
+    }
+    assert defaults == {"remaining_points": True, "consumption_rate": True}
 
 
 @pytest.mark.parametrize(
