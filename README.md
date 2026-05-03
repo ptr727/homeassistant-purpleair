@@ -491,9 +491,10 @@ If your host's `gh` is in a credential store, container `gh` is unauthenticated 
 gh auth login
 
 # Optional: only if you also want to manage SSH keys with `gh ssh-key add`
-# from the container, request the elevated scopes explicitly. Most
-# contributors don't need this; default scopes are fine.
-gh auth login -s admin:public_key,admin:ssh_signing_key
+# from the container, extend the token's scopes (note: `gh auth refresh`,
+# not `gh auth login -s`, which would re-do the whole login flow).
+# Most contributors don't need this; default scopes are fine.
+gh auth refresh -s admin:public_key,admin:ssh_signing_key
 ```
 
 #### Verify Host Setup
@@ -559,8 +560,8 @@ ssh -T git@github.com
 # unless you ran `gh auth login` once inside the container. Skip in
 # the unauthenticated case — `gh auth status` will fail by design.
 # `gh auth status` works with default scopes; `gh ssh-key list`
-# requires the `admin:public_key` scope, only granted when you run
-# `gh auth login -s admin:public_key,admin:ssh_signing_key`.
+# requires the `admin:public_key` scope, only granted when you extend
+# the token via `gh auth refresh -s admin:public_key,admin:ssh_signing_key`.
 gh auth status
 ```
 
