@@ -223,6 +223,15 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
     "config_subentry_data",
     [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
 )
+@pytest.mark.parametrize(
+    "pre_seed_disabled_by",
+    [
+        None,
+        er.RegistryEntryDisabler.INTEGRATION,
+        er.RegistryEntryDisabler.USER,
+    ],
+    ids=["enabled", "integration_disabled", "user_disabled"],
+)
 async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
     hass: HomeAssistant,
     config_entry,
@@ -230,19 +239,19 @@ async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
     api,
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
+    pre_seed_disabled_by,
 ) -> None:
     """Pre-existing VOC registry entries on no-VOC hardware are kept on upgrade.
 
-    Simulates an install that registered a VOC entity for a BME280 sensor
-    in a prior version (before the hardware gate landed). On the first
-    setup after upgrade, async_setup_entry must still create the live
-    entity so its registry entry stays driven — orphaning it would
-    silently break the entity for users who had it enabled.
+    Covers three pre-existing states: enabled, INTEGRATION-disabled (the
+    common case — VOC ships disabled by default, so most upgraded users
+    have this state), and USER-disabled (user explicitly turned it off).
+    All three must survive the upgrade with the registry entry intact and
+    its disabled_by state preserved.
 
     Sensor 567890 (TEST_SENSOR_INDEX2) keeps the BME280 fixture hardware,
     so the gate would otherwise filter VOC out for a fresh registration.
     """
-    # Pre-seed the registry as if a prior version had created the entity.
     pre_seeded = entity_registry.async_get_or_create(
         "sensor",
         DOMAIN,
@@ -250,23 +259,24 @@ async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
         config_entry=config_entry,
         config_subentry_id=config_subentry.subentry_id,
         original_name="Volatile organic compounds (IAQ)",
+        disabled_by=pre_seed_disabled_by,
     )
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
 
-    # Registry entry survives the upgrade.
-    assert (
-        entity_registry.async_get_entity_id(
-            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
-        )
-        == pre_seeded.entity_id
-    )
-    # Live entity is registered behind it (state present in state machine,
-    # not just an orphan registry entry).
-    assert hass.states.get(pre_seeded.entity_id) is not None
+    after = entity_registry.async_get(pre_seeded.entity_id)
+    assert after is not None
+    # Registry entry preserved with the same disabled_by state.
+    assert after.disabled_by is pre_seed_disabled_by
+    # If the entry was enabled, a live entity must be backing it (state
+    # present in the state machine). If disabled, HA won't create a state.
+    if pre_seed_disabled_by is None:
+        assert hass.states.get(pre_seeded.entity_id) is not None
+    else:
+        assert hass.states.get(pre_seeded.entity_id) is None
 
 
-async def test_voc_entity_created_when_hardware_unknown(
+async def test_voc_entity_skipped_when_hardware_unknown(
     hass: HomeAssistant,
     config_entry,
     config_subentry,
@@ -275,11 +285,13 @@ async def test_voc_entity_created_when_hardware_unknown(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """Missing/unknown `hardware` string → fail-open, VOC entity is created.
+    """Missing/unknown `hardware` string → fail closed, VOC entity is not created.
 
-    Edge case (rare in practice — coordinator's static-field cache guarantees
-    `hardware` post-first-refresh). Asserts the gate's None-fallback produces
-    an entity rather than silently dropping it.
+    Failing closed is preferable for `entity_registry_enabled_default=False`
+    gated entities like VOC: a transient missing-hardware response just
+    delays creation until the next setup (when hardware comes back), which
+    is cheap. Failing open would permanently register an orphan entity on
+    truly no-VOC devices that the user would have to clean up manually.
     """
     original = get_sensors_response.data[TEST_SENSOR_INDEX1]
     no_hw_sensor = original.model_copy(update={"hardware": None})
@@ -293,8 +305,6 @@ async def test_voc_entity_created_when_hardware_unknown(
     )
 
     async def _stub(*_args, **kwargs):
-        # Mirror the conftest filter so `sensor_indices` keyword still narrows
-        # the response to the requested sensors.
         indices = kwargs.get("sensor_indices")
         if not indices:
             return no_hw_response
@@ -312,8 +322,10 @@ async def test_voc_entity_created_when_hardware_unknown(
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
     assert (
-        entity_registry.async_get("sensor.test_sensor_volatile_organic_compounds_iaq")
-        is not None
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX1}-voc"
+        )
+        is None
     )
 
 

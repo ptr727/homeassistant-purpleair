@@ -568,43 +568,17 @@ ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
 ] = {desc.key: desc for desc in ORGANIZATION_SENSOR_DESCRIPTIONS}
 
 
-# Hardware-capability gates: filter entity descriptions whose underlying
-# field is only populated when a specific chip is present. The predicate
-# receives the device's `sensor.hardware` string (e.g.
-# "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B") and returns
-# True if the entity should be created. Fail-open on None: if hardware is
-# unexpectedly missing we create the entity rather than silently dropping
-# it. Two paths reach the None branch — (a) the sensor isn't in the API
-# response at all (e.g. mid-removal), and (b) the response carries the
-# sensor but with `hardware: null` (e.g. an upstream parsing edge case or
-# a future API change). Both are rare in production because
-# STATIC_DEVICE_FIELDS guarantees `hardware` post-first-refresh, but
-# entities still get created on either path so a partial response doesn't
-# silently strip them.
-#
-# Scope: this gates entity *creation* in async_setup_entry. The coordinator's
-# `_compute_requested_fields` (coordinator.py) walks the entity registry to
-# decide which API fields to request. On no-hardware devices the entity is
-# never created → never registered → never adds its api_fields to the
-# request. So the gate transitively suppresses field requests for
-# `entity_registry_enabled_default=False` descriptions like the current
-# `voc` entry. If a future hardware-gated description ever becomes
-# `enabled_default=True`, note the coordinator's first-refresh fallback
-# (coordinator.py:243-248) iterates SENSOR_DESCRIPTIONS independently of
-# the registry on the very first refresh — adding a parallel hardware gate
-# there would be needed to prevent requesting the field for sensors that
-# can't populate it.
 def _hardware_gate_pass(_hardware: str | None) -> bool:
-    """Default gate that passes any description without a hardware constraint."""
+    """Default gate: pass any description without a hardware constraint."""
     return True
 
 
+# Per-description hardware gate: skip creating the entity when the predicate
+# returns False. Fails closed on missing hardware — re-creates the entity
+# on a later setup once the field returns. See HISTORY.md for the
+# coordinator-side caveat for future enabled-by-default entries.
 HARDWARE_GATES: Final[dict[str, Callable[[str | None], bool]]] = {
-    # VOC IAQ comes from the BME680/688 gas sensor (BME68X family). Older
-    # PA-I and original PA-II boards ship a BME280 (no gas sensor), so the
-    # `voc` API field is always null on those. PA-II-ZEN and newer carry
-    # the BME68X.
-    "voc": lambda hw: hw is None or "BME68" in hw.upper(),
+    "voc": lambda hw: hw is not None and "BME68" in hw.upper(),
 }
 
 
