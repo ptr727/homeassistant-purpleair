@@ -95,10 +95,10 @@ Zero comments at or after the latest review's timestamp is the explicit sign-off
 
 For each comment, classify before responding:
 
-- **Bug** — wrong behaviour, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when you're done.
+- **Bug** — wrong behavior, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when you're done.
 - **Style/convention** — the comment cites AGENTS.md or a repo convention. Two cases:
   - The cited rule matches what the existing codebase already does → fix the offending code.
-  - The cited rule contradicts what's already in the tree, or industry norm → **update AGENTS.md instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. As a heuristic, three rounds on the same style category means the rule needs adjusting and the user needs to authorise it.
+  - The cited rule contradicts what's already in the tree, or industry norm → **update AGENTS.md instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. As a heuristic, three rounds on the same style category means the rule needs adjusting and the user needs to authorize it.
 - **Architectural opinion** — the comment proposes a different design ("constrain this to disabled-by-default", "move this elsewhere", "add a runtime guardrail"). This is judgement, not a bug. Surface it to the user with a recommendation; don't apply unilaterally.
 
 ### Responding and resolving threads
@@ -146,7 +146,7 @@ After the final agent push on a PR, sweep-resolve any older threads from earlier
 Bring the user in when:
 
 - **Genuine design trade-off** surfaces (fail-open vs fail-closed, narrow vs broad refactor scope, "should we add a guardrail or trust the docstring"). Triage, recommend, ask.
-- **Repeated friction** across rounds without convergence — that's the AGENTS.md-needs-updating signal. Stop, summarise the pattern, and let the user authorise the rule change.
+- **Repeated friction** across rounds without convergence — that's the AGENTS.md-needs-updating signal. Stop, summarize the pattern, and let the user authorize the rule change.
 - **Architectural redesign** is requested rather than a strict bug fix. Surface with a recommendation; never apply unilaterally.
 
 Anti-pattern: don't keep flipping the code on the same style point. Flip the rule once and stick to the rule.
@@ -157,7 +157,7 @@ Anti-pattern: don't keep flipping the code on the same style point. Flip the rul
 - **Always run `scripts/lint` before pushing or opening a PR** — running ruff in isolation does NOT cover `mypy --strict`, which is a CI gate. Skipping mypy locally means catching trivial type errors only after a CI round-trip (e.g. an inline `lambda` without annotations passed into a typed `dict.get(default=…)` will fail mypy strict but pass ruff). One command, no exceptions.
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
 - **Inline `#` comments**: keep tight (one line wherever it fits), and only for non-obvious *why* — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does; well-named identifiers handle that. Don't reference the current task ("added for X", "used by Y"); that belongs in PR descriptions.
-- **Docstrings (`"""..."""`)**: follow PEP 257. A short one-liner is fine for trivial functions and tests with self-documenting names. For non-trivial behavior — non-obvious test scenarios, contracts a test pins, edge cases callers must know about — write a one-line summary, blank line, then a details paragraph. Avoid essays: cross-cutting design discussion (multi-paragraph trade-off analysis, evolution history) goes in [README.md](README.md) or [HISTORY.md](HISTORY.md), not in code.
+- **Docstrings (`"""..."""`)**: follow PEP 257. A short one-liner is fine for trivial functions and tests with self-documenting names. For non-trivial behavior — non-obvious test scenarios, contracts a test pins, edge cases callers must know about, design trade-offs that are load-bearing for future maintainers — write a one-line summary, blank line, then a details paragraph. Multi-paragraph docstrings are fine when the design rationale earns it (see [`PurpleAirSensorEntityDescription.hardware_gate`](custom_components/purpleair/sensor.py)). Design notes belong **in the code**: docstrings or inline comments live next to the code they describe and stay in sync with it. They do NOT belong in [HISTORY.md](HISTORY.md) — that file is end-user release notes (what changed, what to expect after upgrade), not a design log.
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
 - **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 
