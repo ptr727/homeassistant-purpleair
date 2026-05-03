@@ -186,17 +186,14 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
     entity_registry: er.EntityRegistry,
 ) -> None:
     """BME280 hardware → VOC entity is not created."""
-    # Lookup by unique_id (not entity_id): VOC's translation_key slugifies
-    # to `..._volatile_organic_compounds_iaq`, so a wrong entity_id is
-    # always None — assertion would silently pass on regression.
+    # Look up by unique_id; entity_id-based assertion would silently pass for VOC.
     assert (
         entity_registry.async_get_entity_id(
             "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
         )
         is None
     )
-    # Sanity-check that other entities for this sensor were created — guards
-    # against the assertion above passing because nothing got registered at all.
+    # Sibling check — guards against a setup-failure regression.
     assert (
         entity_registry.async_get_entity_id(
             "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-temperature"

@@ -209,6 +209,10 @@ class PurpleAirSensorEntityDescription(SensorEntityDescription):
 
     value_fn: Callable[[SensorModel], float | str | datetime | None]
     api_fields: tuple[str, ...] = field(default_factory=tuple)
+    # Predicate over `sensor.hardware`; consulted by async_setup_entry (skip
+    # entity creation) and coordinator._compute_requested_fields (skip
+    # api_fields on first refresh) so both stay in sync.
+    hardware_gate: Callable[[str | None], bool] | None = None
 
 
 SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
@@ -343,6 +347,10 @@ SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda sensor: sensor.voc,
         api_fields=("voc",),
+        # VOC requires a BME680/688 chip (BME68X family); older PA-I/PA-II
+        # boards ship a BME280 with no gas sensor. Fail closed on unknown
+        # hardware: a transient miss self-heals next setup.
+        hardware_gate=lambda hw: hw is not None and "BME68" in hw.upper(),
     ),
     # --- Phase 2 opt-in diagnostics (disabled by default) ---
     PurpleAirSensorEntityDescription(
@@ -568,18 +576,6 @@ ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
 ] = {desc.key: desc for desc in ORGANIZATION_SENSOR_DESCRIPTIONS}
 
 
-def _hardware_gate_pass(_hardware: str | None) -> bool:
-    """Default gate: pass any description without a hardware constraint."""
-    return True
-
-
-# Skip creating the entity at platform setup when the predicate returns False.
-# Fails closed on `hardware=None`; coordinator caveat for future enabled-by-default entries documented in HISTORY.md.
-HARDWARE_GATES: Final[dict[str, Callable[[str | None], bool]]] = {
-    "voc": lambda hw: hw is not None and "BME68" in hw.upper(),
-}
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: PurpleAirConfigEntry,
@@ -604,7 +600,8 @@ async def async_setup_entry(
             (
                 PurpleAirSensorEntity(entry, sensor_index, description)
                 for description in SENSOR_DESCRIPTIONS
-                if HARDWARE_GATES.get(description.key, _hardware_gate_pass)(hardware)
+                if description.hardware_gate is None
+                or description.hardware_gate(hardware)
                 or f"{sensor_index}-{description.key}" in existing_unique_ids
             ),
             update_before_add=False,
