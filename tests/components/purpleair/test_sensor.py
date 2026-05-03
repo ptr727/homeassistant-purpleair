@@ -379,6 +379,81 @@ async def test_low_confidence_does_not_gate_single_channel_sensors(
     assert state.state != STATE_UNAVAILABLE
 
 
+async def test_last_seen_renders_as_tz_aware_timestamp(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    get_sensors_response,
+    freezer,
+) -> None:
+    """`Last seen` entity must render as a tz-aware ISO timestamp, not unavailable.
+
+    HA's TIMESTAMP-class `SensorEntity` forces state to STATE_UNAVAILABLE when
+    given a tz-naive `datetime`. The aiopurpleair fork was returning naive
+    datetimes (fixed in 2026.5.0), which made the Last seen entity silently
+    unavailable on every device while every sibling kept reporting fresh
+    values. This test pins the rendered state, not just the SensorModel field,
+    so a future library swap that reintroduces tz-naive datetimes is caught
+    here instead of surfacing as a broken HA entity.
+
+    The construction goes through `SensorModel.model_validate` with `last_seen`
+    as an int so the upstream `validate_timestamp` validator runs — without
+    that, the test would bypass the bug entirely.
+    """
+    from datetime import UTC  # noqa: PLC0415
+
+    from aiopurpleair.models.sensors import SensorModel  # noqa: PLC0415
+
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    last_seen_epoch = 1762147200  # 2025-11-03 04:00:00 UTC
+    sensor_with_last_seen = SensorModel.model_validate(
+        {
+            **original.model_dump(by_alias=True, exclude_none=True),
+            "last_seen": last_seen_epoch,
+        }
+    )
+    # Sanity check: the upstream validator must produce a tz-aware datetime.
+    assert sensor_with_last_seen.last_seen_utc is not None
+    assert sensor_with_last_seen.last_seen_utc.tzinfo is not None, (
+        "aiopurpleair regression: validate_timestamp returned a naive datetime "
+        "(would force HA TIMESTAMP entity to STATE_UNAVAILABLE)"
+    )
+
+    patched_response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: sensor_with_last_seen,
+            },
+            # Set data_timestamp_utc near the new last_seen so the staleness
+            # gate doesn't fire (default fixture timestamp is 2022). Must be
+            # tz-aware to match last_seen_utc — the staleness gate subtracts
+            # the two and Python rejects naive/aware mixing.
+            "data_timestamp_utc": datetime(2025, 11, 3, 4, 5, 0, tzinfo=UTC),
+        }
+    )
+    api.sensors.async_get_sensors = AsyncMock(return_value=patched_response)
+
+    freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.test_sensor_last_seen")
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE, (
+        "Last seen entity unavailable — likely a tz-naive datetime "
+        "regression in aiopurpleair. Expected a tz-aware ISO timestamp."
+    )
+    # HA renders TIMESTAMP-class state as ISO 8601 with a tz suffix
+    # ("+00:00" for UTC). Confirm the offset is present so we know we got
+    # a real tz-aware datetime through the whole pipeline.
+    assert "+00:00" in state.state, (
+        f"Expected tz-aware ISO 8601 string ending in +00:00, got {state.state!r}"
+    )
+
+
 async def test_sensor_unavailable_when_missing_from_response(
     hass: HomeAssistant,
     config_entry,

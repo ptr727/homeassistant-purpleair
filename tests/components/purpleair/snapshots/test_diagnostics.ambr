@@ -143,7 +143,7 @@
           'voc_b': None,
         }),
       }),
-      'data_timestamp_utc': '2022-11-20T23:10:00',
+      'data_timestamp_utc': '2022-11-20T23:10:00+00:00',
       'fields': list([
         'sensor_index',
         'name',
@@ -172,7 +172,7 @@
       ]),
       'firmware_default_version': '7.02',
       'max_age': 604800,
-      'timestamp_utc': '2022-11-20T23:10:17',
+      'timestamp_utc': '2022-11-20T23:10:17+00:00',
     }),
     'entry': dict({
       'data': dict({
@@ -214,7 +214,7 @@
       'organization_id': '**REDACTED**',
       'organization_name': '**REDACTED**',
       'remaining_points': 50000,
-      'timestamp_utc': '2022-11-20T23:10:17',
+      'timestamp_utc': '2022-11-20T23:10:17+00:00',
     }),
   })
 # ---
