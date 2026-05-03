@@ -94,6 +94,35 @@ async def test_coordinator_first_refresh_includes_static_fields(
         assert field in first_fields
 
 
+async def test_coordinator_adds_hardware_gated_field_after_entity_enabled(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    entity_registry,
+) -> None:
+    """Hardware-gated field appears in the request once its entity is enabled.
+
+    Positive counterpart to test_coordinator_first_refresh_skips_hardware_gated_fields.
+    The first refresh skips gated descriptions (no hardware known yet); subsequent
+    refreshes must add the field via the registry walk once the gate-survived entity
+    is registered AND enabled. Without this assertion, a regression that drops the
+    registry-walk path for gated fields would only surface as silently missing data.
+    """
+    api.sensors.async_get_sensors.reset_mock()
+
+    voc_entity = entity_registry.async_get(
+        "sensor.test_sensor_volatile_organic_compounds_iaq"
+    )
+    assert voc_entity is not None
+    entity_registry.async_update_entity(voc_entity.entity_id, disabled_by=None)
+    await hass.async_block_till_done()
+
+    fields = api.sensors.async_get_sensors.await_args.args[0]
+    assert "voc" in fields
+
+
 async def test_coordinator_first_refresh_skips_hardware_gated_fields(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
