@@ -194,7 +194,7 @@ async def test_coordinator_merges_cached_static_values(
     assert (
         merged.hardware == "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B"
     )
-    assert merged.model == "PA-II"
+    assert merged.model == "PA-II-ZEN"
 
 
 async def test_coordinator_refreshes_when_entity_enabled(

@@ -40,7 +40,7 @@
           }),
           'longitude': '**REDACTED**',
           'memory': None,
-          'model': 'PA-II',
+          'model': 'PA-II-ZEN',
           'name': 'Test Sensor',
           'ozone1': None,
           'pa_latency': None,

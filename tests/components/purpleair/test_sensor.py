@@ -105,7 +105,7 @@ async def test_sensor_device_info(
     )
     assert device is not None
     assert device.manufacturer == "PurpleAir, Inc."
-    assert device.model == "PA-II"
+    assert device.model == "PA-II-ZEN"
     assert device.name == "Test Sensor"
     assert (
         device.hw_version
@@ -256,11 +256,7 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """Each subentry's VOC gate uses its own sensor's hardware, not the entry's.
-
-    Two subentries on one entry: 123456 (BME68X) and 567890 (BME280) — guards against a
-    regression that accidentally reuses one subentry's hardware for the whole entry.
-    """
+    """Mixed-hardware entry: per-subentry VOC gate uses each sensor's own hardware."""
     for sensor_index in (TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2):
         hass.config_entries.async_add_subentry(
             config_entry,
@@ -290,6 +286,41 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+)
+async def test_voc_entity_can_be_enabled_after_upgrade_on_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Re-enabling a pre-seeded INTEGRATION-disabled VOC entry surfaces a live entity."""
+    # Without the existing_unique_ids bypass, the entity object would never reach HA;
+    # re-enabling later would leave the registry entry orphaned with no state.
+    pre_seeded = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-voc",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+        original_name="Volatile organic compounds (IAQ)",
+        disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    # Initially disabled → no state.
+    assert hass.states.get(pre_seeded.entity_id) is None
+    # User clears disabled_by; reload picks up the now-enabled entity.
+    entity_registry.async_update_entity(pre_seeded.entity_id, disabled_by=None)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(pre_seeded.entity_id) is not None
 
 
 async def test_voc_entity_skipped_when_hardware_unknown(
