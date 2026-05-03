@@ -1,35 +1,35 @@
 {
   "config": {
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]",
-      "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]"
+      "already_configured": "Device is already configured",
+      "reauth_successful": "Re-authentication was successful",
+      "reconfigure_successful": "Reconfiguration was successful"
     },
     "error": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-      "invalid_api_key": "[%key:common::config_flow::error::invalid_api_key%]",
+      "already_configured": "Device is already configured",
+      "invalid_api_key": "Invalid API key",
       "key_disabled": "This API key has been disabled. Please contact PurpleAir support.",
-      "unknown": "[%key:common::config_flow::error::unknown%]",
+      "unknown": "Unexpected error",
       "wrong_key_type": "Use your PurpleAir READ key, not the WRITE key."
     },
     "step": {
       "api_key": {
         "data": {
-          "api_key": "[%key:common::config_flow::data::api_key%]"
+          "api_key": "API key"
         },
         "description": "Enter PurpleAir API read key",
-        "title": "[%key:common::config_flow::data::api_key%]"
+        "title": "API key"
       },
       "reauth_confirm": {
         "data": {
-          "api_key": "[%key:common::config_flow::data::api_key%]"
+          "api_key": "API key"
         },
         "description": "Change PurpleAir API read key",
         "title": "Re-authenticate"
       },
       "reconfigure": {
         "data": {
-          "api_key": "[%key:common::config_flow::data::api_key%]"
+          "api_key": "API key"
         },
         "description": "Change PurpleAir API read key",
         "title": "Reconfigure"
@@ -40,16 +40,16 @@
     "sensor": {
       "entry_type": "PurpleAir sensor",
       "abort": {
-        "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-        "reconfigure_successful": "[%key:common::config_flow::abort::reconfigure_successful%]"
+        "already_configured": "Device is already configured",
+        "reconfigure_successful": "Reconfiguration was successful"
       },
       "error": {
-        "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-        "invalid_api_key": "[%key:common::config_flow::error::invalid_api_key%]",
+        "already_configured": "Device is already configured",
+        "invalid_api_key": "Invalid API key",
         "invalid_read_key": "That sensor read key does not match the sensor. Check the key from the PurpleAir registration and try again.",
         "no_sensor_found": "Sensors not found",
         "no_sensors_found": "No sensors found in search area",
-        "unknown": "[%key:common::config_flow::error::unknown%]"
+        "unknown": "Unexpected error"
       },
       "initiate_flow": {
         "user": "Add PurpleAir sensor"
@@ -57,8 +57,8 @@
       "step": {
         "add_map_location": {
           "data": {
-            "latitude": "[%key:common::config_flow::data::latitude%]",
-            "longitude": "[%key:common::config_flow::data::longitude%]",
+            "latitude": "Latitude",
+            "longitude": "Longitude",
             "radius": "Radius (m)"
           },
           "description": "Search for sensors in the circle on the map",
