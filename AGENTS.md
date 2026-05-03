@@ -85,6 +85,7 @@ Zero comments at or after the latest review's timestamp is the explicit sign-off
 ## Code style
 
 - Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
+- **Always run `scripts/lint` before pushing or opening a PR** — running ruff in isolation does NOT cover `mypy --strict`, which is a CI gate. Skipping mypy locally means catching trivial type errors only after a CI round-trip (e.g. an inline `lambda` without annotations passed into a typed `dict.get(default=…)` will fail mypy strict but pass ruff). One command, no exceptions.
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
 - **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.

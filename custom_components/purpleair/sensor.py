@@ -576,6 +576,11 @@ ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
 # it — STATIC_DEVICE_FIELDS guarantees `hardware` post-first-refresh, so
 # this branch only fires on the rare case where the sensor is absent from
 # the API response entirely.
+def _hardware_gate_pass(_hardware: str | None) -> bool:
+    """Default gate that passes any description without a hardware constraint."""
+    return True
+
+
 HARDWARE_GATES: Final[dict[str, Callable[[str | None], bool]]] = {
     # VOC IAQ comes from the BME680/688 gas sensor (BME68X family). Older
     # PA-I and original PA-II boards ship a BME280 (no gas sensor), so the
@@ -603,7 +608,7 @@ async def async_setup_entry(
             (
                 PurpleAirSensorEntity(entry, sensor_index, description)
                 for description in SENSOR_DESCRIPTIONS
-                if HARDWARE_GATES.get(description.key, lambda _hw: True)(hardware)
+                if HARDWARE_GATES.get(description.key, _hardware_gate_pass)(hardware)
             ),
             update_before_add=False,
             config_subentry_id=subentry.subentry_id,
