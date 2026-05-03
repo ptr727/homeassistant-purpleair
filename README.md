@@ -349,7 +349,7 @@ Additional useful tasks in the same file:
 
 ### Devcontainer Setup
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where it lives in the file store) work inside it without re-setup. The `gh` part is conditional: only file-stored tokens travel through the bind-mount. `gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and only writes to `~/.config/gh/hosts.yml` when no store is found or you passed `--insecure-storage`. When the credential store is used, the bind-mount carries no `oauth_token` and container `gh` is unauthenticated until you opt into one of the trade-offs documented below.
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where the token is file-backed) work inside it without re-setup. The `gh` part is conditional. `gh auth login` always writes the per-host config (username, git protocol, etc.) to `~/.config/gh/hosts.yml`, but it stores the **token** in a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and only writes the token to the file when no store is found or you passed `--insecure-storage`. So on credential-store hosts, `~/.config/gh/hosts.yml` exists but has no `oauth_token` line; the bind-mount therefore carries no token, and container `gh` is unauthenticated until you opt into one of the trade-offs documented below.
 
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
@@ -494,7 +494,7 @@ gh auth login
 # from the container, extend the token's scopes (note: `gh auth refresh`,
 # not `gh auth login -s`, which would re-do the whole login flow).
 # Most contributors don't need this; default scopes are fine.
-gh auth refresh -s admin:public_key,admin:ssh_signing_key
+gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
 ```
 
 #### Verify Host Setup
@@ -526,7 +526,7 @@ ps aux | grep ssh-agent | grep -v grep
 systemctl --user status ssh-agent.socket
 ```
 
-On hosts whose `gh` defaults to a credential store (macOS Keychain, Linux libsecret) and where you didn't run `gh auth login --insecure-storage`, the host's `~/.config/gh/hosts.yml` won't have an `oauth_token` line until you authenticate `gh` *inside* the devcontainer (per "gh Credential-Store Hosts" above). After that, the bind-mount carries the token back. To check without printing the token, use `grep -q '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml && echo present || echo missing` — `gh` keeps a separate `oauth_token` per configured host, so multi-host setups have multiple matches; any positive match means the bind-mount path is working.
+On credential-store hosts that haven't been authenticated inside the container yet, container `gh` will be unauthenticated — that's expected at this point. The in-container verify section below covers the post-container-auth check.
 
 #### Open in Devcontainer
 
@@ -561,7 +561,7 @@ ssh -T git@github.com
 # the unauthenticated case — `gh auth status` will fail by design.
 # `gh auth status` works with default scopes; `gh ssh-key list`
 # requires the `admin:public_key` scope, only granted when you extend
-# the token via `gh auth refresh -s admin:public_key,admin:ssh_signing_key`.
+# the token via `gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key`.
 gh auth status
 ```
 
