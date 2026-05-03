@@ -160,8 +160,11 @@ async def test_voc_entity_created_for_voc_hardware(
     setup_config_entry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """BME68X hardware → VOC entity is created and value flows through."""
-    # Assert state (not just registration) — catches a regression where the entity exists but value_fn returns None.
+    """BME68X hardware → VOC entity is created and value flows through.
+
+    Asserting state, not just registration, guards against a regression where
+    the entity exists in the registry but ``value_fn`` returns ``None``.
+    """
     entry = entity_registry.async_get(
         "sensor.test_sensor_volatile_organic_compounds_iaq"
     )
@@ -185,8 +188,12 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
     setup_config_entry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """BME280 hardware → VOC entity is not created."""
-    # Look up by unique_id; entity_id-based assertion would silently pass for VOC.
+    """BME280 hardware → VOC entity is not created.
+
+    Look-up is by ``unique_id`` rather than ``entity_id``: VOC's
+    ``translation_key`` slugifies the entity_id, so a literal entity_id
+    assertion would silently pass on regression.
+    """
     assert (
         entity_registry.async_get_entity_id(
             "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
@@ -224,8 +231,13 @@ async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
     mock_aiopurpleair,
     pre_seed_disabled_by,
 ) -> None:
-    """Pre-seeded VOC entries on no-VOC hardware survive upgrade in any disabled_by state."""
-    # INTEGRATION-disabled is the common upgrade state since VOC ships disabled-by-default.
+    """Pre-seeded VOC entries on no-VOC hardware survive upgrade in any disabled_by state.
+
+    INTEGRATION-disabled is the common upgrade state since VOC ships disabled
+    by default; covering all three states (None, INTEGRATION, USER) pins the
+    contract that the gate's existing-registry bypass preserves the row's
+    ``disabled_by`` value verbatim and keeps a live entity behind enabled rows.
+    """
     pre_seeded = entity_registry.async_get_or_create(
         "sensor",
         DOMAIN,
@@ -256,7 +268,12 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """Mixed-hardware entry: per-subentry VOC gate uses each sensor's own hardware."""
+    """Mixed-hardware entry: per-subentry VOC gate uses each sensor's own hardware.
+
+    Two subentries on one entry (123456 BME68X, 567890 BME280) — guards
+    against a regression that hoists hardware out of the per-subentry loop
+    and applies one sensor's value to the whole entry.
+    """
     for sensor_index in (TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2):
         hass.config_entries.async_add_subentry(
             config_entry,
@@ -300,9 +317,14 @@ async def test_voc_entity_can_be_enabled_after_upgrade_on_no_voc_hardware(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """Re-enabling a pre-seeded INTEGRATION-disabled VOC entry surfaces a live entity."""
-    # Without the existing_unique_ids bypass, the entity object would never reach HA;
-    # re-enabling later would leave the registry entry orphaned with no state.
+    """Re-enabling a pre-seeded INTEGRATION-disabled VOC entry surfaces a live entity.
+
+    Pins the ``existing_unique_ids`` bypass contract: even though the gate
+    would normally skip VOC creation on BME280 hardware, a pre-existing
+    registry row makes ``async_setup_entry`` create the entity object
+    anyway. Without that, re-enabling the row post-upgrade would leave it
+    orphaned with no live state.
+    """
     pre_seeded = entity_registry.async_get_or_create(
         "sensor",
         DOMAIN,
@@ -332,8 +354,13 @@ async def test_voc_entity_skipped_when_hardware_unknown(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """`hardware=None` → gate fails closed, VOC entity not created."""
-    # Fail-closed self-heals next setup; fail-open would orphan no-VOC devices forever.
+    """``hardware=None`` → gate fails closed, VOC entity not created.
+
+    Failing closed for ``entity_registry_enabled_default=False`` gated
+    entities is preferable: a transient miss self-heals on next setup,
+    whereas failing open would permanently register an orphan entity on
+    every truly no-VOC device that the user would have to clean up.
+    """
     original = get_sensors_response.data[TEST_SENSOR_INDEX1]
     no_hw_sensor = original.model_copy(update={"hardware": None})
     no_hw_response = get_sensors_response.model_copy(

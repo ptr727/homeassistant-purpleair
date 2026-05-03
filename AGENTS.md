@@ -87,7 +87,8 @@ Zero comments at or after the latest review's timestamp is the explicit sign-off
 - Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
 - **Always run `scripts/lint` before pushing or opening a PR** — running ruff in isolation does NOT cover `mypy --strict`, which is a CI gate. Skipping mypy locally means catching trivial type errors only after a CI round-trip (e.g. an inline `lambda` without annotations passed into a typed `dict.get(default=…)` will fail mypy strict but pass ruff). One command, no exceptions.
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
-- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
+- **Inline `#` comments**: keep tight (one line wherever it fits), and only for non-obvious *why* — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does; well-named identifiers handle that. Don't reference the current task ("added for X", "used by Y"); that belongs in PR descriptions.
+- **Docstrings (`"""..."""`)**: follow PEP 257. A short one-liner is fine for trivial functions and tests with self-documenting names. For non-trivial behavior — non-obvious test scenarios, contracts a test pins, edge cases callers must know about — write a one-line summary, blank line, then a details paragraph. Avoid essays: cross-cutting design discussion (multi-paragraph trade-off analysis, evolution history) goes in [README.md](README.md) or [HISTORY.md](HISTORY.md), not in code.
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
 - **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 

@@ -209,8 +209,29 @@ class PurpleAirSensorEntityDescription(SensorEntityDescription):
 
     value_fn: Callable[[SensorModel], float | str | datetime | None]
     api_fields: tuple[str, ...] = field(default_factory=tuple)
-    # Setup evaluates the predicate; coordinator's first-refresh fallback only checks presence (hardware unknown then). See HISTORY for the trade-off.
     hardware_gate: Callable[[str | None], bool] | None = None
+    """Skip entity creation when the predicate returns False against `sensor.hardware`.
+
+    Two consumers read this attribute with different semantics:
+
+    - ``async_setup_entry`` evaluates the predicate per-subentry and skips
+      entity creation on hardware that doesn't satisfy it. Falls closed on
+      ``hardware=None``: a transient miss self-heals on next setup; failing
+      open would orphan an unusable entity on truly no-hardware devices that
+      users would have to clean up manually.
+    - ``coordinator._compute_requested_fields`` only checks whether the gate
+      is set (hardware isn't known yet on first refresh) and excludes the
+      description's ``api_fields`` from the first-refresh fallback. The
+      registry walk on subsequent refreshes adds the field only if the
+      entity ends up registered AND enabled.
+
+    Today's entries are all ``entity_registry_enabled_default=False``, so the
+    gate transitively suppresses field requests with no API-points cost. An
+    ``enabled_default=True`` gated entry would also need either (a) explicit
+    per-sensor predicate evaluation in the coordinator, or (b) acceptance
+    that its field is missing for the very first refresh and recovered from
+    the second refresh onward via the registry walk.
+    """
 
 
 SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
