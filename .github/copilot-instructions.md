@@ -30,6 +30,99 @@ Bump aiopurpleair from 2025.08.1 to 2025.09.0
 Clarify HACS install steps in README
 ```
 
+## GitHub Copilot Review Runbook
+
+Use this section for provider-specific mechanics. The expected review loop contract is defined in [AGENTS.md](../AGENTS.md); this section only describes how to make GitHub Copilot reliably execute it.
+
+### Triggering and polling
+
+Copilot auto-review on push is configured, but it sometimes misses pushes. The reliable manual trigger is:
+
+```sh
+gh pr comment <N> --body "@Copilot review"
+```
+
+Copilot may reply as either an issue comment (`repos/.../issues/<N>/comments`) or a formal review (`repos/.../pulls/<N>/reviews`). Check both.
+
+Known non-working request paths (don't rely on them):
+
+- `POST /requested_reviewers` with `reviewers=[Copilot]` can return 200 but no-op.
+- `copilot-pull-request-reviewer` as a requested reviewer slug returns 422.
+- GraphQL `requestReviews` rejects Copilot's bot node.
+
+### Verify review covered current head
+
+Before merging, confirm Copilot reviewed the current PR head SHA:
+
+```sh
+PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
+gh pr view <N> --json reviews --jq \
+  '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
+  | grep -q "$PR_HEAD"
+```
+
+Then inspect comments at-or-after the latest Copilot review timestamp:
+
+```sh
+LATEST=$(gh pr view <N> --json reviews --jq \
+  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt')
+gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
+  "[.[] | select(.created_at >= \"$LATEST\")]"
+```
+
+### Bounded retry workflow
+
+If a review did not run on the current head, retry with bounded attempts:
+
+1. Trigger with `@Copilot review`.
+1. Wait briefly and re-check head-SHA coverage.
+1. Retry up to three attempts.
+1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
+
+### Reply and thread resolution workflow
+
+List unresolved threads:
+
+```sh
+gh api graphql -f query='
+{
+  repository(owner: "<owner>", name: "<repo>") {
+    pullRequest(number: <N>) {
+      reviewThreads(last: 20) {
+        nodes {
+          id isResolved path
+          comments(first: 1) { nodes { author { login } body } }
+        }
+      }
+    }
+  }
+}'
+```
+
+Reply on a thread, then resolve it:
+
+```sh
+gh api graphql -f query='
+mutation($threadId: ID!, $body: String!) {
+  addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $threadId, body: $body }) {
+    comment { id }
+  }
+}' -F threadId="PRRT_..." -F body="Fixed in <SHA>: <one-line summary>."
+
+gh api graphql -f query='
+mutation($threadId: ID!) {
+  resolveReviewThread(input: { threadId: $threadId }) { thread { id isResolved } }
+}' -F threadId="PRRT_..."
+```
+
+Reply-body conventions:
+
+- Accepted bug/style fix: include fixing commit SHA.
+- Declined style comment: cite the AGENTS rule and existing-tree precedent.
+- Declined architecture proposal: one-sentence rationale.
+
+After final push, sweep-resolve stale older threads for removed code paths.
+
 ## When in doubt
 
 Read [AGENTS.md](../AGENTS.md) for the full picture (release flow, files you must not touch, code style, workflow YAML conventions). Don't restate this file's rules in commit bodies or PR descriptions — keep those focused on the change itself.
