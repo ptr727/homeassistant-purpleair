@@ -209,7 +209,7 @@ class PurpleAirSensorEntityDescription(SensorEntityDescription):
 
     value_fn: Callable[[SensorModel], float | str | datetime | None]
     api_fields: tuple[str, ...] = field(default_factory=tuple)
-    # Single source of truth read by both async_setup_entry and the coordinator's first-refresh fallback.
+    # Setup evaluates the predicate; coordinator's first-refresh fallback only checks presence (hardware unknown then). See HISTORY for the trade-off.
     hardware_gate: Callable[[str | None], bool] | None = None
 
 
@@ -345,7 +345,6 @@ SENSOR_DESCRIPTIONS: Final[tuple[PurpleAirSensorEntityDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda sensor: sensor.voc,
         api_fields=("voc",),
-        # VOC requires a BME68X gas sensor; fail closed on unknown hardware (self-heals next setup).
         hardware_gate=lambda hw: hw is not None and "BME68" in hw.upper(),
     ),
     # --- Phase 2 opt-in diagnostics (disabled by default) ---
