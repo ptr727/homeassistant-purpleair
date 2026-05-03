@@ -524,7 +524,7 @@ def test_organization_sensor_default_enablement() -> None:
         desc.key: desc.entity_registry_enabled_default
         for desc in ORGANIZATION_SENSOR_DESCRIPTIONS
     }
-    assert defaults == {"remaining_points": True, "consumption_rate": False}
+    assert defaults == {"remaining_points": True, "consumption_rate": True}
 
 
 @pytest.mark.parametrize(
