@@ -178,7 +178,9 @@ async def test_coordinator_merges_cached_static_values(
     coordinator = config_entry.runtime_data.sensors
     merged = coordinator.data.data[TEST_SENSOR_INDEX1]
     assert merged.name == "Test Sensor"
-    assert merged.hardware == "2.0+BME280+PMSX003-B+PMSX003-A"
+    assert (
+        merged.hardware == "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B"
+    )
     assert merged.model == "PA-II"
 
 

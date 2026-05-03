@@ -41,7 +41,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX_NO_LOCATION
+from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2, TEST_SENSOR_INDEX_NO_LOCATION
 
 
 async def test_sensor_snapshot(
@@ -106,7 +106,10 @@ async def test_sensor_device_info(
     assert device.manufacturer == "PurpleAir, Inc."
     assert device.model == "PA-II"
     assert device.name == "Test Sensor"
-    assert device.hw_version == "2.0+BME280+PMSX003-B+PMSX003-A"
+    assert (
+        device.hw_version
+        == "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B"
+    )
     assert device.sw_version == "7.02"
     assert device.configuration_url == "http://example.com"
 
@@ -147,6 +150,96 @@ async def test_sensor_without_location_omits_attrs_even_when_show_on_map(
     assert state is not None
     assert ATTR_LATITUDE not in state.attributes
     assert ATTR_LONGITUDE not in state.attributes
+
+
+async def test_voc_entity_created_for_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Hardware string with BME68X → VOC entity is created."""
+    # Default sensor 123456 (TEST_SENSOR_INDEX1) has BME68X hardware in the
+    # fixture, so the gate should let the VOC description through.
+    assert (
+        entity_registry.async_get("sensor.test_sensor_volatile_organic_compounds_iaq")
+        is not None
+    )
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{"sensor_index": TEST_SENSOR_INDEX2, "sensor_read_key": None}],
+)
+async def test_voc_entity_skipped_for_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Hardware string lacking BME68X → VOC entity is not created.
+
+    Sensor 567890 (TEST_SENSOR_INDEX2) keeps the BME280 fixture hardware,
+    so the gate must filter the `voc` description out before async_add_entities
+    runs. Confirms the new HARDWARE_GATES path.
+    """
+    assert entity_registry.async_get("sensor.test_sensor_2_voc") is None
+    # Sanity-check that other entities for this sensor were created — guards
+    # against the assertion above passing because nothing got registered at all.
+    assert entity_registry.async_get("sensor.test_sensor_2_temperature") is not None
+
+
+async def test_voc_entity_created_when_hardware_unknown(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    get_sensors_response,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Missing/unknown `hardware` string → fail-open, VOC entity is created.
+
+    Edge case (rare in practice — coordinator's static-field cache guarantees
+    `hardware` post-first-refresh). Asserts the gate's None-fallback produces
+    an entity rather than silently dropping it.
+    """
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    no_hw_sensor = original.model_copy(update={"hardware": None})
+    no_hw_response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: no_hw_sensor,
+            }
+        }
+    )
+
+    async def _stub(*_args, **kwargs):
+        # Mirror the conftest filter so `sensor_indices` keyword still narrows
+        # the response to the requested sensors.
+        indices = kwargs.get("sensor_indices")
+        if not indices:
+            return no_hw_response
+        return no_hw_response.model_copy(
+            update={
+                "data": {
+                    idx: sensor
+                    for idx, sensor in no_hw_response.data.items()
+                    if idx in indices
+                }
+            }
+        )
+
+    api.sensors.async_get_sensors = AsyncMock(side_effect=_stub)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert (
+        entity_registry.async_get("sensor.test_sensor_volatile_organic_compounds_iaq")
+        is not None
+    )
 
 
 @pytest.mark.parametrize(

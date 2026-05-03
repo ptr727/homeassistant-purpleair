@@ -24,7 +24,7 @@
           'deciviews_b': None,
           'firmware_upgrade': None,
           'firmware_version': '7.02',
-          'hardware': '2.0+BME280+PMSX003-B+PMSX003-A',
+          'hardware': '3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B',
           'humidity': 13.0,
           'humidity_a': None,
           'humidity_b': None,

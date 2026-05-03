@@ -567,19 +567,43 @@ ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
 ] = {desc.key: desc for desc in ORGANIZATION_SENSOR_DESCRIPTIONS}
 
 
+# Hardware-capability gates: filter entity descriptions whose underlying
+# field is only populated when a specific chip is present. The predicate
+# receives the device's `sensor.hardware` string (e.g.
+# "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B") and returns
+# True if the entity should be created. Fail-open on None: if hardware is
+# unexpectedly missing we create the entity rather than silently dropping
+# it — STATIC_DEVICE_FIELDS guarantees `hardware` post-first-refresh, so
+# this branch only fires on the rare case where the sensor is absent from
+# the API response entirely.
+HARDWARE_GATES: Final[dict[str, Callable[[str | None], bool]]] = {
+    # VOC IAQ comes from the BME680/688 gas sensor (BME68X family). Older
+    # PA-I and original PA-II boards ship a BME280 (no gas sensor), so the
+    # `voc` API field is always null on those. PA-II-ZEN and newer carry
+    # the BME68X.
+    "voc": lambda hw: hw is None or "BME68" in hw.upper(),
+}
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: PurpleAirConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up PurpleAir sensors based on a config entry."""
+    sensors_data = entry.runtime_data.sensors.data.data
     for subentry in entry.subentries.values():
+        sensor_index = int(subentry.data[CONF_SENSOR_INDEX])
+        hardware = (
+            sensors_data[sensor_index].hardware
+            if sensor_index in sensors_data
+            else None
+        )
         async_add_entities(
             (
-                PurpleAirSensorEntity(
-                    entry, int(subentry.data[CONF_SENSOR_INDEX]), description
-                )
+                PurpleAirSensorEntity(entry, sensor_index, description)
                 for description in SENSOR_DESCRIPTIONS
+                if HARDWARE_GATES.get(description.key, lambda _hw: True)(hardware)
             ),
             update_before_add=False,
             config_subentry_id=subentry.subentry_id,
