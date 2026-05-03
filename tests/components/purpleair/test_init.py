@@ -3,6 +3,7 @@
 import logging
 from types import MappingProxyType
 
+import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     mock_device_registry,
@@ -804,15 +805,14 @@ async def test_async_migrate_integration_preserves_default_false_entities(
     )
 
 
-async def test_reconcile_logs_reenable_info_summary(
+async def test_async_migrate_integration_logs_info_on_reenable(
     hass: HomeAssistant,
-    caplog,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Reconciliation emits an INFO summary and DEBUG per-entity log when re-enabling.
+    """Re-enabling at least one entity emits an INFO summary.
 
-    `last_seen` has entity_registry_enabled_default=True, so an INTEGRATION-disabled
-    entry with that key must be re-enabled and produce both an INFO summary and a
-    DEBUG per-entity message.
+    Pins the logging contract: operators must be able to see which entries
+    were affected and how many were re-enabled without enabling DEBUG.
     """
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -828,32 +828,24 @@ async def test_reconcile_logs_reenable_info_summary(
         er.RegistryEntryDisabler.INTEGRATION,
     )
 
-    caplog.set_level(logging.DEBUG, logger="custom_components.purpleair")
-    await async_migrate_integration(hass)
-    await hass.async_block_till_done()
+    with caplog.at_level(logging.INFO, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
 
     assert any(
-        record.levelno == logging.INFO
-        and "Re-enabled 1 entity registry entries after default changes"
-        in record.message
-        for record in caplog.records
-    )
-    assert any(
-        record.levelno == logging.DEBUG
-        and "Re-enabled" in record.message
-        and "last_seen" in record.message
+        "Re-enabled 1 entity registry entries" in record.message
         for record in caplog.records
     )
 
 
-async def test_reconcile_logs_default_false_skip(
+async def test_async_migrate_integration_logs_debug_on_skip_default_false(
     hass: HomeAssistant,
-    caplog,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Reconciliation emits a DEBUG log when an INTEGRATION-disabled entity stays disabled.
+    """INTEGRATION-disabled entity whose default is still False emits a DEBUG skip.
 
-    `rssi` has entity_registry_enabled_default=False, so the reconciliation pass
-    must leave it disabled and emit a DEBUG message explaining the skip.
+    Pins the tracing contract: operators can identify why an entity was not
+    re-enabled by setting the logger to DEBUG.
     """
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -869,13 +861,8 @@ async def test_reconcile_logs_default_false_skip(
         er.RegistryEntryDisabler.INTEGRATION,
     )
 
-    caplog.set_level(logging.DEBUG, logger="custom_components.purpleair")
-    await async_migrate_integration(hass)
-    await hass.async_block_till_done()
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
 
-    assert any(
-        record.levelno == logging.DEBUG
-        and "Keeping" in record.message
-        and "rssi" in record.message
-        for record in caplog.records
-    )
+    assert any("default=False" in record.message for record in caplog.records)

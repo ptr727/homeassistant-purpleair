@@ -356,9 +356,8 @@ def _async_reconcile_entity_defaults(hass: HomeAssistant) -> None:
                 )
             else:
                 LOGGER.debug(
-                    "Keeping %s disabled during default reconciliation (entry_id=%s, key=%s, default=False)",
+                    "Skipping %s during default reconciliation (default=False, key=%s)",
                     entity_entry.entity_id,
-                    entry.entry_id,
                     key,
                 )
 
