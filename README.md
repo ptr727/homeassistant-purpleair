@@ -479,12 +479,12 @@ ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 
 If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
 
-- **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want host credential storage to remain credential-store-only.
-- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now exists as plaintext on your host (mode 600, same on-disk posture as `~/.ssh/id_ed25519`). The host's `gh` continues to read from the credential store unchanged.
+- **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want the host's GitHub token to live only in the credential store.
+- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists as plaintext on your host (mode 600, same on-disk posture as `~/.ssh/id_ed25519`). Your credential-store token is unchanged, but your host now has a *second* token at rest on disk; the host's `gh` will still prefer the credential-store one. Add `admin:public_key,admin:ssh_signing_key` if you want to manage SSH keys with `gh ssh-key add` from the container — the bare `gh auth login` only grants default scopes.
 
 ```shell
 # Inside the devcontainer (one-time, only if you chose the second option)
-gh auth login
+gh auth login -s admin:public_key,admin:ssh_signing_key
 ```
 
 #### Verify Host Setup
@@ -548,8 +548,11 @@ ssh -T git@github.com
 # credential store (Keychain on macOS, libsecret/Secret Service on
 # Linux desktops — both the default when the store is available)
 # unless you ran `gh auth login` once inside the container. Skip in
-# the unauthenticated case — `gh ssh-key list` will fail by design.
-gh ssh-key list
+# the unauthenticated case — `gh auth status` will fail by design.
+# `gh auth status` works with default scopes; `gh ssh-key list`
+# requires the `admin:public_key` scope, only granted when you run
+# `gh auth login -s admin:public_key,admin:ssh_signing_key`.
+gh auth status
 ```
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
