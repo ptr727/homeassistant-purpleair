@@ -36,13 +36,9 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. **Always post the trigger comment immediately after every `git push`, without exception:**
+Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. Request review through the GitHub PR UI (request `Copilot` as a reviewer) after every push.
 
-```sh
-git push && gh pr comment <N> --body "@Copilot review"
-```
-
-Copilot may reply as either an issue comment (`repos/.../issues/<N>/comments`) or a formal review (`repos/.../pulls/<N>/reviews`). Check both.
+**Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which will make code changes rather than posting a review.
 
 Known non-working request paths (don't rely on them):
 
@@ -89,11 +85,11 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-If a review did not run on the current head after the initial push-time trigger, retry:
+If a review did not run on the current head, retry:
 
 1. Wait briefly and check head-SHA coverage (see above).
-1. Post `@Copilot review` again.
-1. Retry up to two more times (three total including the push-time trigger).
+1. Request review again via the GitHub PR UI.
+1. Retry up to two more times (three total).
 1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
 
 ### Reply and thread resolution workflow
