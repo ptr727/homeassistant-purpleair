@@ -480,7 +480,7 @@ ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
 
 - **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want the host's GitHub token to live only in the credential store.
-- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists as plaintext on your host (mode 600, same on-disk posture as `~/.ssh/id_ed25519`). Your credential-store token is unchanged, but your host now has a *second* token at rest on disk; the host's `gh` will still prefer the credential-store one. Add `admin:public_key,admin:ssh_signing_key` if you want to manage SSH keys with `gh ssh-key add` from the container — the bare `gh auth login` only grants default scopes.
+- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists on your host as a plaintext bearer token (mode 600). This is materially weaker than the credential-store entry: anyone or anything with read access to that file gets immediate GitHub auth, with no passphrase or unlock step. Your credential-store token is unchanged, and the host's `gh` will still prefer the credential-store one. Add `admin:public_key,admin:ssh_signing_key` if you want `gh ssh-key add` to work from the container — bare `gh auth login` only grants default scopes.
 
 ```shell
 # Inside the devcontainer (one-time, only if you chose the second option)
@@ -516,7 +516,7 @@ ps aux | grep ssh-agent | grep -v grep
 systemctl --user status ssh-agent.socket
 ```
 
-On macOS, the host's `gh` uses Keychain, so `~/.config/gh/hosts.yml` on the host won't show an `oauth_token` line unless you've run `gh auth login` once *inside* the devcontainer (per the macOS Deltas above). After that, the bind-mount carries the token back and `grep -c '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml` returns `1` (use `-c` so the actual token never lands in scrollback).
+On macOS, the host's `gh` uses Keychain, so `~/.config/gh/hosts.yml` on the host won't show an `oauth_token` line unless you've run `gh auth login` once *inside* the devcontainer (per the macOS Deltas above). After that, the bind-mount carries the token back. To check without printing the token, use `grep -q '^[[:space:]]*oauth_token:' ~/.config/gh/hosts.yml && echo present || echo missing` — `gh` keeps a separate `oauth_token` per configured host, so `grep -c` legitimately returns more than one on multi-host setups; any positive match means the bind-mount path is working.
 
 #### Open in Devcontainer
 

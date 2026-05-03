@@ -148,7 +148,7 @@ yamllint .github/workflows/                               # silent expected
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) bind-mounts the host SSH signing key's *public half* (`~/.ssh/id_ed25519.pub`), `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed (signing happens via the forwarded `ssh-agent` socket — the private key never enters the container) and `gh` is pre-authenticated. The `gh` part is conditional on file-stored tokens. `gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and `--insecure-storage` is the opt-out that forces file storage. When the credential store is used, `~/.config/gh/hosts.yml` carries no `oauth_token` and container `gh` is unauthenticated until you opt into one of the trade-offs documented in [README.md](README.md#devcontainer-setup).
+[.devcontainer.json](.devcontainer.json) bind-mounts the host SSH signing key's *public half* (`~/.ssh/id_ed25519.pub`), `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed (signing happens via the forwarded `ssh-agent` socket — the private key never enters the container) and, *when the host's `gh` token is file-backed*, `gh` is pre-authenticated. `gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and `--insecure-storage` is the opt-out that forces file storage. On credential-store hosts, `~/.config/gh/hosts.yml` carries no `oauth_token`, so container `gh` is unauthenticated until you opt into one of the trade-offs documented in [README.md](README.md#devcontainer-setup).
 
 ## Linters available in the devcontainer
 
@@ -175,7 +175,7 @@ Installation:
 
 ## Tooling pointers
 
-- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount (see [README.md](README.md#devcontainer-setup)).
+- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount when the host's `gh` token is file-backed; on credential-store hosts (macOS Keychain, Linux libsecret) you'll need to authenticate inside the container — see [README.md](README.md#devcontainer-setup).
 - **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
 - **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
 
