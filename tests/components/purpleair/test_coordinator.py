@@ -94,6 +94,53 @@ async def test_coordinator_first_refresh_includes_static_fields(
         assert field in first_fields
 
 
+async def test_coordinator_adds_hardware_gated_field_after_entity_enabled(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    entity_registry,
+) -> None:
+    """Hardware-gated field appears in the request once its entity is enabled.
+
+    Positive counterpart to test_coordinator_first_refresh_skips_hardware_gated_fields.
+    The first refresh skips gated descriptions (no hardware known yet); subsequent
+    refreshes must add the field via the registry walk once the gate-survived entity
+    is registered AND enabled. Without this assertion, a regression that drops the
+    registry-walk path for gated fields would only surface as silently missing data.
+    """
+    api.sensors.async_get_sensors.reset_mock()
+
+    voc_entity = entity_registry.async_get(
+        "sensor.test_sensor_volatile_organic_compounds_iaq"
+    )
+    assert voc_entity is not None
+    entity_registry.async_update_entity(voc_entity.entity_id, disabled_by=None)
+    await hass.async_block_till_done()
+
+    fields = api.sensors.async_get_sensors.await_args.args[0]
+    assert "voc" in fields
+
+
+async def test_coordinator_first_refresh_skips_hardware_gated_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """First refresh must not request api_fields of hardware-gated descriptions.
+
+    Hardware isn't known yet on the first call, so the fallback path
+    excludes any description with a gate set. Subsequent refreshes pick the
+    field up via the registry walk, but only if the entity ends up
+    registered AND enabled.
+    """
+    first_fields = api.sensors.async_get_sensors.await_args_list[0].args[0]
+    assert "voc" not in first_fields
+
+
 async def test_coordinator_subsequent_refresh_skips_static_fields(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -178,8 +225,10 @@ async def test_coordinator_merges_cached_static_values(
     coordinator = config_entry.runtime_data.sensors
     merged = coordinator.data.data[TEST_SENSOR_INDEX1]
     assert merged.name == "Test Sensor"
-    assert merged.hardware == "2.0+BME280+PMSX003-B+PMSX003-A"
-    assert merged.model == "PA-II"
+    assert (
+        merged.hardware == "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B"
+    )
+    assert merged.model == "PA-II-ZEN"
 
 
 async def test_coordinator_refreshes_when_entity_enabled(
@@ -567,6 +616,27 @@ async def test_organization_low_points_creates_repair_issue(
     }
 
 
+async def test_organization_low_points_negative_remaining_clamps_days_left(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """days_left must never be negative when the account balance goes below zero."""
+    issue_id = f"{ISSUE_LOW_API_POINTS}_{config_entry.entry_id}"
+
+    api.organizations.async_get_organization.return_value = _organization_response(
+        remaining=-100, rate=200
+    )
+    await config_entry.runtime_data.organization.async_refresh()
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders["days_left"] == "0"
+
+
 async def test_organization_recovery_clears_repair_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -657,10 +727,15 @@ async def test_sensors_payment_required_creates_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
+    # freezer must precede setup_config_entry: the org coordinator has a
+    # default-enabled listener (remaining_points) and schedules a 24 h refresh
+    # during setup. Without an already-active freezer, loop.time() (= patched
+    # monotonic) jumps forward when freezegun activates, marking the org task
+    # overdue so it fires on the first sensors tick and clears our issue.
+    freezer: FrozenDateTimeFactory,
     setup_config_entry,
     api,
     issue_registry: ir.IssueRegistry,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """A PaymentRequiredError on the sensors refresh also surfaces out-of-points.
 
@@ -689,10 +764,12 @@ async def test_sensors_recovery_clears_out_of_points_issue(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     config_subentry,
+    # See test_sensors_payment_required_creates_out_of_points_issue for why
+    # freezer must precede setup_config_entry.
+    freezer: FrozenDateTimeFactory,
     setup_config_entry,
     api,
     issue_registry: ir.IssueRegistry,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """A successful sensors refresh clears the out-of-points issue.
 

@@ -1,7 +1,9 @@
 """PurpleAir init and migration tests."""
 
+import logging
 from types import MappingProxyType
 
+import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     mock_device_registry,
@@ -684,3 +686,221 @@ async def test_async_migrate_integration_skips_future_parent_alignment(
 
     assert future_parent.version == SCHEMA_VERSION + 1
     assert future_parent.options[CONF_SHOW_ON_MAP] is False
+
+
+def _add_entity(hass, entry, unique_id, disabled_by):
+    return er.async_get(hass).async_get_or_create(
+        "sensor",
+        DOMAIN,
+        unique_id,
+        config_entry=entry,
+        disabled_by=disabled_by,
+        original_name=unique_id,
+    )
+
+
+async def test_async_migrate_integration_reenables_default_true_entities(
+    hass: HomeAssistant,
+) -> None:
+    """INTEGRATION-disabled entries flip to None when the current default is True.
+
+    Covers the upgrade gap: PR #87 raised four diagnostics from disabled-by-
+    default to enabled-by-default, but `entity_registry_enabled_default` only
+    applies at first registration. Pre-existing installs would keep the
+    disabled state without this reconciliation.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    sensor_entity = _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-last_seen",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+    org_entity = _add_entity(
+        hass,
+        entry,
+        f"{entry.entry_id}-organization-consumption_rate",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    assert registry.async_get(sensor_entity.entity_id).disabled_by is None
+    assert registry.async_get(org_entity.entity_id).disabled_by is None
+
+
+async def test_async_migrate_integration_preserves_user_disabled(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """USER-disabled entries are never re-enabled, even if current default is True."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    user_entity = _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-confidence",
+        er.RegistryEntryDisabler.USER,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
+
+    assert (
+        er.async_get(hass).async_get(user_entity.entity_id).disabled_by
+        is er.RegistryEntryDisabler.USER
+    )
+    assert any("disabled_by=" in record.message for record in caplog.records)
+
+
+async def test_async_migrate_integration_preserves_default_false_entities(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """INTEGRATION-disabled entries whose current default is False stay disabled.
+
+    `rssi` and unknown-key orphans must not be touched by the reconciliation.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    rssi_entity = _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-rssi",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+    orphan_entity = _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-removed_from_code_long_ago",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    assert (
+        registry.async_get(rssi_entity.entity_id).disabled_by
+        is er.RegistryEntryDisabler.INTEGRATION
+    )
+    assert (
+        registry.async_get(orphan_entity.entity_id).disabled_by
+        is er.RegistryEntryDisabler.INTEGRATION
+    )
+    assert any("unknown key=" in record.message for record in caplog.records)
+
+
+async def test_async_migrate_integration_logs_info_on_reenable(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Re-enabling at least one entity emits an INFO summary.
+
+    Pins the logging contract: operators must be able to see which entries
+    were affected and how many were re-enabled without enabling DEBUG.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-last_seen",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    with caplog.at_level(logging.INFO, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
+
+    assert any(
+        "Re-enabled 1 entity registry entries" in record.message
+        for record in caplog.records
+    )
+
+
+async def test_async_migrate_integration_logs_debug_on_skip_default_false(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """INTEGRATION-disabled entity whose default is still False emits a DEBUG skip.
+
+    Pins the tracing contract: operators can identify why an entity was not
+    re-enabled by setting the logger to DEBUG.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-rssi",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
+
+    assert any("default=False" in record.message for record in caplog.records)
+
+
+async def test_async_migrate_integration_logs_debug_scan_summary(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Reconciliation always emits a DEBUG scan-summary regardless of re-enable count.
+
+    Pins the tracing contract: the total-scanned / total-re-enabled counts
+    must be logged on every run so operators can confirm the pass executed.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=SCHEMA_VERSION,
+        data={CONF_API_KEY: TEST_API_KEY},
+        title=TITLE,
+    )
+    entry.add_to_hass(hass)
+    _add_entity(
+        hass,
+        entry,
+        f"{TEST_SENSOR_INDEX1}-last_seen",
+        er.RegistryEntryDisabler.INTEGRATION,
+    )
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
+
+    assert any(
+        "Default reconciliation scanned" in record.message for record in caplog.records
+    )

@@ -31,11 +31,12 @@ Release highlights — see [Release History](./HISTORY.md) for details.
 - Private sensor support via per-sensor read keys (free API points when querying your own sensors).
 - Subentry layout — one subentry per sensor; automatic v1 → v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
 - Cost-aware field selection — only fields backing enabled entities are requested, and static device-info fields are fetched once per day.
-- Quality-aware availability — entities go unavailable on `confidence < 50`, `channel_state == 0` ("No PM"), or a stale `last_seen`.
-- Account-level **Remaining points** and **Consumption rate** diagnostic sensors (disabled by default), backed by a daily refresh of `GET /v1/organization`. A persistent repair issue fires when the balance drops below seven days of consumption or the API rejects requests with `PaymentRequiredError`.
+- Quality-aware availability — entities go unavailable on `channel_state == 0` ("No PM"), a stale `last_seen`, or `confidence < 50` when both PM channels are reporting (single-channel sensors aren't gated on confidence because there's no second channel to cross-check).
+- Account-level **Remaining points** and **Consumption rate** diagnostic sensors (both enabled by default), backed by a daily refresh of `GET /v1/organization`. A persistent repair issue fires when the balance drops below seven days of consumption or the API rejects requests with `PaymentRequiredError`.
 - Sensor selection from a map — pick nearby public sensors from a radius-filtered map picker.
 - Disabled-by-default derived entities: PM2.5 EPA mass concentration (US EPA piecewise humidity correction) and PM2.5 air quality index (US EPA AQI from the 24-hour average, 2024 NAAQS breakpoints).
-- Disabled-by-default diagnostic entities: Confidence, Channel state, Channel flags, Last seen, Internal temperature/humidity/pressure, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
+- Enabled-by-default diagnostic entities: Confidence, Channel state, Last seen — these surface the values the availability gate uses, so a sensor marked Unavailable can be diagnosed at a glance from its device card. They cost zero extra API points (already fetched on every refresh).
+- Disabled-by-default diagnostic entities: Channel flags, Internal temperature/humidity/pressure, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
 - Platinum-tier quality-scale compliance.
 
 See [GitHub Releases][releases-link] for per-release changes.\
@@ -49,8 +50,9 @@ See [Release History](./HISTORY.md) for historic changes.
 - **Config subentries.** One subentry per sensor (the current HA model) instead of a single config entry holding a list of sensor indices.
 - **Sensor selection from a map.** Pick nearby public sensors from a radius-filtered map picker.
 - **Cost-aware field selection.** Only fields for *enabled* entities are requested, and static device-info fields are fetched once per day instead of every refresh — see [API points and field selection](#api-points-and-field-selection).
-- **Quality-aware availability.** Entities are marked unavailable when the sensor's `confidence` drops below 50 %, when the two Plantower channels disagree (`channel_state == 0`), or when the sensor has stopped reporting (`last_seen` older than 10 min).
-- **Remaining-points diagnostics.** Account-level **Remaining points** and **Consumption rate** sensors (disabled by default) plus a persistent repair issue when fewer than seven days of points remain or the API rejects requests with `PaymentRequiredError`.
+- **Quality-aware availability.** Entities are marked unavailable when the sensor reports no PM data (`channel_state == 0`, "No PM"), when it has stopped reporting (`last_seen` older than 10 min), or when both Plantower channels are reporting and disagree too much (`confidence < 50`). Single-channel sensors (PA-I or one channel downgraded) aren't gated on confidence because there's no second channel to cross-check against — on those sensors the displayed Confidence value reflects internal sensor-health checks rather than channel agreement, so values typically sit between 20 and 40 by design and that's not a defect. Confidence, channel state, and last-seen diagnostic entities are all enabled by default so the reason a sensor went unavailable is visible at a glance from the device card.
+- **Hardware-aware entities.** The Volatile organic compounds (IAQ) entity is only created for devices whose `hardware` string indicates a BME680/688 gas sensor (PA-II-ZEN and newer). PA-I and original PA-II boards ship a BME280 with no gas-sensing capability, so the integration skips the entity entirely on those boards rather than registering one that would always sit at `unknown` (the API returns `voc: null`, which HA renders as Unknown for measurement entities). Existing installs that already have the entity registered keep it (the gate is bypassed for entities already present in the entity registry).
+- **Remaining-points diagnostics.** Account-level **Remaining points** and **Consumption rate** sensors (both enabled by default) plus a persistent repair issue when fewer than seven days of points remain or the API rejects requests with `PaymentRequiredError`.
 - **Platinum-tier quality scale.** Full [HA quality-scale][qualityscale-rules-link] platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, ≥ 95 % test coverage, and more — see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
 - **Automatic v1 → v2 migration.** Existing config entries from the built-in integration are converted to the subentry layout on first load; entity IDs, devices, and history are preserved.
 
@@ -96,7 +98,7 @@ Each sensor is added as a **subentry** under the integration. Two methods:
 
 ### Account-Level Diagnostics
 
-In addition to the per-sensor subentries, the integration registers a single per-config-entry **organization** device (named `<entry-title> organization` — e.g. "PurpleAir organization" for the default integration title) that surfaces account-level information shared across all sensors under the same API key. It currently backs the **Remaining points** and **Consumption rate** diagnostic sensors (both disabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
+In addition to the per-sensor subentries, the integration registers a single per-config-entry **organization** device (named `<entry-title> organization` — e.g. "PurpleAir organization" for the default integration title) that surfaces account-level information shared across all sensors under the same API key. It backs the **Remaining points** and **Consumption rate** diagnostic sensors (both enabled by default), plus the points-related repair issues. In **Settings → Devices & Services → PurpleAir** this device appears under HA's "Devices that don't belong to a sub-entry" heading. That label reads as a defect but is intentional: the organization endpoint is account-scoped (per API key), not per-sensor, so the device deliberately has no subentry parent.
 
 ## Sensor Behavior and Calibration
 
@@ -229,7 +231,7 @@ A separate **PurpleAir API points are exhausted** repair issue fires (severity e
 
 This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes][purpleair-api-link] collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
 
-The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library yet. While upstream review is pending, [`manifest.json`](custom_components/purpleair/manifest.json) pins to a temporary fork distribution published to PyPI as `aiopurpleair-ptr727==2026.4.0` (built from the [organization-endpoint-and-error-codes fork branch][aiopurpleair-fork-link]). The fork adds:
+The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library yet. While upstream review is pending, [`manifest.json`](custom_components/purpleair/manifest.json) pins to a temporary fork distribution published to PyPI as `aiopurpleair-ptr727==2026.5.0` (built from the [organization-endpoint-and-error-codes fork branch][aiopurpleair-fork-link]). The fork adds:
 
 - 19 new exception subclasses (one per documented API error code), wired into `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc. instead of pattern-matching on `str(err)`.
 - A `GET /v1/organization` endpoint exposed on `API` as `api.organizations`, with a `GetOrganizationResponse` Pydantic model carrying `remaining_points`, `consumption_rate`, `organization_id`, `organization_name`, `api_version`, and `timestamp_utc`.
@@ -349,7 +351,7 @@ Additional useful tasks in the same file:
 
 ### Devcontainer Setup
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (SSH signing key, GitHub CLI auth) work inside it without re-setup:
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where the token is file-backed) work inside it without re-setup. The `gh` part is conditional. `gh auth login` always writes the per-host config (username, git protocol, etc.) to `~/.config/gh/hosts.yml`, but it stores the **token** in a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and only writes the token to the file when no store is found or you passed `--insecure-storage`. So on credential-store hosts, `~/.config/gh/hosts.yml` exists but has no `oauth_token` line; the bind-mount therefore carries no token, and container `gh` is unauthenticated until you opt into one of the trade-offs documented below.
 
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
@@ -361,31 +363,33 @@ The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the c
 
 If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before opening, or simply don't use the devcontainer.
 
-Configuration below applies to Debian or Ubuntu distros.
+`.devcontainer.json` also runs an `onCreateCommand` that fixes `~/.ssh` ownership inside the container (Docker creates the bind-mount parent dir as `root:root 755`, which prevents writing `known_hosts`). `onCreateCommand` only runs at container *creation*, so contributors with an already-built container who pull a branch that introduces or changes that command must rebuild the container (VS Code typically prompts) or run the equivalent `chown`/`chmod` manually. Fresh-checkout contributors are unaffected.
 
-#### WSL Host Setup
+The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite for Docker Desktop integration; enabling systemd is recommended but not strictly required — the Linux/WSL Deltas section documents a `~/.bashrc` fallback for shells where `systemctl --user` isn't available.
 
-Apply this configuration if you are running linux distros from WSL on Windows.
+#### WSL Host Prep
+
+Apply this configuration if you are running Linux distros from WSL on Windows.
 
 Enable `Use the WSL 2 based engine` in Docker Desktop under Settings / General.\
 Enable `Enable integration with my default WSL distro` and `Enable integration with additional distros` in Docker Desktop under Settings / Resources / WSL integration.
 
-Edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
+Recommended (but not strictly required — see the Linux/WSL Deltas `~/.bashrc` fallback below if you prefer not to enable systemd): edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
 
 ```ini
 [boot]
 systemd = true
 ```
 
-Restart WSL if required, run from a Windows PowerShell terminal:
+Then restart WSL from a Windows PowerShell terminal:
 
 ```shell
 wsl --shutdown
 ```
 
-#### Linux Host Setup
+#### Host Setup
 
-Apply this configuration from the linux docker host that will run the devcontainer.
+Run on the host that will run the devcontainer.
 
 ```shell
 # Configure git identity
@@ -418,12 +422,9 @@ gh auth login
 gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) auth"
 gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) signing" --type signing
-
-# Enable the user-level ssh-agent service
-systemctl --user enable --now ssh-agent.socket
 ```
 
-Edit `~/.ssh/config` to add SSH keys to the agent:
+Edit `~/.ssh/config` so the agent caches the key on first use:
 
 ```ini
 Host *
@@ -431,7 +432,15 @@ Host *
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-Edit `~/.bashrc` as fallback:
+##### Linux/WSL Deltas
+
+Enable the user-level `ssh-agent` service so it's available across shells:
+
+```shell
+systemctl --user enable --now ssh-agent.socket
+```
+
+If `systemctl --user` isn't available in your shell (some minimal WSL distros), add this fallback to `~/.bashrc`:
 
 ```shell
 # Reuse a shared ssh-agent if systemd's isn't available in this shell
@@ -449,6 +458,49 @@ if [ -z "$SSH_AUTH_SOCK" ]; then
 fi
 ```
 
+##### macOS Deltas
+
+macOS uses launchd (not systemd) for `ssh-agent` and integrates SSH with the system Keychain. The `systemctl` line and the `~/.bashrc` agent fallback do not apply, and the SSH steps differ.
+
+Use this `~/.ssh/config` instead of the common one — `UseKeychain yes` caches the passphrase in Keychain:
+
+```ini
+Host *
+    AddKeysToAgent yes
+    UseKeychain yes
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Load the key into the agent once so the passphrase persists across reboots:
+
+```shell
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+##### `gh` Credential-Store Hosts
+
+`gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops with the relevant daemon running. `--insecure-storage` is the opt-out that forces file storage. When the credential store is used, the token never lands in `~/.config/gh/hosts.yml`, and the devcontainer bind-mount therefore carries no `oauth_token`. (On Linux servers, WSL distros without a desktop session, and any host where you ran `gh auth login --insecure-storage`, the token IS in `hosts.yml` and container `gh` is pre-authenticated — skip this section.)
+
+If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
+
+- **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want the host's GitHub token to live only in the credential store.
+- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists on your host as a plaintext bearer token (mode 600). This is materially weaker than the credential-store entry: anyone or anything with read access to that file gets immediate GitHub auth, with no passphrase or unlock step. Your credential-store token is unchanged, and the host's `gh` will still prefer the credential-store one.
+
+```shell
+# Inside the devcontainer (one-time, only if you chose the second option).
+# Default scopes cover PR/issue work — `gh pr view`, `gh issue view`,
+# `gh api repos/.../pulls/N/comments`, `gh run list`, etc.
+gh auth login
+
+# Optional: only if you also want to manage SSH keys with `gh ssh-key add`
+# from the container, extend the token's scopes (note: `gh auth refresh`,
+# not `gh auth login -s`, which would re-do the whole login flow).
+# Most contributors don't need this; default scopes are fine.
+gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
+```
+
+#### Verify Host Setup
+
 Open a new terminal and verify configuration:
 
 ```shell
@@ -464,14 +516,19 @@ git config --list --show-origin
 gh ssh-key list
 ssh -T git@github.com
 
-# SSH socket and keys should be available via ssh-agent
-systemctl --user status ssh-agent.socket
+# SSH socket and key should be available via the agent
 echo $SSH_AUTH_SOCK
 ssh-add -l
 
-# Should show one ssh-agent process per user
+# Confirm an ssh-agent process is running (any platform / any setup path)
 ps aux | grep ssh-agent | grep -v grep
+
+# Linux/WSL only, and only if you used the systemd path (skip if you used
+# the ~/.bashrc fallback — that path doesn't register a systemd service):
+systemctl --user status ssh-agent.socket
 ```
+
+On credential-store hosts that haven't been authenticated inside the container yet, container `gh` will be unauthenticated — that's expected at this point. The in-container verify section below covers the post-container-auth check.
 
 #### Open in Devcontainer
 
@@ -489,13 +546,25 @@ ls -la ~/.config/gh
 # Show git config
 git config --list --show-origin
 
-# Test github SSH login
-gh ssh-key list
-ssh -T git@github.com
-
 # SSH socket and keys should be available via ssh-agent
 echo $SSH_AUTH_SOCK
 ssh-add -l
+
+# Test GitHub SSH connectivity (does not need `gh`)
+ssh -T git@github.com
+
+# Test gh — only if container `gh` is authenticated. It is when the
+# host stored the token in `~/.config/gh/hosts.yml` (Linux servers,
+# minimal WSL, or any host where you ran `gh auth login
+# --insecure-storage`); it isn't when the host's `gh` is using a
+# credential store (Keychain on macOS, libsecret/Secret Service on
+# Linux desktops — both the default when the store is available)
+# unless you ran `gh auth login` once inside the container. Skip in
+# the unauthenticated case — `gh auth status` will fail by design.
+# `gh auth status` works with default scopes; `gh ssh-key list`
+# requires the `admin:public_key` scope, only granted when you extend
+# the token via `gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key`.
+gh auth status
 ```
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions

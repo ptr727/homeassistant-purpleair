@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from aiopurpleair.endpoints.sensors import NearbySensorResult
 from aiopurpleair.models.keys import GetKeysResponse
 from aiopurpleair.models.organizations import GetOrganizationResponse
-from aiopurpleair.models.sensors import GetSensorsResponse
+from aiopurpleair.models.sensors import GetSensorsResponse, SensorModel
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, load_fixture
 from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
@@ -70,21 +70,34 @@ def api_fixture(
 ) -> Mock:
     """Define a fixture to return a mocked aiopurpleair API object.
 
-    ``async_get_sensors`` filters by the ``sensor_indices`` kwarg so it mimics
-    the real endpoint: the server only returns sensors you asked for.
-    Otherwise tests that rely on cache membership see all three fixture
-    sensors after the very first refresh.
+    ``async_get_sensors`` mimics the real endpoint by filtering both
+    ``sensor_indices`` and the ``fields`` argument: the server only returns
+    sensors you asked for, and within each sensor only the fields you
+    requested. Without the field filter, gated entries like ``voc`` would
+    appear populated in tests where production would have skipped the
+    field — masking regressions in ``_compute_requested_fields``.
     """
+    # Map wire field name (alias) → SensorModel attribute name.
+    wire_to_attr = {
+        (info.alias or name): name for name, info in SensorModel.model_fields.items()
+    }
 
-    async def _filtered_get_sensors(*_args, **kwargs):
+    async def _filtered_get_sensors(*args, **kwargs):
+        requested_fields = set(args[0] if args else kwargs.get("fields", ()))
         indices = kwargs.get("sensor_indices")
-        if not indices:
-            return get_sensors_response
-        filtered = {
-            idx: sensor
-            for idx, sensor in get_sensors_response.data.items()
-            if idx in indices
-        }
+        filtered: dict[int, SensorModel] = {}
+        for idx, sensor in get_sensors_response.data.items():
+            if indices and idx not in indices:
+                continue
+            # Strip every attribute whose wire name wasn't in `fields`.
+            # Preserve `sensor_index` (always present in the wire row).
+            stripped: dict[str, Any] = {}
+            for wire_name, attr_name in wire_to_attr.items():
+                if attr_name == "sensor_index":
+                    continue
+                if wire_name not in requested_fields:
+                    stripped[attr_name] = None
+            filtered[idx] = sensor.model_copy(update=stripped) if stripped else sensor
         return get_sensors_response.model_copy(update={"data": filtered})
 
     return Mock(

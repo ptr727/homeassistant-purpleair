@@ -62,31 +62,55 @@ This was a recurring pain point under the previous squash-only setup: each devel
 
 ## PR review etiquette
 
-Branch protection's `copilot_code_review` rule reviews on push, but `mergeStateStatus: CLEAN` only waits on *required* checks; Copilot's `COMMENTED` reviews don't block. Before merging a PR, explicitly verify Copilot has reviewed the *current* head SHA, not an earlier one:
+This repo uses a review loop: local coding agent iteration + remote automated review. Treat this as a contract, regardless of which local agent authored the changes.
 
-```sh
-PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
-gh pr view <N> --json reviews --jq \
-  '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
-  | grep -q "$PR_HEAD"
-```
+### Expected review loop
 
-When that grep matches, read the comments submitted at-or-after that review's `submittedAt`:
+1. Push changes to the PR branch.
+1. Request automated review.
+1. Verify review activity against the **current PR head SHA** (not an older commit).
+1. Triage findings.
+1. Apply fixes or provide a rationale for decline.
+1. Reply to comments/threads and resolve what was addressed.
+1. Re-run the loop after every fix push until no actionable findings remain.
 
-```sh
-LATEST=$(gh pr view <N> --json reviews --jq \
-  '[.reviews[] | select(.author.login=="copilot-pull-request-reviewer")] | last | .submittedAt')
-gh api repos/<owner>/<repo>/pulls/<N>/comments --jq \
-  "[.[] | select(.created_at >= \"$LATEST\")]"
-```
+Do not assume auto-trigger happened. If no review appears, use the provider-specific runbook to request it explicitly and verify completion. Provider mechanics are intentionally kept out of this file; use [Copilot instructions](.github/copilot-instructions.md) for GitHub Copilot specifics.
 
-Zero comments at or after the latest review's timestamp is the explicit sign-off. Any earlier check is a race against an in-progress review and can ship bugs that landed in the last review pass (it has).
+`mergeStateStatus: CLEAN` only checks required statuses and may not block on bot review comments. Merge only after review on the latest head SHA is confirmed and actionable findings are closed.
+
+### Triaging review comments
+
+For each comment, classify before responding:
+
+- **Bug** — wrong behavior, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when you're done.
+- **Style/convention** — the comment cites AGENTS.md or a repo convention. Two cases:
+  - The cited rule matches what the existing codebase already does → fix the offending code.
+  - The cited rule contradicts what's already in the tree, or industry norm → **update AGENTS.md instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. As a heuristic, three rounds on the same style category means the rule needs adjusting and the user needs to authorize it.
+- **Architectural opinion** — the comment proposes a different design ("constrain this to disabled-by-default", "move this elsewhere", "add a runtime guardrail"). This is judgement, not a bug. Surface it to the user with a recommendation; don't apply unilaterally.
+
+### Responding and resolution expectations
+
+Reply inline with either the fixing commit SHA (for accepted issues) or a concise rationale (for declines). Resolve review threads only when addressed or intentionally declined with rationale. Issue-level comments have no resolution action — acknowledge with a reply if needed and move on.
+
+After the final push on a PR, sweep old threads from earlier rounds whose code paths no longer exist; otherwise stale unresolved markers remain in the review UI.
+
+### Escalating to the user
+
+Bring the user in when:
+
+- **Genuine design trade-off** surfaces (fail-open vs fail-closed, narrow vs broad refactor scope, "should we add a guardrail or trust the docstring"). Triage, recommend, ask.
+- **Repeated friction** across rounds without convergence — that's the AGENTS.md-needs-updating signal. Stop, summarize the pattern, and let the user authorize the rule change.
+- **Architectural redesign** is requested rather than a strict bug fix. Surface with a recommendation; never apply unilaterally.
+
+Anti-pattern: don't keep flipping the code on the same style point. Flip the rule once and stick to the rule.
 
 ## Code style
 
 - Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict).
+- **Always run `scripts/lint` before pushing or opening a PR** — running ruff in isolation does NOT cover `mypy --strict`, which is a CI gate. Skipping mypy locally means catching trivial type errors only after a CI round-trip (e.g. an inline `lambda` without annotations passed into a typed `dict.get(default=…)` will fail mypy strict but pass ruff). One command, no exceptions.
 - Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
-- **Comments**: only when the *why* is non-obvious — hidden constraint, subtle invariant, workaround. Don't explain *what* the code does. No multi-paragraph docstrings; one-line comment max.
+- **Inline `#` comments**: keep tight and local. One line is preferred, but multi-line is allowed when needed to document non-obvious implementation constraints, local trade-offs, or coupling that future edits could easily break. Keep this rationale next to the affected block so reviewers and maintainers see it at edit-time. Don't explain *what* the code does; well-named identifiers handle that. Don't reference the current task ("added for X", "used by Y"); that belongs in PR descriptions.
+- **Docstrings (`"""..."""`)**: follow PEP 257 and focus primarily on behavior contracts (what callers/tests can rely on), public semantics, and edge-case expectations. A short one-liner is fine for trivial functions and tests with self-documenting names. For non-trivial behavior — non-obvious test scenarios, contracts a test pins, edge cases callers must know about, design trade-offs that are load-bearing for future maintainers — write a one-line summary, blank line, then a details paragraph. Multi-paragraph docstrings are fine when the behavior contract earns it (see [`PurpleAirSensorEntityDescription.hardware_gate`](custom_components/purpleair/sensor.py)). Use inline comments for implementation-local rationale; don't force local mechanics into docstrings when locality is clearer. Design notes belong **in the code**: docstrings or inline comments live next to the code they describe and stay in sync with it. They do NOT belong in [HISTORY.md](HISTORY.md) — that file is end-user release notes (what changed, what to expect after upgrade), not a design log.
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** — just delete.
 - **Don't add error handling for impossible cases** — trust internal code; only validate at boundaries.
 
@@ -148,7 +172,7 @@ yamllint .github/workflows/                               # silent expected
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) bind-mounts host SSH signing key, `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed and `gh` is pre-authenticated. See [README.md](README.md#devcontainer-setup).
+[.devcontainer.json](.devcontainer.json) bind-mounts the host SSH signing key's *public half* (`~/.ssh/id_ed25519.pub`), `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed (signing happens via the forwarded `ssh-agent` socket — the private key never enters the container) and, *when the host's `gh` token is file-backed*, `gh` is pre-authenticated. `gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and `--insecure-storage` is the opt-out that forces file storage. On credential-store hosts, `~/.config/gh/hosts.yml` carries no `oauth_token`, so container `gh` is unauthenticated until you opt into one of the trade-offs documented in [README.md](README.md#devcontainer-setup).
 
 ## Linters available in the devcontainer
 
@@ -175,7 +199,7 @@ Installation:
 
 ## Tooling pointers
 
-- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount (see [README.md](README.md#devcontainer-setup)).
+- **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount when the host's `gh` token is file-backed; on credential-store hosts (macOS Keychain, Linux libsecret) the contributor chose either to authenticate `gh` once inside the container or to skip container `gh` entirely — see [README.md](README.md#devcontainer-setup) for which.
 - **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
 - **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
 

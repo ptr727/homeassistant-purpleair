@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 import logging
 from math import nan
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.const import ChannelFlag, ChannelState
@@ -16,7 +16,12 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy import SnapshotAssertion
 
-from custom_components.purpleair.const import DOMAIN
+from custom_components.purpleair.const import (
+    CONF_SENSOR,
+    CONF_SENSOR_INDEX,
+    CONF_SENSOR_READ_KEY,
+    DOMAIN,
+)
 from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
     CHANNEL_FLAGS_OPTIONS,
@@ -31,6 +36,7 @@ from custom_components.purpleair.sensor import (
     _pm25_epa_correction,
 )
 from homeassistant.components.sensor import UnitOfTemperature
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
@@ -41,7 +47,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX_NO_LOCATION
+from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2, TEST_SENSOR_INDEX_NO_LOCATION
 
 
 async def test_sensor_snapshot(
@@ -104,9 +110,12 @@ async def test_sensor_device_info(
     )
     assert device is not None
     assert device.manufacturer == "PurpleAir, Inc."
-    assert device.model == "PA-II"
+    assert device.model == "PA-II-ZEN"
     assert device.name == "Test Sensor"
-    assert device.hw_version == "2.0+BME280+PMSX003-B+PMSX003-A"
+    assert (
+        device.hw_version
+        == "3.0+OPENLOG+NO-DISK+RV3028+BME68X+KX122+PMSX003-A+PMSX003-B"
+    )
     assert device.sw_version == "7.02"
     assert device.configuration_url == "http://example.com"
 
@@ -134,7 +143,7 @@ async def test_show_on_map_disabled_omits_location_attrs(
 
 @pytest.mark.parametrize(
     "config_subentry_data",
-    [{"sensor_index": TEST_SENSOR_INDEX_NO_LOCATION, "sensor_read_key": None}],
+    [{CONF_SENSOR_INDEX: TEST_SENSOR_INDEX_NO_LOCATION, CONF_SENSOR_READ_KEY: None}],
 )
 async def test_sensor_without_location_omits_attrs_even_when_show_on_map(
     hass: HomeAssistant,
@@ -147,6 +156,250 @@ async def test_sensor_without_location_omits_attrs_even_when_show_on_map(
     assert state is not None
     assert ATTR_LATITUDE not in state.attributes
     assert ATTR_LONGITUDE not in state.attributes
+
+
+async def test_voc_entity_created_for_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """BME68X hardware → VOC entity is created and value flows through.
+
+    Asserting state, not just registration, guards against a regression where
+    the entity exists in the registry but ``value_fn`` returns ``None``.
+    """
+    entry = entity_registry.async_get(
+        "sensor.test_sensor_volatile_organic_compounds_iaq"
+    )
+    assert entry is not None
+    entity_registry.async_update_entity(entry.entity_id, disabled_by=None)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    state = hass.states.get(entry.entity_id)
+    assert state is not None
+    assert state.state == "42.5"
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}],
+)
+async def test_voc_entity_skipped_for_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """BME280 hardware → VOC entity is not created.
+
+    Look-up is by ``unique_id`` rather than ``entity_id``: VOC's
+    ``translation_key`` slugifies the entity_id, so a literal entity_id
+    assertion would silently pass on regression.
+    """
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        is None
+    )
+    # Sibling check — guards against a setup-failure regression.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-temperature"
+        )
+        is not None
+    )
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}],
+)
+@pytest.mark.parametrize(
+    "pre_seed_disabled_by",
+    [
+        None,
+        er.RegistryEntryDisabler.INTEGRATION,
+        er.RegistryEntryDisabler.USER,
+    ],
+    ids=["enabled", "integration_disabled", "user_disabled"],
+)
+async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+    pre_seed_disabled_by,
+) -> None:
+    """Pre-seeded VOC entries on no-VOC hardware survive upgrade in any disabled_by state.
+
+    INTEGRATION-disabled is the common upgrade state since VOC ships disabled
+    by default; covering all three states (None, INTEGRATION, USER) pins the
+    contract that the gate's existing-registry bypass preserves the row's
+    ``disabled_by`` value verbatim and keeps a live entity behind enabled rows.
+    """
+    pre_seeded = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-voc",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+        original_name="Volatile organic compounds (IAQ)",
+        disabled_by=pre_seed_disabled_by,
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    after = entity_registry.async_get(pre_seeded.entity_id)
+    assert after is not None
+    # Registry entry preserved with the same disabled_by state.
+    assert after.disabled_by is pre_seed_disabled_by
+    # Live entity only present when the entry was enabled.
+    if pre_seed_disabled_by is None:
+        assert hass.states.get(pre_seeded.entity_id) is not None
+    else:
+        assert hass.states.get(pre_seeded.entity_id) is None
+
+
+async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
+    hass: HomeAssistant,
+    config_entry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Mixed-hardware entry: per-subentry VOC gate uses each sensor's own hardware.
+
+    Two subentries on one entry (123456 BME68X, 567890 BME280) — guards
+    against a regression that hoists hardware out of the per-subentry loop
+    and applies one sensor's value to the whole entry.
+    """
+    for sensor_index in (TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2):
+        hass.config_entries.async_add_subentry(
+            config_entry,
+            ConfigSubentry(
+                data=MappingProxyType(
+                    {CONF_SENSOR_INDEX: sensor_index, CONF_SENSOR_READ_KEY: None}
+                ),
+                subentry_type=CONF_SENSOR,
+                title=f"sensor {sensor_index}",
+                unique_id=str(sensor_index),
+            ),
+        )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    # BME68X sensor: VOC entity created.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX1}-voc"
+        )
+        is not None
+    )
+    # BME280 sensor: VOC entity skipped.
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}],
+)
+async def test_voc_entity_can_be_enabled_after_upgrade_on_no_voc_hardware(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """Re-enabling a pre-seeded INTEGRATION-disabled VOC entry surfaces a live entity.
+
+    Pins the ``existing_unique_ids`` bypass contract: even though the gate
+    would normally skip VOC creation on BME280 hardware, a pre-existing
+    registry row makes ``async_setup_entry`` create the entity object
+    anyway. Without that, re-enabling the row post-upgrade would leave it
+    orphaned with no live state.
+    """
+    pre_seeded = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-voc",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+        original_name="Volatile organic compounds (IAQ)",
+        disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    # Initially disabled → no state.
+    assert hass.states.get(pre_seeded.entity_id) is None
+    # User clears disabled_by; reload picks up the now-enabled entity.
+    entity_registry.async_update_entity(pre_seeded.entity_id, disabled_by=None)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(pre_seeded.entity_id) is not None
+
+
+async def test_voc_entity_skipped_when_hardware_unknown(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    api,
+    get_sensors_response,
+    entity_registry: er.EntityRegistry,
+    mock_aiopurpleair,
+) -> None:
+    """``hardware=None`` → gate fails closed, VOC entity not created.
+
+    Failing closed for ``entity_registry_enabled_default=False`` gated
+    entities is preferable: a transient miss self-heals on next setup,
+    whereas failing open would permanently register an orphan entity on
+    every truly no-VOC device that the user would have to clean up.
+    """
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    no_hw_sensor = original.model_copy(update={"hardware": None})
+    no_hw_response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: no_hw_sensor,
+            }
+        }
+    )
+
+    async def _stub(*_args, **kwargs):
+        indices = kwargs.get("sensor_indices")
+        if not indices:
+            return no_hw_response
+        return no_hw_response.model_copy(
+            update={
+                "data": {
+                    idx: sensor
+                    for idx, sensor in no_hw_response.data.items()
+                    if idx in indices
+                }
+            }
+        )
+
+    api.sensors.async_get_sensors = AsyncMock(side_effect=_stub)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX1}-voc"
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize(
@@ -289,7 +542,14 @@ async def test_availability_guards(
 
     original = get_sensors_response.data[TEST_SENSOR_INDEX1]
     if mutate_field == "confidence":
-        bad_sensor = original.model_copy(update={"confidence": 10})
+        # Confidence is only gated when both PM channels are reporting; the
+        # fixture defaults channel_state to None, so set it explicitly here.
+        bad_sensor = original.model_copy(
+            update={
+                "channel_state": ChannelState.PM_A_PM_B,
+                "confidence": 10,
+            }
+        )
     elif mutate_field == "channel_state":
         bad_sensor = original.model_copy(update={"channel_state": ChannelState.NO_PM})
     else:  # last_seen
@@ -319,6 +579,131 @@ async def test_availability_guards(
     assert state.state == STATE_UNAVAILABLE
     assert any(log_needle in record.message for record in caplog.records), (
         f"No log mentioning {log_needle!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "single_channel_state",
+    [ChannelState.PM_A, ChannelState.PM_B],
+)
+async def test_low_confidence_does_not_gate_single_channel_sensors(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    get_sensors_response,
+    freezer,
+    single_channel_state,
+) -> None:
+    """Single-channel sensors keep working despite low confidence.
+
+    PA-I and downgraded-channel sensors report low confidence by definition
+    because there's no second channel to cross-check against. The
+    availability rule must only gate on confidence when both PM channels are
+    reporting (PM-A+PM-B); otherwise indoor PA-I sensors get marked
+    unavailable even when they're working fine.
+    """
+    assert hass.states.get("sensor.test_sensor_temperature") is not None
+
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    single_channel_sensor = original.model_copy(
+        update={
+            "channel_state": single_channel_state,
+            "confidence": 30,  # below MIN_CONFIDENCE; would gate if both channels
+        }
+    )
+    response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: single_channel_sensor,
+            }
+        }
+    )
+    api.sensors.async_get_sensors = AsyncMock(return_value=response)
+
+    freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.test_sensor_temperature")
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE
+
+
+async def test_last_seen_renders_as_tz_aware_timestamp(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    get_sensors_response,
+    freezer,
+) -> None:
+    """`Last seen` entity must render as a tz-aware ISO timestamp, not unavailable.
+
+    HA's TIMESTAMP-class `SensorEntity` forces state to STATE_UNAVAILABLE when
+    given a tz-naive `datetime`. The aiopurpleair fork was returning naive
+    datetimes (fixed in 2026.5.0), which made the Last seen entity silently
+    unavailable on every device while every sibling kept reporting fresh
+    values. This test pins the rendered state, not just the SensorModel field,
+    so a future library swap that reintroduces tz-naive datetimes is caught
+    here instead of surfacing as a broken HA entity.
+
+    The construction goes through `SensorModel.model_validate` with `last_seen`
+    as an int so the upstream `validate_timestamp` validator runs — without
+    that, the test would bypass the bug entirely.
+    """
+    from datetime import UTC  # noqa: PLC0415
+
+    from aiopurpleair.models.sensors import SensorModel  # noqa: PLC0415
+
+    original = get_sensors_response.data[TEST_SENSOR_INDEX1]
+    last_seen_epoch = 1762147200  # 2025-11-03 04:00:00 UTC
+    sensor_with_last_seen = SensorModel.model_validate(
+        {
+            **original.model_dump(by_alias=True, exclude_none=True),
+            "last_seen": last_seen_epoch,
+        }
+    )
+    # Sanity check: the upstream validator must produce a tz-aware datetime.
+    assert sensor_with_last_seen.last_seen_utc is not None
+    assert sensor_with_last_seen.last_seen_utc.tzinfo is not None, (
+        "aiopurpleair regression: validate_timestamp returned a naive datetime "
+        "(would force HA TIMESTAMP entity to STATE_UNAVAILABLE)"
+    )
+
+    patched_response = get_sensors_response.model_copy(
+        update={
+            "data": {
+                **get_sensors_response.data,
+                TEST_SENSOR_INDEX1: sensor_with_last_seen,
+            },
+            # Set data_timestamp_utc near the new last_seen so the staleness
+            # gate doesn't fire (default fixture timestamp is 2022). Must be
+            # tz-aware to match last_seen_utc — the staleness gate subtracts
+            # the two and Python rejects naive/aware mixing.
+            "data_timestamp_utc": datetime(2025, 11, 3, 4, 5, 0, tzinfo=UTC),
+        }
+    )
+    api.sensors.async_get_sensors = AsyncMock(return_value=patched_response)
+
+    freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.test_sensor_last_seen")
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE, (
+        "Last seen entity unavailable — likely a tz-naive datetime "
+        "regression in aiopurpleair. Expected a tz-aware ISO timestamp."
+    )
+    # HA renders TIMESTAMP-class state as ISO 8601 with a tz suffix
+    # ("+00:00" for UTC). Confirm the offset is present so we know we got
+    # a real tz-aware datetime through the whole pipeline.
+    assert "+00:00" in state.state, (
+        f"Expected tz-aware ISO 8601 string ending in +00:00, got {state.state!r}"
     )
 
 
@@ -459,6 +844,15 @@ async def test_organization_native_value_none_without_data(
 
     config_entry.runtime_data.organization.data = None
     assert entity.native_value is None
+
+
+def test_organization_sensor_default_enablement() -> None:
+    """Pin the documented default-enabled state for each org diagnostic sensor."""
+    defaults = {
+        desc.key: desc.entity_registry_enabled_default
+        for desc in ORGANIZATION_SENSOR_DESCRIPTIONS
+    }
+    assert defaults == {"remaining_points": True, "consumption_rate": True}
 
 
 @pytest.mark.parametrize(

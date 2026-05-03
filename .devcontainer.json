@@ -6,6 +6,7 @@
         "source=${localEnv:HOME}/.config/git/allowed_signers,target=/home/vscode/.config/git/allowed_signers,type=bind,readonly",
         "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind"
     ],
+    "onCreateCommand": "sudo install -d -m 700 -o vscode -g vscode /home/vscode/.ssh",
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
         8123
