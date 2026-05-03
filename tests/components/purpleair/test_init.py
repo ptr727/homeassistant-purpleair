@@ -739,6 +739,7 @@ async def test_async_migrate_integration_reenables_default_true_entities(
 
 async def test_async_migrate_integration_preserves_user_disabled(
     hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """USER-disabled entries are never re-enabled, even if current default is True."""
     entry = MockConfigEntry(
@@ -755,17 +756,20 @@ async def test_async_migrate_integration_preserves_user_disabled(
         er.RegistryEntryDisabler.USER,
     )
 
-    await async_migrate_integration(hass)
-    await hass.async_block_till_done()
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
 
     assert (
         er.async_get(hass).async_get(user_entity.entity_id).disabled_by
         is er.RegistryEntryDisabler.USER
     )
+    assert any("disabled_by=" in record.message for record in caplog.records)
 
 
 async def test_async_migrate_integration_preserves_default_false_entities(
     hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """INTEGRATION-disabled entries whose current default is False stay disabled.
 
@@ -791,8 +795,9 @@ async def test_async_migrate_integration_preserves_default_false_entities(
         er.RegistryEntryDisabler.INTEGRATION,
     )
 
-    await async_migrate_integration(hass)
-    await hass.async_block_till_done()
+    with caplog.at_level(logging.DEBUG, logger="custom_components.purpleair"):
+        await async_migrate_integration(hass)
+        await hass.async_block_till_done()
 
     registry = er.async_get(hass)
     assert (
@@ -803,6 +808,7 @@ async def test_async_migrate_integration_preserves_default_false_entities(
         registry.async_get(orphan_entity.entity_id).disabled_by
         is er.RegistryEntryDisabler.INTEGRATION
     )
+    assert any("unknown key=" in record.message for record in caplog.records)
 
 
 async def test_async_migrate_integration_logs_info_on_reenable(

@@ -63,7 +63,7 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
   '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body: .body[:200]}'
 ```
 
-Coverage is confirmed when either (1) exits 0, or (2) returns a comment whose `created_at` is at or after `git log -1 --format=%cI` (the head commit timestamp; push time ≥ commit time, so this is a conservative lower bound) and whose body refers to the current changes.
+Coverage is confirmed when (1) exits 0. For issue comments (path 2), `created_at` is a best-effort signal only: `git log -1 --format=%cI` is the **commit** timestamp, not the push timestamp, so amended or rebased commits can have a timestamp earlier than the actual push — an older Copilot comment could satisfy the time check even though Copilot never saw the current head. Treat path (2) as confirmed only when the comment body explicitly refers to the current changes.
 
 Then inspect all Copilot comments at-or-after the latest response timestamp:
 
