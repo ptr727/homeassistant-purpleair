@@ -67,7 +67,7 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
   '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body: .body[:200]}'
 ```
 
-Coverage is confirmed when either (1) exits 0, or (2) returns a comment whose `created_at` is after the push and whose body refers to the current changes.
+Coverage is confirmed when either (1) exits 0, or (2) returns a comment whose `created_at` is at or after `git log -1 --format=%cI` (the head commit timestamp; push time ≥ commit time, so this is a conservative lower bound) and whose body refers to the current changes.
 
 Then inspect all Copilot comments at-or-after the latest response timestamp:
 
@@ -98,22 +98,27 @@ If a review did not run on the current head after the initial push-time trigger,
 
 ### Reply and thread resolution workflow
 
-List unresolved threads (paginate with the `after` cursor if the PR has more than 100 threads):
+List unresolved threads. Use `first: 100` with cursor-based pagination; if `hasNextPage` is true, re-run with `after: "<endCursor>"` to retrieve the next page:
 
 ```sh
 gh api graphql -f query='
 {
   repository(owner: "<owner>", name: "<repo>") {
     pullRequest(number: <N>) {
-      reviewThreads(last: 100) {
+      reviewThreads(first: 100) {
         nodes {
           id isResolved path
           comments(first: 1) { nodes { author { login } body } }
         }
+        pageInfo { hasNextPage endCursor }
       }
     }
   }
-}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+}' | jq '
+  .data.repository.pullRequest.reviewThreads |
+  (.pageInfo | "hasNextPage=\(.hasNextPage) endCursor=\(.endCursor)"),
+  (.nodes[] | select(.isResolved == false))
+'
 ```
 
 Reply on a thread, then resolve it:
