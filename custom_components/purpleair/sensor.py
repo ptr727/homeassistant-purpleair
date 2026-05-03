@@ -573,10 +573,15 @@ def _hardware_gate_pass(_hardware: str | None) -> bool:
     return True
 
 
-# Per-description hardware gate: skip creating the entity when the predicate
-# returns False. Fails closed on missing hardware — re-creates the entity
-# on a later setup once the field returns. See HISTORY.md for the
-# coordinator-side caveat for future enabled-by-default entries.
+# Per-description hardware gate: skip creating the entity at platform setup
+# when the predicate returns False. Failing closed on `hardware=None` means a
+# transient miss self-heals on next setup; failing open would permanently
+# register an orphan on truly no-hardware devices that users have to clean
+# up. Today's entries are all `entity_registry_enabled_default=False`, so
+# the gate also transitively suppresses the description's api_fields (the
+# coordinator's registry walk skips unregistered entities). For a future
+# enabled-by-default entry the coordinator's first-refresh fallback
+# (coordinator.py:243-248) would also need a parallel gate.
 HARDWARE_GATES: Final[dict[str, Callable[[str | None], bool]]] = {
     "voc": lambda hw: hw is not None and "BME68" in hw.upper(),
 }
