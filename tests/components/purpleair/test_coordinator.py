@@ -102,9 +102,7 @@ async def test_coordinator_first_refresh_skips_hardware_gated_fields(
     api,
 ) -> None:
     """First refresh must not request api_fields of hardware-gated descriptions."""
-    # Hardware isn't known yet on the very first call; the registry walk on
-    # the next refresh adds these fields once async_setup_entry has decided
-    # which entities to register.
+    # Hardware isn't known yet on the first call; subsequent refreshes pick the field up via the registry walk only if the entity is enabled.
     first_fields = api.sensors.async_get_sensors.await_args_list[0].args[0]
     assert "voc" not in first_fields
 

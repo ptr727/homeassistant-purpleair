@@ -161,8 +161,7 @@ async def test_voc_entity_created_for_voc_hardware(
     entity_registry: er.EntityRegistry,
 ) -> None:
     """BME68X hardware → VOC entity is created and value flows through."""
-    # Asserting state (not just registration) catches a regression where
-    # the entity exists but value_fn returns None.
+    # Assert state (not just registration) — catches a regression where the entity exists but value_fn returns None.
     entry = entity_registry.async_get(
         "sensor.test_sensor_volatile_organic_compounds_iaq"
     )
@@ -226,8 +225,7 @@ async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
     pre_seed_disabled_by,
 ) -> None:
     """Pre-seeded VOC entries on no-VOC hardware survive upgrade in any disabled_by state."""
-    # INTEGRATION-disabled is the common upgrade state (VOC ships
-    # disabled-by-default); covering all three states pins the contract.
+    # INTEGRATION-disabled is the common upgrade state since VOC ships disabled-by-default.
     pre_seeded = entity_registry.async_get_or_create(
         "sensor",
         DOMAIN,
@@ -244,8 +242,7 @@ async def test_voc_entity_preserved_on_upgrade_for_no_voc_hardware(
     assert after is not None
     # Registry entry preserved with the same disabled_by state.
     assert after.disabled_by is pre_seed_disabled_by
-    # If the entry was enabled, a live entity must be backing it (state
-    # present in the state machine). If disabled, HA won't create a state.
+    # Live entity only present when the entry was enabled.
     if pre_seed_disabled_by is None:
         assert hass.states.get(pre_seeded.entity_id) is not None
     else:
@@ -259,9 +256,11 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """Each subentry's VOC gate uses its own sensor's hardware, not the entry's."""
-    # Two subentries on one entry: 123456 (BME68X) and 567890 (BME280).
-    # Regression guard against accidentally reusing one subentry's hardware for the whole entry.
+    """Each subentry's VOC gate uses its own sensor's hardware, not the entry's.
+
+    Two subentries on one entry: 123456 (BME68X) and 567890 (BME280) — guards against a
+    regression that accidentally reuses one subentry's hardware for the whole entry.
+    """
     for sensor_index in (TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2):
         hass.config_entries.async_add_subentry(
             config_entry,
