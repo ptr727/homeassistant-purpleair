@@ -36,7 +36,7 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-Copilot auto-review on push is configured, but it sometimes misses pushes. **Always post the trigger comment immediately after every `git push`** — do not wait to see if auto-trigger fires:
+Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. **Always post the trigger comment immediately after every `git push`, without exception:**
 
 ```sh
 git push && gh pr comment <N> --body "@Copilot review"
