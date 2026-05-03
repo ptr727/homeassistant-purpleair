@@ -361,6 +361,8 @@ The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the c
 
 If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before opening, or simply don't use the devcontainer.
 
+`.devcontainer.json` also runs an `onCreateCommand` that fixes `~/.ssh` ownership inside the container (Docker creates the bind-mount parent dir as `root:root 755`, which prevents writing `known_hosts`). `onCreateCommand` only runs at container *creation*, so contributors with an already-built container who pull a branch that introduces or changes that command must rebuild the container (VS Code typically prompts) or run the equivalent `chown`/`chmod` manually. Fresh-checkout contributors are unaffected.
+
 The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite for Docker Desktop integration; enabling systemd is recommended but not strictly required — the Linux/WSL Deltas section documents a `~/.bashrc` fallback for shells where `systemctl --user` isn't available.
 
 #### WSL Host Prep
@@ -370,14 +372,14 @@ Apply this configuration if you are running Linux distros from WSL on Windows.
 Enable `Use the WSL 2 based engine` in Docker Desktop under Settings / General.\
 Enable `Enable integration with my default WSL distro` and `Enable integration with additional distros` in Docker Desktop under Settings / Resources / WSL integration.
 
-Edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
+Recommended (but not strictly required — see the Linux/WSL Deltas `~/.bashrc` fallback below if you prefer not to enable systemd): edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
 
 ```ini
 [boot]
 systemd = true
 ```
 
-Restart WSL if required, run from a Windows PowerShell terminal:
+Then restart WSL from a Windows PowerShell terminal:
 
 ```shell
 wsl --shutdown
@@ -480,10 +482,17 @@ ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
 
 - **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want the host's GitHub token to live only in the credential store.
-- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists on your host as a plaintext bearer token (mode 600). This is materially weaker than the credential-store entry: anyone or anything with read access to that file gets immediate GitHub auth, with no passphrase or unlock step. Your credential-store token is unchanged, and the host's `gh` will still prefer the credential-store one. Add `admin:public_key,admin:ssh_signing_key` if you want `gh ssh-key add` to work from the container — bare `gh auth login` only grants default scopes.
+- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now also exists on your host as a plaintext bearer token (mode 600). This is materially weaker than the credential-store entry: anyone or anything with read access to that file gets immediate GitHub auth, with no passphrase or unlock step. Your credential-store token is unchanged, and the host's `gh` will still prefer the credential-store one.
 
 ```shell
-# Inside the devcontainer (one-time, only if you chose the second option)
+# Inside the devcontainer (one-time, only if you chose the second option).
+# Default scopes cover PR/issue work — `gh pr view`, `gh issue view`,
+# `gh api repos/.../pulls/N/comments`, `gh run list`, etc.
+gh auth login
+
+# Optional: only if you also want to manage SSH keys with `gh ssh-key add`
+# from the container, request the elevated scopes explicitly. Most
+# contributors don't need this; default scopes are fine.
 gh auth login -s admin:public_key,admin:ssh_signing_key
 ```
 
