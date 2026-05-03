@@ -225,12 +225,16 @@ class PurpleAirSensorEntityDescription(SensorEntityDescription):
       registry walk on subsequent refreshes adds the field only if the
       entity ends up registered AND enabled.
 
-    Today's entries are all ``entity_registry_enabled_default=False``, so the
-    gate transitively suppresses field requests with no API-points cost. An
-    ``enabled_default=True`` gated entry would also need either (a) explicit
-    per-sensor predicate evaluation in the coordinator, or (b) acceptance
-    that its field is missing for the very first refresh and recovered from
-    the second refresh onward via the registry walk.
+    Today's only ``hardware_gate``-bearing entry (``voc``) is also
+    ``entity_registry_enabled_default=False``, so the gate transitively
+    suppresses its field request with no API-points cost. (Other
+    enabled-by-default descriptions in this file — ``confidence``,
+    ``channel_state``, ``last_seen``, the organization diagnostics — do
+    not set ``hardware_gate`` and are unaffected.) An
+    ``enabled_default=True`` gated entry would also need either (a)
+    explicit per-sensor predicate evaluation in the coordinator, or (b)
+    acceptance that its field is missing for the very first refresh and
+    recovered from the second refresh onward via the registry walk.
     """
 
 
