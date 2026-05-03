@@ -349,7 +349,7 @@ Additional useful tasks in the same file:
 
 ### Devcontainer Setup
 
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where it lives in the file store) work inside it without re-setup. The `gh` part is conditional: only file-stored tokens travel through the bind-mount. If your host `gh` uses a credential store — Keychain by default on macOS, or libsecret/Secret Service on Linux when you ran `gh auth login --secure-storage` — `~/.config/gh/hosts.yml` carries no `oauth_token` and container `gh` will be unauthenticated until you opt into one of the trade-offs documented below.
+The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where it lives in the file store) work inside it without re-setup. The `gh` part is conditional: only file-stored tokens travel through the bind-mount. `gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops — and only writes to `~/.config/gh/hosts.yml` when no store is found or you passed `--insecure-storage`. When the credential store is used, the bind-mount carries no `oauth_token` and container `gh` is unauthenticated until you opt into one of the trade-offs documented below.
 
 | Host path | Mounted at | Purpose |
 | --- | --- | --- |
@@ -456,7 +456,7 @@ fi
 
 ##### macOS Deltas
 
-macOS uses launchd (not systemd) for `ssh-agent` and integrates `gh` and SSH with the system Keychain. The `systemctl` line and the `~/.bashrc` agent fallback do not apply, and two of the host-side commands need adjusting.
+macOS uses launchd (not systemd) for `ssh-agent` and integrates SSH with the system Keychain. The `systemctl` line and the `~/.bashrc` agent fallback do not apply, and the SSH steps differ.
 
 Use this `~/.ssh/config` instead of the common one — `UseKeychain yes` caches the passphrase in Keychain:
 
@@ -473,10 +473,14 @@ Load the key into the agent once so the passphrase persists across reboots:
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 ```
 
-Run the host's `gh auth login` exactly as in the common steps — the token lands in macOS Keychain, which is fine for use *on the host*. The Keychain-stored token isn't visible to the container, though, so the bind-mounted `~/.config/gh/hosts.yml` carries no `oauth_token`. There are two ways to handle that, both deliberate trade-offs:
+##### `gh` Credential-Store Hosts
 
-- **Skip container `gh` entirely.** Run all `gh` invocations from the Mac host (where the token stays Keychain-only). Inside the container, `gh` will fail until you authenticate it. Pick this if you want host credential storage to remain Keychain-only.
-- **Authenticate `gh` once inside the devcontainer.** No Keychain in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml`, which is the bind-mount target — meaning the token now exists as plaintext on your host (mode 600, same on-disk posture as `~/.ssh/id_ed25519`). Pick this if container `gh` convenience is worth that trade-off; the host's `gh` continues to read from Keychain unchanged.
+`gh auth login` uses a credential store by default when one is available — Keychain on macOS, libsecret/Secret Service on Linux desktops with the relevant daemon running. `--insecure-storage` is the opt-out that forces file storage. When the credential store is used, the token never lands in `~/.config/gh/hosts.yml`, and the devcontainer bind-mount therefore carries no `oauth_token`. (On Linux servers, WSL distros without a desktop session, and any host where you ran `gh auth login --insecure-storage`, the token IS in `hosts.yml` and container `gh` is pre-authenticated — skip this section.)
+
+If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
+
+- **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want host credential storage to remain credential-store-only.
+- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` — the bind-mount target — meaning the token now exists as plaintext on your host (mode 600, same on-disk posture as `~/.ssh/id_ed25519`). The host's `gh` continues to read from the credential store unchanged.
 
 ```shell
 # Inside the devcontainer (one-time, only if you chose the second option)
@@ -538,11 +542,13 @@ ssh-add -l
 ssh -T git@github.com
 
 # Test gh — only if container `gh` is authenticated. It is when the
-# host stored the token in `~/.config/gh/hosts.yml` (default on
-# Linux/WSL); it isn't when the host stores it in Keychain (default on
-# macOS) or libsecret (Linux opt-in via `--secure-storage`), unless
-# you ran `gh auth login` once inside the container. Skip in those
-# cases — `gh ssh-key list` will fail by design.
+# host stored the token in `~/.config/gh/hosts.yml` (Linux servers,
+# minimal WSL, or any host where you ran `gh auth login
+# --insecure-storage`); it isn't when the host's `gh` is using a
+# credential store (Keychain on macOS, libsecret/Secret Service on
+# Linux desktops — both the default when the store is available)
+# unless you ran `gh auth login` once inside the container. Skip in
+# the unauthenticated case — `gh ssh-key list` will fail by design.
 gh ssh-key list
 ```
 
