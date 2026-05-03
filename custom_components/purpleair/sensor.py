@@ -577,6 +577,19 @@ ORGANIZATION_DESCRIPTIONS_BY_KEY: Final[
 # it — STATIC_DEVICE_FIELDS guarantees `hardware` post-first-refresh, so
 # this branch only fires on the rare case where the sensor is absent from
 # the API response entirely.
+#
+# Scope: this gates entity *creation* in async_setup_entry. The coordinator's
+# `_compute_requested_fields` (coordinator.py) walks the entity registry to
+# decide which API fields to request. On no-hardware devices the entity is
+# never created → never registered → never adds its api_fields to the
+# request. So the gate transitively suppresses field requests for
+# `entity_registry_enabled_default=False` descriptions like the current
+# `voc` entry. If a future hardware-gated description ever becomes
+# `enabled_default=True`, note the coordinator's first-refresh fallback
+# (coordinator.py:243-248) iterates SENSOR_DESCRIPTIONS independently of
+# the registry on the very first refresh — adding a parallel hardware gate
+# there would be needed to prevent requesting the field for sensors that
+# can't populate it.
 def _hardware_gate_pass(_hardware: str | None) -> bool:
     """Default gate that passes any description without a hardware constraint."""
     return True

@@ -159,13 +159,25 @@ async def test_voc_entity_created_for_voc_hardware(
     setup_config_entry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """Hardware string with BME68X → VOC entity is created."""
+    """Hardware string with BME68X → VOC entity is created and reports its value.
+
+    Asserts both registration AND value flow-through. Just checking
+    registration would let a regression slip where the entity is created
+    but value_fn returns None (entity stuck at unknown).
+    """
     # Default sensor 123456 (TEST_SENSOR_INDEX1) has BME68X hardware in the
-    # fixture, so the gate should let the VOC description through.
-    assert (
-        entity_registry.async_get("sensor.test_sensor_volatile_organic_compounds_iaq")
-        is not None
+    # fixture, and `voc=42.5` in the fixture data row.
+    entry = entity_registry.async_get(
+        "sensor.test_sensor_volatile_organic_compounds_iaq"
     )
+    assert entry is not None
+    # VOC is disabled by default, so re-enable it to surface the live state.
+    entity_registry.async_update_entity(entry.entity_id, disabled_by=None)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    state = hass.states.get(entry.entity_id)
+    assert state is not None
+    assert state.state == "42.5"
 
 
 @pytest.mark.parametrize(
@@ -184,11 +196,27 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
     Sensor 567890 (TEST_SENSOR_INDEX2) keeps the BME280 fixture hardware,
     so the gate must filter the `voc` description out before async_add_entities
     runs. Confirms the new HARDWARE_GATES path.
+
+    Checks via unique_id rather than entity_id: VOC's translation_key
+    produces a slug (`...volatile_organic_compounds_iaq`), so an
+    entity_id-based assertion would silently pass even if the gate stops
+    working — a wrong entity_id is always None whether or not the entity
+    was created.
     """
-    assert entity_registry.async_get("sensor.test_sensor_2_voc") is None
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-voc"
+        )
+        is None
+    )
     # Sanity-check that other entities for this sensor were created — guards
     # against the assertion above passing because nothing got registered at all.
-    assert entity_registry.async_get("sensor.test_sensor_2_temperature") is not None
+    assert (
+        entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-temperature"
+        )
+        is not None
+    )
 
 
 @pytest.mark.parametrize(
