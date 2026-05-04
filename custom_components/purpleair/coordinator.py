@@ -254,12 +254,13 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         # have per-sensor entities and (b) the api_fields of every enabled
         # per-sensor entity. Org-level entries use entry_id-prefixed unique
         # IDs (entry_id is a non-numeric ULID) and naturally drop out of the
-        # int() parse.
+        # int() parse. Stale per-sensor entities whose description key no
+        # longer exists (renamed/removed key) drop out at the dict lookup;
+        # we still credit the sensor_index toward indices_with_entities so
+        # the just-added-subentry fallback isn't triggered for them.
         indices_with_entities: set[int] = set()
         for entity_entry in entries:
-            head, sep, key = entity_entry.unique_id.partition("-")
-            if not sep:
-                continue
+            head, _, key = entity_entry.unique_id.partition("-")
             try:
                 sensor_index = int(head)
             except ValueError:
@@ -267,10 +268,8 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
             indices_with_entities.add(sensor_index)
             if entity_entry.disabled_by is not None:
                 continue
-            matched = DESCRIPTIONS_BY_KEY.get(key)
-            if matched is None:
-                continue
-            requested.update(matched.api_fields)
+            if matched := DESCRIPTIONS_BY_KEY.get(key):
+                requested.update(matched.api_fields)
 
         configured_indices = {
             int(subentry.data[CONF_SENSOR_INDEX])

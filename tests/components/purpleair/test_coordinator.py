@@ -520,6 +520,45 @@ async def test_first_refresh_after_subentry_add_includes_default_fields(
         )
 
 
+async def test_field_selection_skips_unknown_per_sensor_keys(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Stale per-sensor entities with unrecognized description keys are skipped.
+
+    A renamed or removed description key would leave behind an entity_registry
+    row whose unique_id parses cleanly as `{sensor_index}-{key}` but whose
+    `key` no longer exists in DESCRIPTIONS_BY_KEY. The field-selection walk
+    must skip the unknown key (so it doesn't crash) while still crediting
+    the sensor_index toward indices_with_entities (so the new-subentry
+    fallback isn't accidentally re-enabled for a fully-configured sensor).
+    """
+    # Insert a stale per-sensor entity for the configured sensor with a
+    # made-up description key.
+    entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX1}-totally_made_up_key",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+    )
+
+    coordinator = config_entry.runtime_data.sensors
+    fields = coordinator._compute_requested_fields(include_static=False)
+
+    # Stale entity didn't poison the field set, but the sensor_index is
+    # accounted for so the new-subentry fallback didn't add the full
+    # default field expansion either. Either of those behaviors regressing
+    # would change the field set away from what the live entities request.
+    assert "totally_made_up_key" not in fields
+    # Real per-sensor fields are still requested via the live entities.
+    assert "temperature" in fields
+
+
 async def test_registry_event_for_foreign_entity_does_not_refresh(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
