@@ -91,7 +91,8 @@ async def test_user_init(hass: HomeAssistant, mock_aiopurpleair, api) -> None:
     assert result[CONF_OPTIONS] == {
         CONF_SHOW_ON_MAP: False,
     }
-    assert result[CONF_TITLE] == TITLE
+    # Title comes from the PurpleAir organization name (mocked as "Test Org").
+    assert result[CONF_TITLE] == "Test Org"
 
     entries = hass.config_entries.async_entries(DOMAIN)
     assert len(entries) == 1
@@ -113,7 +114,9 @@ async def test_user_init(hass: HomeAssistant, mock_aiopurpleair, api) -> None:
     assert result[CONF_DATA] == {
         CONF_API_KEY: TEST_NEW_API_KEY,
     }
-    assert result[CONF_TITLE] == f"{TITLE} (1)"
+    # Org-name fixture returns "Test Org" for both keys; HA allows duplicate
+    # entry titles, so a second key tied to the same account stays "Test Org".
+    assert result[CONF_TITLE] == "Test Org"
 
     entries = hass.config_entries.async_entries(DOMAIN)
     assert len(entries) == 2
@@ -189,6 +192,25 @@ async def test_reauth(
     assert result[CONF_TYPE] is FlowResultType.ABORT
     assert result[CONF_REASON] == CONF_REAUTH_SUCCESSFUL
     assert config_entry.data[CONF_API_KEY] == TEST_API_KEY
+
+
+async def test_user_init_falls_back_when_org_lookup_fails(
+    hass: HomeAssistant, mock_aiopurpleair, api
+) -> None:
+    """When the org lookup fails the entry title falls back to PurpleAir (n)."""
+    api.organizations.async_get_organization = AsyncMock(
+        side_effect=PurpleAirError("temporary failure")
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert result[CONF_TITLE] == TITLE
 
 
 @pytest.mark.parametrize(

@@ -227,6 +227,15 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         Always returns AVAILABILITY_FIELDS (drive availability) plus the
         api_fields of every enabled description for this config entry.
         STATIC_DEVICE_FIELDS are only included when the cache needs refreshing.
+
+        Subentries whose per-sensor entities aren't yet in the registry
+        (first refresh of a brand-new entry, or the reload immediately
+        after a new subentry was added) fall back to the default-enabled,
+        non-hardware-gated description set so the very first response
+        contains usable sensor values. Without that fallback the new
+        sensor would be valueless for a full update interval — only
+        AVAILABILITY_FIELDS would be requested because org-level entities
+        already in the registry contribute no per-sensor fields.
         """
         # Local import: ``.sensor`` imports from this module, so a top-level
         # import here would be circular.
@@ -240,27 +249,41 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         entries = er.async_entries_for_config_entry(
             registry, self.config_entry.entry_id
         )
-        if not entries:
-            # First-refresh fallback skips hardware-gated descriptions (hardware
-            # unknown yet). Later refreshes pick them up via the registry walk
-            # only if the entity ends up registered AND enabled.
+
+        # Walk the registry once to collect (a) which sensor_indices already
+        # have per-sensor entities and (b) the api_fields of every enabled
+        # per-sensor entity. Org-level entries use entry_id-prefixed unique
+        # IDs (entry_id is a non-numeric ULID) and naturally drop out of the
+        # int() parse.
+        indices_with_entities: set[int] = set()
+        for entity_entry in entries:
+            head, sep, key = entity_entry.unique_id.partition("-")
+            if not sep:
+                continue
+            try:
+                sensor_index = int(head)
+            except ValueError:
+                continue
+            indices_with_entities.add(sensor_index)
+            if entity_entry.disabled_by is not None:
+                continue
+            matched = DESCRIPTIONS_BY_KEY.get(key)
+            if matched is None:
+                continue
+            requested.update(matched.api_fields)
+
+        configured_indices = {
+            int(subentry.data[CONF_SENSOR_INDEX])
+            for subentry in self.config_entry.subentries.values()
+        }
+        if configured_indices - indices_with_entities:
             for default_description in SENSOR_DESCRIPTIONS:
                 if (
                     default_description.entity_registry_enabled_default
                     and default_description.hardware_gate is None
                 ):
                     requested.update(default_description.api_fields)
-            return sorted(requested)
 
-        for entity_entry in entries:
-            if entity_entry.disabled_by is not None:
-                continue
-            # Unique IDs are `{sensor_index}-{description.key}`.
-            key = entity_entry.unique_id.split("-", 1)[-1]
-            matched = DESCRIPTIONS_BY_KEY.get(key)
-            if matched is None:
-                continue
-            requested.update(matched.api_fields)
         return sorted(requested)
 
     @callback

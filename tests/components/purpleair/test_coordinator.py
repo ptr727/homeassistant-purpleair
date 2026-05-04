@@ -479,6 +479,47 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     assert TEST_SENSOR_INDEX2 in coordinator._static_cache
 
 
+async def test_first_refresh_after_subentry_add_includes_default_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """A subentry with no per-sensor entities yet must still get its default fields.
+
+    Reproduces the user-visible bug where the first refresh after adding a new
+    sensor subentry only requested AVAILABILITY_FIELDS — the registry still
+    contained organization-level entities so the "no entities" fallback was
+    skipped, but the new subentry's per-sensor entities hadn't been registered
+    yet (platform setup runs after first_refresh during reload). The fix
+    triggers the default-description fallback whenever any configured subentry
+    is missing its per-sensor entities, not only when the registry is empty.
+    """
+    coordinator = config_entry.runtime_data.sensors
+
+    # Add a second subentry. We deliberately do not run platform setup, so the
+    # entity registry has no per-sensor entries for TEST_SENSOR_INDEX2 yet —
+    # mirroring the moment between async_reload and async_forward_entry_setups.
+    new_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2}),
+        subentry_type=CONF_SENSOR,
+        title=f"Extra sensor ({TEST_SENSOR_INDEX2})",
+        unique_id=str(TEST_SENSOR_INDEX2),
+    )
+    hass.config_entries.async_add_subentry(config_entry, new_subentry)
+    await hass.async_block_till_done()
+
+    fields = coordinator._compute_requested_fields(include_static=False)
+    # Without the fix this set would be just AVAILABILITY_FIELDS plus the
+    # fields backing TEST_SENSOR_INDEX1's existing entities. Sensor values
+    # for the just-added sensor would all be None on the first refresh.
+    for required in ("temperature", "humidity", "pm2.5"):
+        assert required in fields, (
+            f"{required} missing — new subentry would be valueless until next refresh"
+        )
+
+
 async def test_registry_event_for_foreign_entity_does_not_refresh(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

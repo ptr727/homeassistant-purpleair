@@ -6,6 +6,7 @@ Curated highlights of what's shipped. The canonical per-version release ledger (
 
 - **Version 0.1**:
   - Requires Home Assistant 2026.4.0 or newer.
+  - New services use the PurpleAir organization name as their service title (e.g. *Acme Corp* instead of *PurpleAir* / *PurpleAir (1)*) so multi-key installs stay legible at a glance. Falls back to the numbered default when the organization lookup is unavailable.
   - Private sensor support via per-sensor read keys (free API points when querying your own sensors).
   - Subentry layout — one subentry per sensor; automatic v1 → v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
   - Cost-aware field selection — only fields backing enabled entities are requested, and static device-info fields are fetched once per day. Roughly 37 % fewer field-fetches per day than a naive implementation for a default install.
