@@ -66,7 +66,7 @@ fi
 # editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/bachya-aiopurpleair.git
-AIOPURPLEAIR_BRANCH=dev
+AIOPURPLEAIR_BRANCH=feat/organization-endpoint-and-error-codes
 USE_EDITABLE_AIOPURPLEAIR=true
 
 if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then

@@ -4,7 +4,12 @@ from datetime import timedelta
 from types import MappingProxyType
 from unittest.mock import AsyncMock, patch
 
-from aiopurpleair.errors import InvalidApiKeyError, PaymentRequiredError, PurpleAirError
+from aiopurpleair.errors import (
+    InvalidApiKeyError,
+    InvalidRequestError,
+    PaymentRequiredError,
+    PurpleAirError,
+)
 from aiopurpleair.models.organizations import GetOrganizationResponse
 from freezegun.api import FrozenDateTimeFactory
 import pytest
@@ -401,7 +406,11 @@ async def test_coordinator_refresh_invalid_api_key_triggers_reauth(
 
 @pytest.mark.parametrize(
     "side_effect",
-    [PurpleAirError("boom"), RuntimeError("surprise")],
+    [
+        PurpleAirError("boom"),
+        InvalidRequestError("bad request"),
+        RuntimeError("surprise"),
+    ],
 )
 async def test_coordinator_refresh_update_failures_are_reported(
     hass: HomeAssistant,

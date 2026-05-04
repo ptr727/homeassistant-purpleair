@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 from aiopurpleair.errors import (
     InvalidApiKeyError,
     InvalidDataReadKeyError,
+    InvalidRequestError,
     PurpleAirError,
 )
 from aiopurpleair.models.keys import GetKeysResponse
@@ -316,6 +317,7 @@ async def test_duplicate_api_key(
     [
         (AsyncMock(side_effect=Exception), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=PurpleAirError), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=InvalidRequestError), {CONF_BASE: CONF_UNKNOWN}),
         (
             AsyncMock(side_effect=InvalidApiKeyError),
             {CONF_API_KEY: CONF_INVALID_API_KEY},
@@ -502,6 +504,7 @@ async def test_duplicate_sensor(
     [
         (AsyncMock(side_effect=Exception), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=PurpleAirError), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=InvalidRequestError), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=InvalidApiKeyError), {CONF_BASE: CONF_INVALID_API_KEY}),
         (AsyncMock(return_value=[]), {CONF_LOCATION: CONF_NO_SENSORS_FOUND}),
         (AsyncMock(return_value=None), {CONF_LOCATION: CONF_NO_SENSORS_FOUND}),
@@ -558,6 +561,7 @@ async def test_create_from_map_errors(
     [
         (AsyncMock(side_effect=Exception), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=PurpleAirError), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=InvalidRequestError), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=InvalidApiKeyError), {CONF_BASE: CONF_INVALID_API_KEY}),
         (AsyncMock(return_value=[]), {CONF_SENSOR_INDEX: CONF_NO_SENSOR_FOUND}),
         (AsyncMock(return_value=None), {CONF_SENSOR_INDEX: CONF_NO_SENSOR_FOUND}),
@@ -685,6 +689,7 @@ async def test_read_key_is_forwarded_to_coordinator(
     [
         (AsyncMock(side_effect=Exception), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=PurpleAirError), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=InvalidRequestError), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=InvalidApiKeyError), {CONF_BASE: CONF_INVALID_API_KEY}),
         (AsyncMock(return_value=[]), {CONF_SENSOR_INDEX: CONF_NO_SENSOR_FOUND}),
         (AsyncMock(return_value=None), {CONF_SENSOR_INDEX: CONF_NO_SENSOR_FOUND}),
@@ -850,6 +855,7 @@ async def test_reconfigure_subentry_invalid_read_key(
     [
         (AsyncMock(side_effect=Exception), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=PurpleAirError), {CONF_BASE: CONF_UNKNOWN}),
+        (AsyncMock(side_effect=InvalidRequestError), {CONF_BASE: CONF_UNKNOWN}),
         (AsyncMock(side_effect=InvalidApiKeyError), {CONF_BASE: CONF_INVALID_API_KEY}),
     ],
 )
