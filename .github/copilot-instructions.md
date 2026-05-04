@@ -36,15 +36,21 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. Request review through the GitHub PR UI (request `Copilot` as a reviewer) after every push.
+The repo is configured for Copilot auto-review on PR open, and that initial trigger fires reliably in practice — but per AGENTS.md, agents must still verify head-SHA coverage (see "Verify review covered current head" below) rather than assume it ran. If the initial review doesn't appear, the maintainer requests Copilot from the PR UI; the agent does not.
+
+**Re-review on follow-up commits is the unreliable case.** Copilot's auto-rereview on push fires only ~20% of the time and frequently posts "Copilot encountered an error and was unable to review" instead of a real review. When that happens (or when the agent confirms head-SHA coverage is missing after a push), **the maintainer must click "Re-request review" next to Copilot's avatar in the PR UI**. Agents must not attempt programmatic re-requests — every public path has been confirmed broken across multiple repos and either fails outright or silently no-ops.
 
 **Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which will make code changes rather than posting a review.
 
-Known non-working request paths (don't rely on them):
+Known non-working programmatic re-request paths — agents have tried these, they fail, do not retry:
 
+- `gh pr edit <N> --add-reviewer Copilot` → `Could not resolve user with login 'copilot'`.
 - `POST /requested_reviewers` with `reviewers=[Copilot]` can return 200 but no-op.
 - `copilot-pull-request-reviewer` as a requested reviewer slug returns 422.
+- `gh api ... -F 'reviewers[]=copilot-pull-request-reviewer'` returns an empty body and never fires a review.
 - GraphQL `requestReviews` rejects Copilot's bot node.
+
+The reverse direction — replying on review threads and resolving them via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`, see "Reply and thread resolution workflow" below) — DOES work reliably and is the agent's responsibility once a review exists.
 
 ### Verify review covered current head
 
@@ -74,14 +80,16 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-If a review did not run on the current head, retry:
+This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). Trigger this workflow when, after a push, head-SHA coverage cannot be confirmed by either route in "Verify review covered current head" above (no formal review with matching SHA, and no recent Copilot issue comment whose body refers to the current changes). If the most recent Copilot response on the current head is the explicit "Copilot encountered an error and was unable to review" message, escalate immediately rather than polling further — that's an explicit failure signal, not a still-in-flight one. A later successful review or coverage-confirming issue comment supersedes any earlier error message:
 
-1. Wait briefly and check head-SHA coverage (see above).
-1. Request review again via the GitHub PR UI.
-1. Retry up to two more times (three total).
-1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
+1. Wait briefly and re-check head-SHA coverage in case the rereview is still in flight.
+1. If still missing or errored, ask the maintainer to click "Re-request review" next to Copilot's avatar in the PR UI. The agent must not retry via CLI/API — see "Triggering and polling" above.
+1. Once the maintainer re-requests, resume polling head-SHA coverage.
+1. After two failed maintainer-triggered re-requests on the same head, mark review as blocked and escalate.
 
 ### Reply and thread resolution workflow
+
+This path is reliable for agents — unlike review *requesting*, the GraphQL thread mutations work consistently. Triage findings, post replies citing the fixing commit SHA or rationale, and resolve threads as they're addressed.
 
 List unresolved threads. Use `first: 100` with cursor-based pagination; if `hasNextPage` is true, re-run with `after: "<endCursor>"` to retrieve the next page:
 
