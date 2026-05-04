@@ -117,7 +117,14 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         if org_name:
             return org_name
         title: str = TITLE
-        config_list = self.hass.config_entries.async_loaded_entries(DOMAIN)
+        # Count every existing entry, not just loaded ones — a disabled or
+        # ignored prior entry still occupies the default ``PurpleAir`` title,
+        # so the new entry needs a numbered suffix to avoid colliding with it.
+        # Mirrors the include_disabled/include_ignore pattern in
+        # ``async_migrate_integration``.
+        config_list = self.hass.config_entries.async_entries(
+            domain=DOMAIN, include_disabled=True, include_ignore=True
+        )
         if len(config_list) > 0:
             title = f"{TITLE} ({len(config_list)})"
         return title
