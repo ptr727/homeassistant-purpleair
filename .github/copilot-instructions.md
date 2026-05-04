@@ -36,7 +36,7 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-The repo is configured for Copilot auto-review on PR open, and that initial trigger fires reliably — no agent or maintainer action is needed when the PR is first created.
+The repo is configured for Copilot auto-review on PR open, and that initial trigger fires reliably in practice — but per AGENTS.md, agents must still verify head-SHA coverage (see "Verify review covered current head" below) rather than assume it ran. If the initial review doesn't appear, the maintainer requests Copilot from the PR UI; the agent does not.
 
 **Re-review on follow-up commits is the unreliable case.** Copilot's auto-rereview on push fires only ~20% of the time and frequently posts "Copilot encountered an error and was unable to review" instead of a real review. When that happens (or when the agent confirms head-SHA coverage is missing after a push), **the maintainer must click "Re-request review" next to Copilot's avatar in the PR UI**. Agents must not attempt programmatic re-requests — every public path has been confirmed broken across multiple repos and either fails outright or silently no-ops.
 
@@ -80,7 +80,7 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). Trigger this workflow when, after a push, head-SHA coverage cannot be confirmed by either route in the section above (no formal review with matching SHA, and no recent Copilot issue comment whose body refers to the current changes), or Copilot explicitly posted "encountered an error and was unable to review":
+This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). Trigger this workflow when, after a push, head-SHA coverage cannot be confirmed by either route in "Verify review covered current head" above (no formal review with matching SHA, and no recent Copilot issue comment whose body refers to the current changes). If the most recent Copilot response on the current head is the explicit "Copilot encountered an error and was unable to review" message, escalate immediately rather than polling further — that's an explicit failure signal, not a still-in-flight one. A later successful review or coverage-confirming issue comment supersedes any earlier error message:
 
 1. Wait briefly and re-check head-SHA coverage in case the rereview is still in flight.
 1. If still missing or errored, ask the maintainer to click "Re-request review" next to Copilot's avatar in the PR UI. The agent must not retry via CLI/API — see "Triggering and polling" above.
