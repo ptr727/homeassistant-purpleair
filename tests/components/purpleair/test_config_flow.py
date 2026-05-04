@@ -3,12 +3,15 @@
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.errors import (
+    ApiDisabledError,
+    ApiKeyTypeMismatchError,
     InvalidApiKeyError,
     InvalidDataReadKeyError,
     InvalidRequestError,
     PurpleAirError,
 )
 from aiopurpleair.models.keys import GetKeysResponse
+from aiopurpleair.models.organizations import GetOrganizationResponse
 import pytest
 
 from custom_components.purpleair.const import (
@@ -91,7 +94,8 @@ async def test_user_init(hass: HomeAssistant, mock_aiopurpleair, api) -> None:
     assert result[CONF_OPTIONS] == {
         CONF_SHOW_ON_MAP: False,
     }
-    assert result[CONF_TITLE] == TITLE
+    # Title comes from the PurpleAir organization name (mocked as "Test Org").
+    assert result[CONF_TITLE] == "Test Org"
 
     entries = hass.config_entries.async_entries(DOMAIN)
     assert len(entries) == 1
@@ -113,7 +117,9 @@ async def test_user_init(hass: HomeAssistant, mock_aiopurpleair, api) -> None:
     assert result[CONF_DATA] == {
         CONF_API_KEY: TEST_NEW_API_KEY,
     }
-    assert result[CONF_TITLE] == f"{TITLE} (1)"
+    # Org-name fixture returns "Test Org" for both keys; HA allows duplicate
+    # entry titles, so a second key tied to the same account stays "Test Org".
+    assert result[CONF_TITLE] == "Test Org"
 
     entries = hass.config_entries.async_entries(DOMAIN)
     assert len(entries) == 2
@@ -189,6 +195,145 @@ async def test_reauth(
     assert result[CONF_TYPE] is FlowResultType.ABORT
     assert result[CONF_REASON] == CONF_REAUTH_SUCCESSFUL
     assert config_entry.data[CONF_API_KEY] == TEST_API_KEY
+
+
+async def test_user_init_falls_back_when_org_lookup_fails(
+    hass: HomeAssistant, mock_aiopurpleair, api
+) -> None:
+    """When the org lookup fails the entry title falls back to PurpleAir (n)."""
+    api.organizations.async_get_organization = AsyncMock(
+        side_effect=PurpleAirError("temporary failure")
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert result[CONF_TITLE] == TITLE
+
+
+async def test_user_init_falls_back_when_org_lookup_raises_unexpected(
+    hass: HomeAssistant, mock_aiopurpleair, api
+) -> None:
+    """A generic Exception in the org lookup falls back to the default title.
+
+    Covers the broad-Exception branch in `_async_fetch_organization_name` —
+    we never want a malformed response or a non-PurpleAirError network
+    failure to abort the whole config flow.
+    """
+    api.organizations.async_get_organization = AsyncMock(
+        side_effect=RuntimeError("unexpected")
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert result[CONF_TITLE] == TITLE
+
+
+async def test_user_init_falls_back_when_org_name_missing(
+    hass: HomeAssistant,
+    mock_aiopurpleair,
+    api,
+    get_organization_response: GetOrganizationResponse,
+) -> None:
+    """An empty `organization_name` falls back to the default title.
+
+    The PurpleAir API contract sets `organization_name` as a string, but a
+    blank value would otherwise become an empty entry title. The lookup
+    treats blank as "no name" and falls back.
+    """
+    api.organizations.async_get_organization = AsyncMock(
+        return_value=get_organization_response.model_copy(
+            update={"organization_name": ""}
+        )
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert result[CONF_TITLE] == TITLE
+
+
+async def test_user_init_numbered_fallback_when_org_lookup_fails_with_existing_entry(
+    hass: HomeAssistant,
+    config_entry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Second-key add with an existing entry and failed org lookup → "PurpleAir (1)".
+
+    Ensures the `len(config_list) > 0` numbered-suffix branch in
+    `_async_get_title` is reachable: an existing entry is already loaded
+    (via setup_config_entry), the new add's org fetch fails, and the title
+    must include the count suffix.
+    """
+    api.organizations.async_get_organization = AsyncMock(
+        side_effect=PurpleAirError("temporary failure")
+    )
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert result[CONF_TITLE] == f"{TITLE} (1)"
+
+
+@pytest.mark.parametrize(
+    ("exc", "expected_error_key"),
+    [
+        (ApiKeyTypeMismatchError, CONF_WRONG_KEY_TYPE),
+        (ApiDisabledError, CONF_KEY_DISABLED),
+    ],
+)
+async def test_user_init_typed_check_key_errors(
+    hass: HomeAssistant,
+    mock_aiopurpleair,
+    api,
+    exc: type[Exception],
+    expected_error_key: str,
+) -> None:
+    """`async_check_api_key` raising a typed error must surface a targeted form error.
+
+    Distinct from `test_user_init_rejects_bad_key_type` (which exercises the
+    post-check `api_key_type` switch on a 200 OK response) — this test pins
+    the except-clause branches in `_async_validate_api_key` for the cases
+    where the call itself fails with a typed exception.
+    """
+    api.async_check_api_key = AsyncMock(side_effect=exc)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_ERRORS] == {CONF_API_KEY: expected_error_key}
 
 
 @pytest.mark.parametrize(

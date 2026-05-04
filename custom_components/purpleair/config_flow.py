@@ -89,6 +89,9 @@ LIMIT_RESULTS: Final[int] = 25
 SENSOR_FIELDS_NEARBY: Final[list[str]] = ["name", "longitude", "latitude"]
 
 CONF_NEARBY_SENSOR_LIST: Final[str] = "nearby_sensor_list"
+# Internal flow-data key for the organization name fetched during initial
+# setup so `_async_get_title` can pick it up without re-hitting the API.
+_FLOW_KEY_ORG_NAME: Final[str] = "organization_name"
 
 
 class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -102,12 +105,54 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         self._errors: dict[str, Any] = {}
 
     async def _async_get_title(self) -> str:
-        """Get instance title."""
+        """Get instance title.
+
+        Prefers the PurpleAir organization name (fetched in
+        ``_async_fetch_organization_name`` and cached in flow data) so that
+        users with multiple API keys see meaningful service names instead
+        of ``PurpleAir`` / ``PurpleAir (1)``. Falls back to the numbered
+        default whenever the lookup didn't return a usable name.
+        """
+        org_name: str | None = self._flow_data.get(_FLOW_KEY_ORG_NAME)
+        if org_name:
+            return org_name
         title: str = TITLE
-        config_list = self.hass.config_entries.async_loaded_entries(DOMAIN)
+        # Count every existing entry, not just loaded ones — a disabled or
+        # ignored prior entry still occupies the default ``PurpleAir`` title,
+        # so the new entry needs a numbered suffix to avoid colliding with it.
+        # Mirrors the include_disabled/include_ignore pattern in
+        # ``async_migrate_integration``.
+        config_list = self.hass.config_entries.async_entries(
+            domain=DOMAIN, include_disabled=True, include_ignore=True
+        )
         if len(config_list) > 0:
             title = f"{TITLE} ({len(config_list)})"
         return title
+
+    async def _async_fetch_organization_name(self) -> str | None:
+        """Best-effort fetch of the account's organization name for the entry title.
+
+        Costs one API call (~1 point) and is only invoked from the initial
+        ``async_step_api_key`` path — reauth/reconfigure don't pay this
+        cost because they don't change the existing entry title. Any
+        failure here returns ``None`` so the caller falls back to the
+        default ``PurpleAir (n)`` naming.
+        """
+        api = API(
+            self._flow_data[CONF_API_KEY],
+            session=aiohttp_client.async_get_clientsession(self.hass),
+        )
+        try:
+            response = await api.organizations.async_get_organization()
+        except PurpleAirError as err:
+            LOGGER.debug("Skipping organization name lookup: %s", err)
+            return None
+        except Exception:  # noqa: BLE001 — best-effort lookup; never block the flow.
+            LOGGER.exception("Unexpected error fetching organization name")
+            return None
+        if not response or not response.organization_name:
+            return None
+        return response.organization_name
 
     async def _async_validate_api_key(
         self, *, current_entry: ConfigEntry | None = None
@@ -229,6 +274,10 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         # Set the API key as the unique ID and abort if already configured
         await self.async_set_unique_id(self._flow_data[CONF_API_KEY])
         self._abort_if_unique_id_configured()
+
+        self._flow_data[
+            _FLOW_KEY_ORG_NAME
+        ] = await self._async_fetch_organization_name()
 
         return self.async_create_entry(
             title=await self._async_get_title(),
