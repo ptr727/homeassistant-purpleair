@@ -15,7 +15,7 @@
   ],
   "quality_scale": "platinum",
   "requirements": [
-    "aiopurpleair-ptr727==2026.5.0"
+    "aiopurpleair-ptr727==2026.6.0"
   ],
   "version": "0.0.0"
 }
