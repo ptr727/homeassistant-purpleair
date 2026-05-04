@@ -36,15 +36,21 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. Request review through the GitHub PR UI (request `Copilot` as a reviewer) after every push.
+**Requesting a Copilot review is a maintainer-only action via the GitHub PR UI** (request `Copilot` as a reviewer, or click "Re-request review" next to Copilot's avatar after a push). Agents must not attempt programmatic re-requests — every public path has been confirmed broken across multiple repos and either fails outright or silently no-ops.
+
+Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. Each push needs a fresh maintainer-driven request (or a re-request when the prior review errored).
 
 **Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which will make code changes rather than posting a review.
 
-Known non-working request paths (don't rely on them):
+Known non-working request paths — agents have tried these, they fail, do not retry:
 
+- `gh pr edit <N> --add-reviewer Copilot` → `Could not resolve user with login 'copilot'`.
 - `POST /requested_reviewers` with `reviewers=[Copilot]` can return 200 but no-op.
 - `copilot-pull-request-reviewer` as a requested reviewer slug returns 422.
+- `gh api ... -F 'reviewers[]=copilot-pull-request-reviewer'` returns an empty body and never fires a review.
 - GraphQL `requestReviews` rejects Copilot's bot node.
+
+The reverse direction — replying on review threads and resolving them via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`, see [Reply and thread resolution workflow](#reply-and-thread-resolution-workflow) below) — DOES work reliably and is the agent's responsibility once the maintainer has triggered the review.
 
 ### Verify review covered current head
 
@@ -74,14 +80,16 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-If a review did not run on the current head, retry:
+If a review did not run on the current head, or Copilot posted "encountered an error and was unable to review":
 
-1. Wait briefly and check head-SHA coverage (see above).
-1. Request review again via the GitHub PR UI.
-1. Retry up to two more times (three total).
-1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
+1. Wait briefly and check head-SHA coverage (see above) in case the review is still in flight.
+1. If still missing or errored, ask the maintainer to re-request the review from the GitHub PR UI ("Re-request review" next to Copilot's avatar). The agent must not retry via CLI/API — see [Triggering and polling](#triggering-and-polling).
+1. Once the maintainer re-requests, resume polling head-SHA coverage.
+1. After two failed maintainer-triggered re-requests on the same head, mark review as blocked and escalate.
 
 ### Reply and thread resolution workflow
+
+This path is reliable for agents — unlike review *requesting*, the GraphQL thread mutations work consistently. Triage findings, post replies citing the fixing commit SHA or rationale, and resolve threads as they're addressed.
 
 List unresolved threads. Use `first: 100` with cursor-based pagination; if `hasNextPage` is true, re-run with `after: "<endCursor>"` to retrieve the next page:
 
