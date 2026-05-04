@@ -208,6 +208,7 @@ async def test_user_init_falls_back_when_org_lookup_fails(
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
     )
+    await hass.async_block_till_done()
     result = await hass.config_entries.flow.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
     )
@@ -232,6 +233,7 @@ async def test_user_init_falls_back_when_org_lookup_raises_unexpected(
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
     )
+    await hass.async_block_till_done()
     result = await hass.config_entries.flow.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
     )
@@ -261,6 +263,7 @@ async def test_user_init_falls_back_when_org_name_missing(
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
     )
+    await hass.async_block_till_done()
     result = await hass.config_entries.flow.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
     )
@@ -290,6 +293,7 @@ async def test_user_init_numbered_fallback_when_org_lookup_fails_with_existing_e
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
     )
+    await hass.async_block_till_done()
     result = await hass.config_entries.flow.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
     )

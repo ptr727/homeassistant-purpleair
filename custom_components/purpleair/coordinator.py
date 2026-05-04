@@ -253,11 +253,13 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         # Walk the registry once to collect (a) which sensor_indices already
         # have per-sensor entities and (b) the api_fields of every enabled
         # per-sensor entity. Org-level entries use entry_id-prefixed unique
-        # IDs (entry_id is a non-numeric ULID) and naturally drop out of the
-        # int() parse. Stale per-sensor entities whose description key no
-        # longer exists (renamed/removed key) drop out at the dict lookup;
-        # we still credit the sensor_index toward indices_with_entities so
-        # the just-added-subentry fallback isn't triggered for them.
+        # IDs and drop out at the int() parse — entry_id is whatever string
+        # HA picks (random in production, fixed in tests), but never a bare
+        # integer that could collide with a sensor_index. Stale per-sensor
+        # entities whose description key no longer exists (renamed/removed
+        # key) drop out at the dict lookup; we still credit the sensor_index
+        # toward indices_with_entities so the just-added-subentry fallback
+        # isn't triggered for them.
         indices_with_entities: set[int] = set()
         for entity_entry in entries:
             head, _, key = entity_entry.unique_id.partition("-")
