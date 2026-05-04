@@ -479,6 +479,86 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     assert TEST_SENSOR_INDEX2 in coordinator._static_cache
 
 
+async def test_first_refresh_after_subentry_add_includes_default_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """A subentry with no per-sensor entities yet must still get its default fields.
+
+    Reproduces the user-visible bug where the first refresh after adding a new
+    sensor subentry only requested AVAILABILITY_FIELDS — the registry still
+    contained organization-level entities so the "no entities" fallback was
+    skipped, but the new subentry's per-sensor entities hadn't been registered
+    yet (platform setup runs after first_refresh during reload). The fix
+    triggers the default-description fallback whenever any configured subentry
+    is missing its per-sensor entities, not only when the registry is empty.
+    """
+    coordinator = config_entry.runtime_data.sensors
+
+    # Add a second subentry. We deliberately do not run platform setup, so the
+    # entity registry has no per-sensor entries for TEST_SENSOR_INDEX2 yet —
+    # mirroring the moment between async_reload and async_forward_entry_setups.
+    new_subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2}),
+        subentry_type=CONF_SENSOR,
+        title=f"Extra sensor ({TEST_SENSOR_INDEX2})",
+        unique_id=str(TEST_SENSOR_INDEX2),
+    )
+    hass.config_entries.async_add_subentry(config_entry, new_subentry)
+    await hass.async_block_till_done()
+
+    fields = coordinator._compute_requested_fields(include_static=False)
+    # Without the fix this set would be just AVAILABILITY_FIELDS plus the
+    # fields backing TEST_SENSOR_INDEX1's existing entities. Sensor values
+    # for the just-added sensor would all be None on the first refresh.
+    for required in ("temperature", "humidity", "pm2.5"):
+        assert required in fields, (
+            f"{required} missing — new subentry would be valueless until next refresh"
+        )
+
+
+async def test_field_selection_skips_unknown_per_sensor_keys(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Stale per-sensor entities with unrecognized description keys are skipped.
+
+    A renamed or removed description key would leave behind an entity_registry
+    row whose unique_id parses cleanly as `{sensor_index}-{key}` but whose
+    `key` no longer exists in DESCRIPTIONS_BY_KEY. The field-selection walk
+    must skip the unknown key (so it doesn't crash) while still crediting
+    the sensor_index toward indices_with_entities (so the new-subentry
+    fallback isn't accidentally re-enabled for a fully-configured sensor).
+    """
+    # Insert a stale per-sensor entity for the configured sensor with a
+    # made-up description key.
+    entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX1}-totally_made_up_key",
+        config_entry=config_entry,
+        config_subentry_id=config_subentry.subentry_id,
+    )
+
+    coordinator = config_entry.runtime_data.sensors
+    fields = coordinator._compute_requested_fields(include_static=False)
+
+    # Stale entity didn't poison the field set, but the sensor_index is
+    # accounted for so the new-subentry fallback didn't add the full
+    # default field expansion either. Either of those behaviors regressing
+    # would change the field set away from what the live entities request.
+    assert "totally_made_up_key" not in fields
+    # Real per-sensor fields are still requested via the live entities.
+    assert "temperature" in fields
+
+
 async def test_registry_event_for_foreign_entity_does_not_refresh(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
