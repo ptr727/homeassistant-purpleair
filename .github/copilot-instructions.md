@@ -80,7 +80,7 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). If after a push the head-SHA-coverage check (above) shows no formal review on the new head, or Copilot posted "encountered an error and was unable to review":
+This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). Trigger this workflow when, after a push, head-SHA coverage cannot be confirmed by either route in the section above (no formal review with matching SHA, and no recent Copilot issue comment whose body refers to the current changes), or Copilot explicitly posted "encountered an error and was unable to review":
 
 1. Wait briefly and re-check head-SHA coverage in case the rereview is still in flight.
 1. If still missing or errored, ask the maintainer to click "Re-request review" next to Copilot's avatar in the PR UI. The agent must not retry via CLI/API — see "Triggering and polling" above.
