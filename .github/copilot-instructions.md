@@ -36,13 +36,13 @@ Use this section for provider-specific mechanics. The expected review loop contr
 
 ### Triggering and polling
 
-**Requesting a Copilot review is a maintainer-only action via the GitHub PR UI** (request `Copilot` as a reviewer, or click "Re-request review" next to Copilot's avatar after a push). Agents must not attempt programmatic re-requests — every public path has been confirmed broken across multiple repos and either fails outright or silently no-ops.
+The repo is configured for Copilot auto-review on PR open, and that initial trigger fires reliably — no agent or maintainer action is needed when the PR is first created.
 
-Auto-review on push is configured but fires only ~20% of the time in practice — treat it as non-functional. Each push needs a fresh maintainer-driven request (or a re-request when the prior review errored).
+**Re-review on follow-up commits is the unreliable case.** Copilot's auto-rereview on push fires only ~20% of the time and frequently posts "Copilot encountered an error and was unable to review" instead of a real review. When that happens (or when the agent confirms head-SHA coverage is missing after a push), **the maintainer must click "Re-request review" next to Copilot's avatar in the PR UI**. Agents must not attempt programmatic re-requests — every public path has been confirmed broken across multiple repos and either fails outright or silently no-ops.
 
 **Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which will make code changes rather than posting a review.
 
-Known non-working request paths — agents have tried these, they fail, do not retry:
+Known non-working programmatic re-request paths — agents have tried these, they fail, do not retry:
 
 - `gh pr edit <N> --add-reviewer Copilot` → `Could not resolve user with login 'copilot'`.
 - `POST /requested_reviewers` with `reviewers=[Copilot]` can return 200 but no-op.
@@ -50,7 +50,7 @@ Known non-working request paths — agents have tried these, they fail, do not r
 - `gh api ... -F 'reviewers[]=copilot-pull-request-reviewer'` returns an empty body and never fires a review.
 - GraphQL `requestReviews` rejects Copilot's bot node.
 
-The reverse direction — replying on review threads and resolving them via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`, see [Reply and thread resolution workflow](#reply-and-thread-resolution-workflow) below) — DOES work reliably and is the agent's responsibility once the maintainer has triggered the review.
+The reverse direction — replying on review threads and resolving them via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`, see "Reply and thread resolution workflow" below) — DOES work reliably and is the agent's responsibility once a review exists.
 
 ### Verify review covered current head
 
@@ -80,10 +80,10 @@ gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
 
 ### Bounded retry workflow
 
-If a review did not run on the current head, or Copilot posted "encountered an error and was unable to review":
+This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). If after a push the head-SHA-coverage check (above) shows no formal review on the new head, or Copilot posted "encountered an error and was unable to review":
 
-1. Wait briefly and check head-SHA coverage (see above) in case the review is still in flight.
-1. If still missing or errored, ask the maintainer to re-request the review from the GitHub PR UI ("Re-request review" next to Copilot's avatar). The agent must not retry via CLI/API — see [Triggering and polling](#triggering-and-polling).
+1. Wait briefly and re-check head-SHA coverage in case the rereview is still in flight.
+1. If still missing or errored, ask the maintainer to click "Re-request review" next to Copilot's avatar in the PR UI. The agent must not retry via CLI/API — see "Triggering and polling" above.
 1. Once the maintainer re-requests, resume polling head-SHA coverage.
 1. After two failed maintainer-triggered re-requests on the same head, mark review as blocked and escalate.
 
