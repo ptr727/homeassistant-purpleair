@@ -1000,8 +1000,7 @@ async def test_setup_triggers_reauth_on_invalid_key(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        # `context` is non-required on `FlowResult`, but reauth flows always
-        # populate it; pyright's TypedDict access check needs the manual nudge.
-        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        if flow["handler"] == DOMAIN
+        and flow.get("context", {}).get("source") == "reauth"
     ]
     assert len(flows) == 1
