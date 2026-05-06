@@ -29,11 +29,11 @@ jobs:
 
       - name: Generate GitHub App token step
         # Both merge jobs use the App token (not GITHUB_TOKEN) so the resulting
-        # squash-merge push is committed by the App, which fires downstream
-        # workflows on develop/main. Pushes from GITHUB_TOKEN are blocked from
-        # triggering further workflow runs by GitHub's recursion guard, which
-        # would silently skip publish-release.yml on the merge commit and
-        # prevent the auto-prerelease on develop from being created.
+        # merge push is committed by the App, which fires downstream workflows
+        # on develop/main. Pushes from GITHUB_TOKEN are blocked from triggering
+        # further workflow runs by GitHub's recursion guard, which would
+        # silently skip publish-release.yml on the merge commit and prevent
+        # the auto-prerelease on develop from being created.
         id: app-token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
@@ -49,9 +49,25 @@ jobs:
       # Skip semver-major bumps across every ecosystem (pip, github-actions,
       # devcontainers): majors can build cleanly but break runtime behaviour,
       # so they should land via human review.
+      #
+      # Merge method must match the base branch's ruleset:
+      # `develop` allows only squash, `main` allows only merge commits. A
+      # mismatch fails enablePullRequestAutoMerge with "Merge method ... is
+      # not allowed on this repository". Dependabot defaults to the repo's
+      # default branch (`main`), but maintainer-driven retargets to `develop`
+      # are also supported.
       - name: Merge pull request step
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --squash "$PR_URL"
+        run: |
+          case "${{ github.event.pull_request.base.ref }}" in
+            develop) method=--squash ;;
+            main) method=--merge ;;
+            *)
+              echo "::error::Unsupported base branch: ${{ github.event.pull_request.base.ref }}"
+              exit 1
+              ;;
+          esac
+          gh pr merge --auto "$method" "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
