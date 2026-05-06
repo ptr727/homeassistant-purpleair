@@ -21,6 +21,7 @@ from custom_components.purpleair.const import (
     CONF_SENSOR_INDEX,
     CONF_SENSOR_READ_KEY,
     DOMAIN,
+    SCHEMA_VERSION,
 )
 from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
@@ -41,6 +42,7 @@ from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
     ATTR_UNIT_OF_MEASUREMENT,
+    CONF_API_KEY,
     CONF_SHOW_ON_MAP,
     STATE_UNAVAILABLE,
 )
@@ -872,13 +874,11 @@ async def test_organization_entities_disambiguate_across_entries(
     collapse both accounts' org sensors into the same friendly name with
     `_2`-suffixed entity_ids.
     """
-    from custom_components.purpleair.const import SCHEMA_VERSION
-
     second = MockConfigEntry(
         domain=DOMAIN,
         entry_id="second_entry_id",
         unique_id="second-api-key",
-        data={"api_key": "second-api-key"},
+        data={CONF_API_KEY: "second-api-key"},
         options={CONF_SHOW_ON_MAP: True},
         version=SCHEMA_VERSION,
         title="My Other Org",

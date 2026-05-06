@@ -656,7 +656,8 @@ class PurpleAirOrganizationSensorEntity(
         # account's diagnostics in entity IDs and friendly names
         # (e.g. `sensor.purpleair_organization_remaining_points` vs
         # `sensor.my_other_org_organization_remaining_points`). Removing it
-        # collapses both into the same friendly name with a `_2` suffix.
+        # collapses both accounts into identical friendly names with
+        # `_2`-suffixed entity_ids.
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"organization-{entry.entry_id}")},
             manufacturer=MANUFACTURER,
