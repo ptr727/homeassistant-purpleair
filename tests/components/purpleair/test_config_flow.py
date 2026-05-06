@@ -1,5 +1,14 @@
 """Define tests for the PurpleAir config flow."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `ConfigFlowResult` and `SubentryFlowResult` make almost every key
+# (`type`, `step_id`, `errors`, `reason`, `data`, `data_schema`, ...)
+# non-required, but every flow assertion in this file reads them back
+# unconditionally — pyright's check for non-required-key access would fire
+# on essentially every line. Scope the suppression to this file rather than
+# annotating each access individually.
+
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.errors import (

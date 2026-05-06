@@ -446,7 +446,9 @@ async def test_coordinator_refresh_invalid_api_key_triggers_reauth(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
+        # `context` is non-required on `FlowResult`, but reauth flows always
+        # populate it; pyright's TypedDict access check needs the manual nudge.
+        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"  # pyright: ignore[reportTypedDictNotRequiredAccess]
     ]
     assert len(flows) == 1
 
@@ -770,6 +772,7 @@ async def test_organization_low_points_negative_remaining_clamps_days_left(
 
     issue = issue_registry.async_get_issue(DOMAIN, issue_id)
     assert issue is not None
+    assert issue.translation_placeholders is not None
     assert issue.translation_placeholders["days_left"] == "0"
 
 

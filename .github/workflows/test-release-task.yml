@@ -72,6 +72,28 @@ jobs:
         # Platinum quality-scale rule "strict-typing" requires a clean run.
         run: python3 -m mypy --strict --follow-imports=silent custom_components/purpleair/
 
+  pyright:
+    name: Pyright job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository step
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python step
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install requirements step
+        run: python3 -m pip install -r requirements-test.txt
+
+      - name: Run pyright step
+        # Pyright is the CLI engine behind VS Code's Pylance extension; running
+        # it here keeps the in-editor and CI experience in sync. Scope, mode,
+        # and enabled rules are configured in pyrightconfig.json.
+        run: python3 -m pyright
+
   read-versions:
     name: Read HA test matrix job
     # The matrix is sourced from .github/ha-test-versions.json so that
@@ -166,7 +188,7 @@ jobs:
 
   build-release:
     name: Build release without publishing job
-    needs: [ruff, mypy, pytest, hassfest, hacs]
+    needs: [ruff, mypy, pyright, pytest, hassfest, hacs]
     # workflow_call delivers inputs.build as a real boolean (`true`/`false`)
     # but workflow_dispatch delivers it as the *string* `"true"`/`"false"`,
     # and the GitHub expression parser treats any non-empty string as truthy

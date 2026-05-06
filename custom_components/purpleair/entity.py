@@ -100,8 +100,14 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
         """Return if the entity has data available."""
         return super().available and self._is_sensor_healthy()
 
+    # HA's `Entity.extra_state_attributes` is a `@cached_property`; overriding
+    # with a regular `@property` is the standard pattern when the value depends
+    # on coordinator state (caching would freeze it across refreshes), but
+    # pyright can't see that the override is intentional.
     @property
-    def extra_state_attributes(self) -> Mapping[str, Any]:
+    def extra_state_attributes(  # pyright: ignore[reportIncompatibleVariableOverride]
+        self,
+    ) -> Mapping[str, Any]:
         """Return entity specific state attributes."""
         sensor = self._maybe_sensor_data()
         if sensor is None:
@@ -118,14 +124,19 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
 
     def _maybe_sensor_data(self) -> SensorModel | None:
         """Return this entity's SensorModel, or None if it is not in the response."""
+        # HA's DataUpdateCoordinator stubs type `.data` as the generic _DataT,
+        # but at runtime it is None until the first refresh succeeds.
         data = self.coordinator.data
-        if data is None:
+        if data is None:  # pyright: ignore[reportUnnecessaryComparison]
             return None
         return data.data.get(self._sensor_index)
 
     def _is_sensor_healthy(self) -> bool:
         """Check every availability rule: returns False if any fails."""
-        sensor = self._maybe_sensor_data()
+        data = self.coordinator.data
+        if data is None:  # pyright: ignore[reportUnnecessaryComparison]
+            return False
+        sensor = data.data.get(self._sensor_index)
         if sensor is None:
             return False
         if (
@@ -136,18 +147,29 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
             return False
         if sensor.channel_state is ChannelState.NO_PM:
             return False
-        if sensor.last_seen_utc is not None and self.coordinator.data is not None:
-            reference = self.coordinator.data.data_timestamp_utc
-            if (
-                reference is not None
-                and (reference - sensor.last_seen_utc) > STALE_THRESHOLD
-            ):
-                return False
+        # `data_timestamp_utc` is typed as a non-Optional `datetime`, but
+        # callers can poke a None in via Pydantic's `model_copy(update=...)`,
+        # which doesn't re-validate; preserve the defensive guard.
+        reference = data.data_timestamp_utc
+        if (
+            sensor.last_seen_utc is not None
+            and reference is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and (reference - sensor.last_seen_utc) > STALE_THRESHOLD
+        ):
+            return False
         return True
 
     def _unhealthy_reason(self) -> str:
         """One-line description of why the sensor is unhealthy (for logs)."""
-        sensor = self._maybe_sensor_data()
+        data = self.coordinator.data
+        # `coordinator.data is None` only on a never-refreshed coordinator;
+        # collapse it into the same message as a missing sensor index so the
+        # log line stays stable across that edge case.
+        sensor = (
+            data.data.get(self._sensor_index)
+            if data is not None  # pyright: ignore[reportUnnecessaryComparison]
+            else None
+        )
         if sensor is None:
             return "not present in API response"
         if (
@@ -158,11 +180,13 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
             return f"confidence {sensor.confidence} below {MIN_CONFIDENCE}"
         if sensor.channel_state is ChannelState.NO_PM:
             return "no PM channel detected (channel_state=NO_PM)"
-        if sensor.last_seen_utc is not None and self.coordinator.data is not None:
-            reference = self.coordinator.data.data_timestamp_utc
-            if (
-                reference is not None
-                and (reference - sensor.last_seen_utc) > STALE_THRESHOLD
-            ):
-                return f"last_seen {sensor.last_seen_utc} older than {STALE_THRESHOLD}"
+        # See `_is_sensor_healthy` for the defensive `data_timestamp_utc`
+        # guard rationale.
+        reference = data.data_timestamp_utc
+        if (
+            sensor.last_seen_utc is not None
+            and reference is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and (reference - sensor.last_seen_utc) > STALE_THRESHOLD
+        ):
+            return f"last_seen {sensor.last_seen_utc} older than {STALE_THRESHOLD}"
         return "unknown"
