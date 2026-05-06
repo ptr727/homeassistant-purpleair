@@ -644,6 +644,19 @@ class PurpleAirOrganizationSensorEntity(
         super().__init__(entry.runtime_data.organization)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}-organization-{description.key}"
+        # The organization endpoint is account-scoped (per API key), not
+        # per-physical-sensor, so this virtual service device sits at the
+        # ConfigEntry root with no `config_subentry_id`. HA's frontend
+        # currently renders root-level devices under a "Devices that don't
+        # belong to a sub-entry" header whenever the entry has any
+        # subentries; that label is tracked as a frontend-side defect
+        # (home-assistant/core#147570, #155583, #157398) and is not a signal
+        # for integrations to restructure. The device IS load-bearing for
+        # multi-API-key UX: with two entries, this disambiguates each
+        # account's diagnostics in entity IDs and friendly names
+        # (e.g. `sensor.purpleair_organization_remaining_points` vs
+        # `sensor.my_other_org_organization_remaining_points`). Removing it
+        # collapses both into the same friendly name with a `_2` suffix.
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"organization-{entry.entry_id}")},
             manufacturer=MANUFACTURER,

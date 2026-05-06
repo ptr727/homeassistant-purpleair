@@ -855,6 +855,91 @@ def test_organization_sensor_default_enablement() -> None:
     assert defaults == {"remaining_points": True, "consumption_rate": True}
 
 
+async def test_organization_entities_disambiguate_across_entries(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """Two simultaneous API keys must produce distinct org entity_ids and devices.
+
+    The org device's `name=f"{entry.title} organization"` is what flows into
+    `_attr_has_entity_name=True` to disambiguate ``sensor.<title>_organization_*``
+    across entries. This test pins that contract — removing the device would
+    collapse both accounts' org sensors into the same friendly name with
+    `_2`-suffixed entity_ids.
+    """
+    from custom_components.purpleair.const import SCHEMA_VERSION
+
+    second = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="second_entry_id",
+        unique_id="second-api-key",
+        data={"api_key": "second-api-key"},
+        options={CONF_SHOW_ON_MAP: True},
+        version=SCHEMA_VERSION,
+        title="My Other Org",
+    )
+    second.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        second,
+        ConfigSubentry(
+            data=MappingProxyType(
+                {CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}
+            ),
+            subentry_type=CONF_SENSOR,
+            title=f"Other ({TEST_SENSOR_INDEX2})",
+            unique_id=str(TEST_SENSOR_INDEX2),
+        ),
+    )
+    assert await hass.config_entries.async_setup(second.entry_id)
+    await hass.async_block_till_done()
+
+    # Each entry has its own org device with a distinct name that flows into
+    # the entity friendly_name via _attr_has_entity_name=True.
+    org_device_1 = device_registry.async_get_device(
+        identifiers={(DOMAIN, f"organization-{config_entry.entry_id}")}
+    )
+    org_device_2 = device_registry.async_get_device(
+        identifiers={(DOMAIN, f"organization-{second.entry_id}")}
+    )
+    assert org_device_1 is not None
+    assert org_device_2 is not None
+    assert org_device_1.name == f"{config_entry.title} organization"
+    assert org_device_2.name == "My Other Org organization"
+    assert org_device_1.id != org_device_2.id
+
+    # Each org entity is bound to its entry's org device, so entity_ids and
+    # friendly_names disambiguate. Without the device, both would be
+    # `sensor.remaining_points` / `sensor.remaining_points_2` with identical
+    # friendly names.
+    for description in ORGANIZATION_SENSOR_DESCRIPTIONS:
+        entity_1 = entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{config_entry.entry_id}-organization-{description.key}"
+        )
+        entity_2 = entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{second.entry_id}-organization-{description.key}"
+        )
+        assert entity_1 is not None
+        assert entity_2 is not None
+        assert entity_1 != entity_2
+        # Entity IDs include the device-name slug.
+        assert "purpleair_organization" in entity_1
+        assert "my_other_org_organization" in entity_2
+
+        state_1 = hass.states.get(entity_1)
+        state_2 = hass.states.get(entity_2)
+        assert state_1 is not None
+        assert state_2 is not None
+        assert state_1.attributes["friendly_name"].startswith(
+            f"{config_entry.title} organization "
+        )
+        assert state_2.attributes["friendly_name"].startswith("My Other Org organization ")
+
+
 @pytest.mark.parametrize(
     "get_sensors_mock",
     [
