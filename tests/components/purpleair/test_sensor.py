@@ -1,5 +1,11 @@
 """PurpleAir sensor tests."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `FlowResult` makes `context` (and most other keys) non-required, but
+# reauth flows always populate it; matches the same per-file suppression
+# `test_config_flow.py` uses for the high-volume flow-result assertion sites.
+
 from datetime import datetime, timedelta
 import logging
 from math import nan
@@ -1000,7 +1006,6 @@ async def test_setup_triggers_reauth_on_invalid_key(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN
-        and flow.get("context", {}).get("source") == "reauth"
+        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
     ]
     assert len(flows) == 1

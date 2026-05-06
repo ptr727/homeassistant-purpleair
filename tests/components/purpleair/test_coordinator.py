@@ -1,5 +1,11 @@
 """Tests for the PurpleAir data update coordinator."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `FlowResult` makes `context` (and most other keys) non-required, but
+# reauth flows always populate it; matches the same per-file suppression
+# `test_config_flow.py` uses for the high-volume flow-result assertion sites.
+
 from datetime import timedelta
 from types import MappingProxyType
 from unittest.mock import AsyncMock, patch
@@ -446,8 +452,7 @@ async def test_coordinator_refresh_invalid_api_key_triggers_reauth(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN
-        and flow.get("context", {}).get("source") == "reauth"
+        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
     ]
     assert len(flows) == 1
 
