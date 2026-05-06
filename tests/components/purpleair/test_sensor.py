@@ -44,7 +44,7 @@ from custom_components.purpleair.sensor import (
     _pm25_aqi,
     _pm25_epa_correction,
 )
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigSubentry
 from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
@@ -57,7 +57,14 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2, TEST_SENSOR_INDEX_NO_LOCATION
+from .const import (
+    CONF_CONTEXT,
+    CONF_HANDLER,
+    CONF_SOURCE,
+    TEST_SENSOR_INDEX1,
+    TEST_SENSOR_INDEX2,
+    TEST_SENSOR_INDEX_NO_LOCATION,
+)
 
 
 async def test_sensor_snapshot(
@@ -1006,6 +1013,7 @@ async def test_setup_triggers_reauth_on_invalid_key(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
+        if flow[CONF_HANDLER] == DOMAIN
+        and flow[CONF_CONTEXT].get(CONF_SOURCE) == SOURCE_REAUTH
     ]
     assert len(flows) == 1
