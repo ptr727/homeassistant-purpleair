@@ -86,7 +86,10 @@ async def test_coordinator_handles_mixed_public_and_private_sensors(
     await coordinator._async_update_data()
 
     call = api.sensors.async_get_sensors.await_args
-    assert set(call.kwargs["sensor_indices"]) == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
+    assert set(call.kwargs["sensor_indices"]) == {
+        TEST_SENSOR_INDEX1,
+        TEST_SENSOR_INDEX2,
+    }
     # Only the private sensor's read_key is forwarded — the public sensor
     # contributes nothing to read_keys.
     assert call.kwargs["read_keys"] == [TEST_SENSOR_READ_KEY]

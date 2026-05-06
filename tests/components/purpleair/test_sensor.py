@@ -937,7 +937,9 @@ async def test_organization_entities_disambiguate_across_entries(
         assert state_1.attributes["friendly_name"].startswith(
             f"{config_entry.title} organization "
         )
-        assert state_2.attributes["friendly_name"].startswith("My Other Org organization ")
+        assert state_2.attributes["friendly_name"].startswith(
+            "My Other Org organization "
+        )
 
 
 @pytest.mark.parametrize(
