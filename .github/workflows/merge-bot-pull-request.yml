@@ -59,6 +59,7 @@ jobs:
       - name: Merge pull request step
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: |
+          set -euo pipefail
           case "${{ github.event.pull_request.base.ref }}" in
             develop) method=--squash ;;
             main) method=--merge ;;
