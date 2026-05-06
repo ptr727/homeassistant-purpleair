@@ -811,6 +811,8 @@ async def test_entity_helpers_when_coordinator_data_missing(
     assert entity.native_value is None
     assert entity.extra_state_attributes == {}
     assert entity._maybe_sensor_data() is None
+    assert entity._is_sensor_healthy() is False
+    assert entity._unhealthy_reason() == "not present in API response"
     entity._refresh_device_info()
 
 
