@@ -12,7 +12,7 @@ from aiopurpleair.models.sensors import GetSensorsResponse, SensorModel
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, load_fixture
 from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
-from syrupy import SnapshotAssertion
+from syrupy.assertion import SnapshotAssertion
 
 from custom_components.purpleair.const import (
     CONF_SENSOR,

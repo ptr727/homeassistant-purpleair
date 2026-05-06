@@ -1,5 +1,11 @@
 """Tests for the PurpleAir data update coordinator."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `FlowResult` makes `context` (and most other keys) non-required, but
+# reauth flows always populate it; matches the same per-file suppression
+# `test_config_flow.py` uses for the high-volume flow-result assertion sites.
+
 from datetime import timedelta
 from types import MappingProxyType
 from unittest.mock import AsyncMock, patch
@@ -29,13 +35,20 @@ from custom_components.purpleair.coordinator import (
     ISSUE_OUT_OF_API_POINTS,
     UPDATE_INTERVAL,
 )
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2, TEST_SENSOR_READ_KEY
+from .const import (
+    CONF_CONTEXT,
+    CONF_HANDLER,
+    CONF_SOURCE,
+    TEST_SENSOR_INDEX1,
+    TEST_SENSOR_INDEX2,
+    TEST_SENSOR_READ_KEY,
+)
 
 
 async def test_coordinator_calls_api_with_configured_indices(
@@ -446,7 +459,8 @@ async def test_coordinator_refresh_invalid_api_key_triggers_reauth(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
+        if flow[CONF_HANDLER] == DOMAIN
+        and flow[CONF_CONTEXT].get(CONF_SOURCE) == SOURCE_REAUTH
     ]
     assert len(flows) == 1
 
@@ -770,6 +784,7 @@ async def test_organization_low_points_negative_remaining_clamps_days_left(
 
     issue = issue_registry.async_get_issue(DOMAIN, issue_id)
     assert issue is not None
+    assert issue.translation_placeholders is not None
     assert issue.translation_placeholders["days_left"] == "0"
 
 

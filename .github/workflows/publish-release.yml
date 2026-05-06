@@ -39,8 +39,8 @@ jobs:
     # Manual stable releases on main only. Reuses test-release-task.yml —
     # the same suite that gates PR merges — so a maintainer dispatching
     # `gh workflow run publish-release.yml --ref main` against a regressed
-    # main tip cannot ship: ruff, mypy --strict, pytest matrix, hassfest,
-    # and HACS validation all have to pass first.
+    # main tip cannot ship: ruff, mypy --strict, pyright, pytest matrix,
+    # hassfest, and HACS validation all have to pass first.
     #
     # Pass `build: false` so test-release-task skips its no-publish
     # build-release child. The create-release job below builds the

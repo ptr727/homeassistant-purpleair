@@ -1,0 +1,7 @@
+{
+  "include": ["custom_components/purpleair", "tests"],
+  "extraPaths": ["./custom_components"],
+  "typeCheckingMode": "basic",
+  "reportUnnecessaryComparison": "error",
+  "reportIncompatibleVariableOverride": "error"
+}

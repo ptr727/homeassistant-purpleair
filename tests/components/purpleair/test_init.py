@@ -733,8 +733,12 @@ async def test_async_migrate_integration_reenables_default_true_entities(
     await hass.async_block_till_done()
 
     registry = er.async_get(hass)
-    assert registry.async_get(sensor_entity.entity_id).disabled_by is None
-    assert registry.async_get(org_entity.entity_id).disabled_by is None
+    sensor_after = registry.async_get(sensor_entity.entity_id)
+    org_after = registry.async_get(org_entity.entity_id)
+    assert sensor_after is not None
+    assert org_after is not None
+    assert sensor_after.disabled_by is None
+    assert org_after.disabled_by is None
 
 
 async def test_async_migrate_integration_preserves_user_disabled(
@@ -760,10 +764,9 @@ async def test_async_migrate_integration_preserves_user_disabled(
         await async_migrate_integration(hass)
         await hass.async_block_till_done()
 
-    assert (
-        er.async_get(hass).async_get(user_entity.entity_id).disabled_by
-        is er.RegistryEntryDisabler.USER
-    )
+    user_after = er.async_get(hass).async_get(user_entity.entity_id)
+    assert user_after is not None
+    assert user_after.disabled_by is er.RegistryEntryDisabler.USER
     assert any("disabled_by=" in record.message for record in caplog.records)
 
 
@@ -800,14 +803,12 @@ async def test_async_migrate_integration_preserves_default_false_entities(
         await hass.async_block_till_done()
 
     registry = er.async_get(hass)
-    assert (
-        registry.async_get(rssi_entity.entity_id).disabled_by
-        is er.RegistryEntryDisabler.INTEGRATION
-    )
-    assert (
-        registry.async_get(orphan_entity.entity_id).disabled_by
-        is er.RegistryEntryDisabler.INTEGRATION
-    )
+    rssi_after = registry.async_get(rssi_entity.entity_id)
+    orphan_after = registry.async_get(orphan_entity.entity_id)
+    assert rssi_after is not None
+    assert orphan_after is not None
+    assert rssi_after.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert orphan_after.disabled_by is er.RegistryEntryDisabler.INTEGRATION
     assert any("unknown key=" in record.message for record in caplog.records)
 
 

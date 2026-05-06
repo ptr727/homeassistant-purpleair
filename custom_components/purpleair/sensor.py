@@ -601,10 +601,17 @@ async def async_setup_entry(
     )
 
 
-class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):
+# `available` and `extra_state_attributes` are defined as `@property` on
+# `CoordinatorEntity`/`PurpleAirEntity` and as `@cached_property` on HA's
+# `Entity`/`SensorEntity` — combining the two parents trips pyright's
+# variable-override invariance check despite both bases agreeing on the
+# return type.
+class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """Define a representation of a PurpleAir sensor."""
 
-    entity_description: PurpleAirSensorEntityDescription
+    # Narrowing `entity_description` to the integration's dataclass subclass is
+    # standard HA practice, but pyright treats class variables as invariant.
+    entity_description: PurpleAirSensorEntityDescription  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
@@ -616,10 +623,12 @@ class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):
         super().__init__(entry, sensor_index)
 
         self._attr_unique_id = f"{sensor_index}-{description.key}"
-        self.entity_description = description
+        self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
-    def native_value(self) -> float | str | datetime | None:
+    def native_value(  # pyright: ignore[reportIncompatibleVariableOverride]
+        self,
+    ) -> float | str | datetime | None:
         """Return the sensor value."""
         sensor = self._maybe_sensor_data()
         if sensor is None:
@@ -627,13 +636,15 @@ class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):
         return self.entity_description.value_fn(sensor)
 
 
-class PurpleAirOrganizationSensorEntity(
+# Same `available` parent-class mismatch as `PurpleAirSensorEntity` — see the
+# block comment there.
+class PurpleAirOrganizationSensorEntity(  # pyright: ignore[reportIncompatibleVariableOverride]
     CoordinatorEntity[PurpleAirOrganizationCoordinator], SensorEntity
 ):
     """Define an account-level PurpleAir sensor (remaining points / consumption rate)."""
 
     _attr_has_entity_name = True
-    entity_description: PurpleAirOrganizationSensorEntityDescription
+    entity_description: PurpleAirOrganizationSensorEntityDescription  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
@@ -642,7 +653,7 @@ class PurpleAirOrganizationSensorEntity(
     ) -> None:
         """Initialize."""
         super().__init__(entry.runtime_data.organization)
-        self.entity_description = description
+        self.entity_description = description  # pyright: ignore[reportIncompatibleVariableOverride]
         self._attr_unique_id = f"{entry.entry_id}-organization-{description.key}"
         # The organization endpoint is account-scoped (per API key), not
         # per-physical-sensor, so this virtual service device sits at the
@@ -667,8 +678,12 @@ class PurpleAirOrganizationSensorEntity(
         )
 
     @property
-    def native_value(self) -> int | str | None:
+    def native_value(  # pyright: ignore[reportIncompatibleVariableOverride]
+        self,
+    ) -> int | str | None:
         """Return the value of the entity."""
-        if self.coordinator.data is None:
+        # See `_maybe_sensor_data` in entity.py for the HA `coordinator.data`
+        # typing wart this guards against.
+        if self.coordinator.data is None:  # pyright: ignore[reportUnnecessaryComparison]
             return None
         return self.entity_description.value_fn(self.coordinator.data)
