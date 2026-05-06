@@ -650,7 +650,8 @@ class PurpleAirOrganizationSensorEntity(
         # currently renders root-level devices under a "Devices that don't
         # belong to a sub-entry" header whenever the entry has any
         # subentries; that label is tracked as a frontend-side defect
-        # (home-assistant/core#147570, #155583, #157398) and is not a signal
+        # (home-assistant/core#147570, home-assistant/core#155583,
+        # home-assistant/core#157398) and is not a signal
         # for integrations to restructure. The device IS load-bearing for
         # multi-API-key UX: with two entries, this disambiguates each
         # account's diagnostics in entity IDs and friendly names
