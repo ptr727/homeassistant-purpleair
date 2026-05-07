@@ -55,8 +55,10 @@ jobs:
       # mismatch fails enablePullRequestAutoMerge with "Merge method ... is
       # not allowed on this repository". Dependabot scheduled updates are
       # configured to target `develop` (see the `target-branch` field in
-      # dependabot.yml); security-alert PRs may still appear against `main`
-      # and a maintainer-driven retarget to either base is also supported.
+      # .github/dependabot.yml); Dependabot security update PRs open
+      # against `main` (the default branch) since they don't honor
+      # `target-branch`, and a maintainer-driven retarget to either base
+      # is also supported.
       - name: Merge pull request step
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: |

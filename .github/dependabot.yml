@@ -8,12 +8,13 @@
 # the bot-triggered develop prerelease for early-warning testing, then
 # bundles into the next develop → main merge-commit alongside feature work.
 #
-# Caveat: `target-branch` only reliably redirects scheduled updates.
-# Dependabot *security alerts* (the CVE-driven PRs from the security tab)
-# are typically opened against the default branch (`main`) regardless,
-# and the merge-bot's `case` statement in merge-bot-pull-request.yml is
-# what handles either base correctly. A maintainer can manually retarget
-# either direction from the PR UI if a one-off needs the other branch.
+# Caveat: `target-branch` only redirects scheduled version updates.
+# Dependabot *security update PRs* (the CVE-driven ones Dependabot opens
+# in response to security alerts) are opened against the default branch
+# (`main`) and do not honor `target-branch`. The merge-bot's `case`
+# statement in .github/workflows/merge-bot-pull-request.yml handles
+# either base correctly, and a maintainer can retarget manually from
+# the PR UI if a one-off needs the other branch.
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
