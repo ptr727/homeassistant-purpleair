@@ -4,7 +4,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
-from syrupy import SnapshotAssertion
+from syrupy.assertion import SnapshotAssertion
 from syrupy.filters import props
 
 from homeassistant.core import HomeAssistant
@@ -45,5 +45,10 @@ async def test_diagnostics_before_refresh(
     diagnostics = await get_diagnostics_for_config_entry(
         hass, hass_client, config_entry
     )
+    # `JsonObjectType` values are `JsonValueType` (a union including ints,
+    # bools, lists, etc.), so each nested subscript needs a concrete narrow
+    # before the next one type-checks.
     assert diagnostics["data"] is not None
-    assert diagnostics["coordinator"]["last_update_success"] is True
+    coordinator = diagnostics["coordinator"]
+    assert isinstance(coordinator, dict)
+    assert coordinator["last_update_success"] is True

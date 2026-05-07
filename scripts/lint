@@ -11,3 +11,8 @@ ruff format . --check
 ruff check .
 # Platinum quality-scale rule "strict-typing" requires a clean mypy --strict run.
 mypy --strict --follow-imports=silent custom_components/purpleair/
+# Pyright is the CLI engine behind VS Code's Pylance extension; running it
+# here ensures the in-editor and CI experience stay in sync. Configuration
+# (scope, mode, enabled rules) lives in pyrightconfig.json so a single
+# source of truth drives both surfaces.
+pyright

@@ -1,26 +1,35 @@
 """PurpleAir sensor tests."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `FlowResult` makes `context` (and most other keys) non-required, but
+# reauth flows always populate it; matches the same per-file suppression
+# `test_config_flow.py` uses for the high-volume flow-result assertion sites.
+
 from datetime import datetime, timedelta
 import logging
 from math import nan
 from types import MappingProxyType, SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.const import ChannelFlag, ChannelState
 from aiopurpleair.errors import InvalidApiKeyError, PurpleAirError
+from aiopurpleair.models.sensors import SensorModel
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
     snapshot_platform,
 )
-from syrupy import SnapshotAssertion
+from syrupy.assertion import SnapshotAssertion
 
 from custom_components.purpleair.const import (
     CONF_SENSOR,
     CONF_SENSOR_INDEX,
     CONF_SENSOR_READ_KEY,
     DOMAIN,
+    SCHEMA_VERSION,
 )
 from custom_components.purpleair.coordinator import UPDATE_INTERVAL
 from custom_components.purpleair.sensor import (
@@ -35,19 +44,27 @@ from custom_components.purpleair.sensor import (
     _pm25_aqi,
     _pm25_epa_correction,
 )
-from homeassistant.components.sensor import UnitOfTemperature
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigSubentry
 from homeassistant.const import (
     ATTR_LATITUDE,
     ATTR_LONGITUDE,
     ATTR_UNIT_OF_MEASUREMENT,
+    CONF_API_KEY,
     CONF_SHOW_ON_MAP,
     STATE_UNAVAILABLE,
+    UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2, TEST_SENSOR_INDEX_NO_LOCATION
+from .const import (
+    CONF_CONTEXT,
+    CONF_HANDLER,
+    CONF_SOURCE,
+    TEST_SENSOR_INDEX1,
+    TEST_SENSOR_INDEX2,
+    TEST_SENSOR_INDEX_NO_LOCATION,
+)
 
 
 async def test_sensor_snapshot(
@@ -402,6 +419,18 @@ async def test_voc_entity_skipped_when_hardware_unknown(
     )
 
 
+def _stub_sensor(**fields: Any) -> SensorModel:
+    """Build a duck-typed SensorModel for unit-testing pure helpers.
+
+    The helpers under test (`_pm25_epa_correction`, `_pm25_aqi`,
+    `_channel_state_value`, `_channel_flags_value`) only read a handful of
+    attributes off `SensorModel`; constructing a full Pydantic instance per
+    parametrize case is overkill. Cast a SimpleNamespace through `SensorModel`
+    so pyright's basic checker accepts the duck-typing.
+    """
+    return cast(SensorModel, SimpleNamespace(**fields))
+
+
 @pytest.mark.parametrize(
     ("pm", "rh", "expected"),
     [
@@ -420,7 +449,7 @@ async def test_voc_entity_skipped_when_hardware_unknown(
 )
 def test_pm25_epa_correction_formula(pm: float, rh: float, expected: float) -> None:
     """Verify the EPA formula at each piecewise branch's interior."""
-    sensor = SimpleNamespace(pm2_5=pm, humidity=rh)
+    sensor = _stub_sensor(pm2_5=pm, humidity=rh)
     assert _pm25_epa_correction(sensor) == pytest.approx(expected, rel=1e-6)
 
 
@@ -431,30 +460,30 @@ def test_pm25_epa_correction_transition_is_continuous() -> None:
     50–210 forms must agree; likewise at 210 and 260.
     """
     # PM just below 30 vs at 30 should be very close.
-    lower = _pm25_epa_correction(SimpleNamespace(pm2_5=29.9999, humidity=50))
-    upper = _pm25_epa_correction(SimpleNamespace(pm2_5=30.0, humidity=50))
+    lower = _pm25_epa_correction(_stub_sensor(pm2_5=29.9999, humidity=50))
+    upper = _pm25_epa_correction(_stub_sensor(pm2_5=30.0, humidity=50))
     assert lower == pytest.approx(upper, rel=1e-3)
 
     # PM at 50 from the blended form must match the 50–210 form at 50.
-    lower = _pm25_epa_correction(SimpleNamespace(pm2_5=49.9999, humidity=50))
-    upper = _pm25_epa_correction(SimpleNamespace(pm2_5=50.0, humidity=50))
+    lower = _pm25_epa_correction(_stub_sensor(pm2_5=49.9999, humidity=50))
+    upper = _pm25_epa_correction(_stub_sensor(pm2_5=50.0, humidity=50))
     assert lower == pytest.approx(upper, rel=1e-3)
 
     # PM at 210 from the 50–210 form must match the blended form at 210.
-    lower = _pm25_epa_correction(SimpleNamespace(pm2_5=209.9999, humidity=50))
-    upper = _pm25_epa_correction(SimpleNamespace(pm2_5=210.0, humidity=50))
+    lower = _pm25_epa_correction(_stub_sensor(pm2_5=209.9999, humidity=50))
+    upper = _pm25_epa_correction(_stub_sensor(pm2_5=210.0, humidity=50))
     assert lower == pytest.approx(upper, rel=1e-3)
 
     # PM at 260 from the blended form must match the ≥260 form.
-    lower = _pm25_epa_correction(SimpleNamespace(pm2_5=259.9999, humidity=50))
-    upper = _pm25_epa_correction(SimpleNamespace(pm2_5=260.0, humidity=50))
+    lower = _pm25_epa_correction(_stub_sensor(pm2_5=259.9999, humidity=50))
+    upper = _pm25_epa_correction(_stub_sensor(pm2_5=260.0, humidity=50))
     assert lower == pytest.approx(upper, rel=1e-3)
 
 
 def test_pm25_epa_correction_missing_inputs() -> None:
     """Either pm2_5 or humidity being None yields None."""
-    assert _pm25_epa_correction(SimpleNamespace(pm2_5=None, humidity=50)) is None
-    assert _pm25_epa_correction(SimpleNamespace(pm2_5=10, humidity=None)) is None
+    assert _pm25_epa_correction(_stub_sensor(pm2_5=None, humidity=50)) is None
+    assert _pm25_epa_correction(_stub_sensor(pm2_5=10, humidity=None)) is None
 
 
 @pytest.mark.parametrize(
@@ -479,7 +508,7 @@ def test_pm25_epa_correction_missing_inputs() -> None:
 )
 def test_pm25_aqi_breakpoints(pm: float | None, expected: int | None) -> None:
     """Verify the AQI formula at every breakpoint edge."""
-    assert _pm25_aqi(SimpleNamespace(pm2_5_24hour=pm)) == expected
+    assert _pm25_aqi(_stub_sensor(pm2_5_24hour=pm)) == expected
 
 
 def test_pm25_aqi_truncates_to_tenth() -> None:
@@ -488,28 +517,28 @@ def test_pm25_aqi_truncates_to_tenth() -> None:
     9.05 is not meaningful per 40 CFR; it should behave as 9.0, i.e. AQI 50
     (top of the Good band), not 51 (which would imply it's in Moderate).
     """
-    assert _pm25_aqi(SimpleNamespace(pm2_5_24hour=9.05)) == 50
+    assert _pm25_aqi(_stub_sensor(pm2_5_24hour=9.05)) == 50
 
 
 def test_pm25_aqi_nan_returns_none() -> None:
     """NaN PM2.5 values are treated as invalid and return None."""
-    assert _pm25_aqi(SimpleNamespace(pm2_5_24hour=nan)) is None
+    assert _pm25_aqi(_stub_sensor(pm2_5_24hour=nan)) is None
 
 
 def test_channel_state_value_helper() -> None:
     """Every ChannelState enum member maps to its translation key."""
     expected_by_member = dict(zip(ChannelState, CHANNEL_STATE_OPTIONS, strict=True))
     for member, expected in expected_by_member.items():
-        assert _channel_state_value(SimpleNamespace(channel_state=member)) == expected
-    assert _channel_state_value(SimpleNamespace(channel_state=None)) is None
+        assert _channel_state_value(_stub_sensor(channel_state=member)) == expected
+    assert _channel_state_value(_stub_sensor(channel_state=None)) is None
 
 
 def test_channel_flags_value_helper() -> None:
     """Every ChannelFlag enum member maps to its translation key."""
     expected_by_member = dict(zip(ChannelFlag, CHANNEL_FLAGS_OPTIONS, strict=True))
     for member, expected in expected_by_member.items():
-        assert _channel_flags_value(SimpleNamespace(channel_flags=member)) == expected
-    assert _channel_flags_value(SimpleNamespace(channel_flags=None)) is None
+        assert _channel_flags_value(_stub_sensor(channel_flags=member)) == expected
+    assert _channel_flags_value(_stub_sensor(channel_flags=None)) is None
 
 
 @pytest.mark.parametrize(
@@ -795,6 +824,8 @@ async def test_entity_helpers_when_coordinator_data_missing(
     assert entity.native_value is None
     assert entity.extra_state_attributes == {}
     assert entity._maybe_sensor_data() is None
+    assert entity._is_sensor_healthy() is False
+    assert entity._unhealthy_reason() == "not present in API response"
     entity._refresh_device_info()
 
 
@@ -855,6 +886,91 @@ def test_organization_sensor_default_enablement() -> None:
     assert defaults == {"remaining_points": True, "consumption_rate": True}
 
 
+async def test_organization_entities_disambiguate_across_entries(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """Two simultaneous API keys must produce distinct org entity_ids and devices.
+
+    The org device's `name=f"{entry.title} organization"` is what flows into
+    `_attr_has_entity_name=True` to disambiguate ``sensor.<title>_organization_*``
+    across entries. This test pins that contract — removing the device would
+    collapse both accounts' org sensors into the same friendly name with
+    `_2`-suffixed entity_ids.
+    """
+    second = MockConfigEntry(
+        domain=DOMAIN,
+        entry_id="second_entry_id",
+        unique_id="second-api-key",
+        data={CONF_API_KEY: "second-api-key"},
+        options={CONF_SHOW_ON_MAP: True},
+        version=SCHEMA_VERSION,
+        title="My Other Org",
+    )
+    second.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        second,
+        ConfigSubentry(
+            data=MappingProxyType(
+                {CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2, CONF_SENSOR_READ_KEY: None}
+            ),
+            subentry_type=CONF_SENSOR,
+            title=f"Other ({TEST_SENSOR_INDEX2})",
+            unique_id=str(TEST_SENSOR_INDEX2),
+        ),
+    )
+    assert await hass.config_entries.async_setup(second.entry_id)
+    await hass.async_block_till_done()
+
+    # Each entry has its own org device with a distinct name that flows into
+    # the entity friendly_name via _attr_has_entity_name=True.
+    org_device_1 = device_registry.async_get_device(
+        identifiers={(DOMAIN, f"organization-{config_entry.entry_id}")}
+    )
+    org_device_2 = device_registry.async_get_device(
+        identifiers={(DOMAIN, f"organization-{second.entry_id}")}
+    )
+    assert org_device_1 is not None
+    assert org_device_2 is not None
+    assert org_device_1.name == f"{config_entry.title} organization"
+    assert org_device_2.name == "My Other Org organization"
+    assert org_device_1.id != org_device_2.id
+
+    # Each org entity is bound to its entry's org device, so entity_ids and
+    # friendly_names disambiguate. Without the device, both would be
+    # `sensor.remaining_points` / `sensor.remaining_points_2` with identical
+    # friendly names.
+    for description in ORGANIZATION_SENSOR_DESCRIPTIONS:
+        entity_1 = entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{config_entry.entry_id}-organization-{description.key}"
+        )
+        entity_2 = entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{second.entry_id}-organization-{description.key}"
+        )
+        assert entity_1 is not None
+        assert entity_2 is not None
+        assert entity_1 != entity_2
+        # Entity IDs include the device-name slug.
+        assert "purpleair_organization" in entity_1
+        assert "my_other_org_organization" in entity_2
+
+        state_1 = hass.states.get(entity_1)
+        state_2 = hass.states.get(entity_2)
+        assert state_1 is not None
+        assert state_2 is not None
+        assert state_1.attributes["friendly_name"].startswith(
+            f"{config_entry.title} organization "
+        )
+        assert state_2.attributes["friendly_name"].startswith(
+            "My Other Org organization "
+        )
+
+
 @pytest.mark.parametrize(
     "get_sensors_mock",
     [
@@ -897,6 +1013,7 @@ async def test_setup_triggers_reauth_on_invalid_key(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
+        if flow[CONF_HANDLER] == DOMAIN
+        and flow[CONF_CONTEXT].get(CONF_SOURCE) == SOURCE_REAUTH
     ]
     assert len(flows) == 1

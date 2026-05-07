@@ -1,5 +1,11 @@
 """Tests for the PurpleAir data update coordinator."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `FlowResult` makes `context` (and most other keys) non-required, but
+# reauth flows always populate it; matches the same per-file suppression
+# `test_config_flow.py` uses for the high-volume flow-result assertion sites.
+
 from datetime import timedelta
 from types import MappingProxyType
 from unittest.mock import AsyncMock, patch
@@ -18,19 +24,31 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.purpleair.const import CONF_SENSOR, CONF_SENSOR_INDEX, DOMAIN
+from custom_components.purpleair.const import (
+    CONF_SENSOR,
+    CONF_SENSOR_INDEX,
+    CONF_SENSOR_READ_KEY,
+    DOMAIN,
+)
 from custom_components.purpleair.coordinator import (
     ISSUE_LOW_API_POINTS,
     ISSUE_OUT_OF_API_POINTS,
     UPDATE_INTERVAL,
 )
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .const import TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2
+from .const import (
+    CONF_CONTEXT,
+    CONF_HANDLER,
+    CONF_SOURCE,
+    TEST_SENSOR_INDEX1,
+    TEST_SENSOR_INDEX2,
+    TEST_SENSOR_READ_KEY,
+)
 
 
 async def test_coordinator_calls_api_with_configured_indices(
@@ -46,6 +64,48 @@ async def test_coordinator_calls_api_with_configured_indices(
     assert call.kwargs["sensor_indices"] == [TEST_SENSOR_INDEX1]
     # The default subentry has no read_key, so read_keys must be None (not []).
     assert call.kwargs["read_keys"] is None
+
+
+async def test_coordinator_handles_mixed_public_and_private_sensors(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    config_subentry,
+    setup_config_entry,
+    api,
+) -> None:
+    """Mixed public (no read_key) + private (read_key) sensors in one entry.
+
+    The from-map flow creates subentries without a read_key (public sensor);
+    the from-index flow creates subentries with one (private sensor). Both
+    can coexist within the same config entry, and the coordinator must
+    forward only the non-None read_keys to aiopurpleair.
+    """
+    private_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2,
+                CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+            }
+        ),
+        subentry_type=CONF_SENSOR,
+        title=f"Private sensor ({TEST_SENSOR_INDEX2})",
+        unique_id=str(TEST_SENSOR_INDEX2),
+    )
+    hass.config_entries.async_add_subentry(config_entry, private_subentry)
+    await hass.async_block_till_done()
+
+    coordinator = config_entry.runtime_data.sensors
+    api.sensors.async_get_sensors.reset_mock()
+    await coordinator._async_update_data()
+
+    call = api.sensors.async_get_sensors.await_args
+    assert set(call.kwargs["sensor_indices"]) == {
+        TEST_SENSOR_INDEX1,
+        TEST_SENSOR_INDEX2,
+    }
+    # Only the private sensor's read_key is forwarded — the public sensor
+    # contributes nothing to read_keys.
+    assert call.kwargs["read_keys"] == [TEST_SENSOR_READ_KEY]
 
 
 async def test_coordinator_requests_only_enabled_entity_fields(
@@ -399,7 +459,8 @@ async def test_coordinator_refresh_invalid_api_key_triggers_reauth(
     flows = [
         flow
         for flow in hass.config_entries.flow.async_progress()
-        if flow["handler"] == DOMAIN and flow["context"].get("source") == "reauth"
+        if flow[CONF_HANDLER] == DOMAIN
+        and flow[CONF_CONTEXT].get(CONF_SOURCE) == SOURCE_REAUTH
     ]
     assert len(flows) == 1
 
@@ -723,6 +784,7 @@ async def test_organization_low_points_negative_remaining_clamps_days_left(
 
     issue = issue_registry.async_get_issue(DOMAIN, issue_id)
     assert issue is not None
+    assert issue.translation_placeholders is not None
     assert issue.translation_placeholders["days_left"] == "0"
 
 

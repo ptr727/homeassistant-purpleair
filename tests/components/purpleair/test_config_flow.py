@@ -1,5 +1,14 @@
 """Define tests for the PurpleAir config flow."""
 
+# pyright: reportTypedDictNotRequiredAccess=false
+#
+# HA's `ConfigFlowResult` and `SubentryFlowResult` make almost every key
+# (`type`, `step_id`, `errors`, `reason`, `data`, `data_schema`, ...)
+# non-required, but every flow assertion in this file reads them back
+# unconditionally — pyright's check for non-required-key access would fire
+# on essentially every line. Scope the suppression to this file rather than
+# annotating each access individually.
+
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.errors import (
@@ -629,6 +638,60 @@ async def test_duplicate_sensor(
     assert result[CONF_STEP_ID] == CONF_ADD_SENSOR_INDEX
 
     # Enter index and create
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID],
+        user_input={
+            CONF_SENSOR_INDEX: TEST_SENSOR_INDEX1,
+            CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY,
+        },
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_ERRORS] == {CONF_SENSOR_INDEX: CONF_ALREADY_CONFIGURED}
+
+    hass.config_entries.subentries.async_abort(result[CONF_FLOW_ID])
+    await hass.async_block_till_done()
+
+
+async def test_duplicate_sensor_across_entries(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """A sensor configured in one entry can't be re-added under a different API key.
+
+    The sensor_index is the natural key across the integration, not per-entry.
+    Re-adding the same physical sensor under a second API key would produce
+    two device-registry entries pointing at the same upstream resource and
+    duplicated entity history.
+    """
+    # Spin up a second config entry with a different API key.
+    second_result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    second_result = await hass.config_entries.flow.async_configure(
+        second_result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert second_result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    second_entry = next(
+        e
+        for e in hass.config_entries.async_entries(DOMAIN)
+        if e.unique_id == TEST_NEW_API_KEY
+    )
+
+    # Try to add the FIRST entry's sensor index to the SECOND entry.
+    result = await hass.config_entries.subentries.async_init(
+        (second_entry.entry_id, CONF_SENSOR), context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_NEXT_STEP_ID: CONF_ADD_SENSOR_INDEX}
+    )
+    await hass.async_block_till_done()
     result = await hass.config_entries.subentries.async_configure(
         result[CONF_FLOW_ID],
         user_input={
