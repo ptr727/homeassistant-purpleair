@@ -1,19 +1,32 @@
 ---
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# `target-branch: "develop"` on every ecosystem entry routes Dependabot PRs
+# (both scheduled version updates and security alerts) at the integration
+# branch instead of the repo default (`main`). That keeps dep bumps in the
+# `feature → develop → main` flow described in AGENTS.md: each bump joins
+# the bot-triggered develop prerelease for early-warning testing, then
+# bundles into the next develop → main merge-commit alongside feature work.
+# A CVE-urgent backport can be retargeted to `main` from the PR UI; the
+# merge-bot's `case` statement in merge-bot-pull-request.yml routes either
+# base correctly.
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "pip"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "daily"
     ignore:

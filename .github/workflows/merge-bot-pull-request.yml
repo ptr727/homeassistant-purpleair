@@ -53,9 +53,9 @@ jobs:
       # Merge method must match the base branch's ruleset:
       # `develop` allows only squash, `main` allows only merge commits. A
       # mismatch fails enablePullRequestAutoMerge with "Merge method ... is
-      # not allowed on this repository". Dependabot defaults to the repo's
-      # default branch (`main`), but maintainer-driven retargets to `develop`
-      # are also supported.
+      # not allowed on this repository". Dependabot is configured to target
+      # `develop` (see dependabot.yml `target-branch:`); a maintainer-driven
+      # retarget to `main` for an urgent CVE backport is also supported.
       - name: Merge pull request step
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: |
