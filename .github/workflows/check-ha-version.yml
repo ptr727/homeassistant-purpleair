@@ -67,9 +67,10 @@ jobs:
         #     pin is a pre-release HA (`latest-beta` slot).
         # All three matrix slots gate equally; the beta slot is omitted
         # entirely when no upcoming-HA beta exists. The walk hard-caps at
-        # the 10 most-recent pytest-hacc versions to bound runner time
-        # (~150s worst case at 15s/request). In practice it terminates
-        # within 1-2 fetches when the latest pytest-hacc pins a stable,
+        # the 10 most-recent pytest-hacc versions to bound runner time:
+        # 1 index fetch + 10 per-version fetches × 15s timeout = ~165s
+        # worst case. In practice it terminates within 1-2 fetches when
+        # the latest pytest-hacc pins a stable,
         # and within ~4-7 during an active HA beta cycle. Hitting the cap
         # without finding a stable is unprecedented in upstream history;
         # the resolver fails loudly so a maintainer can investigate before
@@ -88,7 +89,7 @@ jobs:
               # 15s per request keeps the bot predictable when PyPI stalls;
               # without a timeout urllib waits indefinitely and the daily
               # cron can pile up runners. Combined with WALK_LIMIT below
-              # this bounds total resolver time to ~150s worst case.
+              # this bounds total resolver time to ~165s worst case (1 index fetch + 10 per-version fetches × 15s).
               with urllib.request.urlopen(url, timeout=15) as r:
                   return json.loads(r.read())
 
