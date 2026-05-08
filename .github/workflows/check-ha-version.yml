@@ -80,7 +80,11 @@ jobs:
           BASE = f"https://pypi.org/pypi/{PKG}"
 
           def fetch(url):
-              with urllib.request.urlopen(url) as r:
+              # 15s per request keeps the bot predictable when PyPI stalls;
+              # without a timeout urllib waits indefinitely and the daily
+              # cron can pile up runners. The walk does at most ~2-3
+              # requests, so a slow PyPI fails fast rather than hanging.
+              with urllib.request.urlopen(url, timeout=15) as r:
                   return json.loads(r.read())
 
           def ha_pin(release):
@@ -187,6 +191,15 @@ jobs:
       # pre-release strictly newer than `latest-stable.ha`. When no such
       # beta exists (typical right after a stable lands), the resolver
       # returns empty strings and this PR sets the slot to null.
+
+      - name: Reset ha-test-versions.json before beta write step
+        # peter-evans/create-pull-request commits the working-tree diff to
+        # its PR branch and then `git checkout`s back to the source ref,
+        # so the file should already be at develop's state here. This
+        # explicit restore is defensive: if that internal behaviour ever
+        # changes, a stale stable-bump edit must NOT leak into the beta
+        # PR. Cheap no-op when the file is already clean.
+        run: git checkout HEAD -- .github/ha-test-versions.json
 
       - name: Update file for beta change step
         id: write-beta

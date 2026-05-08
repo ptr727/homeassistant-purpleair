@@ -48,12 +48,21 @@ jobs:
     # A `cancelled`/`failure` gate result skips this job, which then skips
     # create-release below — exactly what we want.
     #
+    # `always() &&` is required here: without it, GitHub auto-skips a job
+    # whose `needs:` dependency is skipped, regardless of the `if:` body —
+    # so on a develop push (gate=skipped) test-release would silently
+    # skip and create-release's `success`-only gate would skip publish
+    # entirely. `always()` overrides the auto-skip so the explicit
+    # success/skipped allowlist runs.
+    #
     # Pass `build: false` so test-release-task skips its no-publish
     # build-release child. The create-release job below builds the
     # artifact for real immediately after, and two builds in the same
     # workflow run would (a) produce two same-named `purpleair-zip`
     # artifacts and (b) double the build cost for no extra signal.
-    if: needs.gate.result == 'success' || needs.gate.result == 'skipped'
+    if: >-
+      always() &&
+      (needs.gate.result == 'success' || needs.gate.result == 'skipped')
     uses: ./.github/workflows/test-release-task.yml
     secrets: inherit
     with:
