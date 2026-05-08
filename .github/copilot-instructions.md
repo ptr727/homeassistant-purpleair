@@ -140,6 +140,18 @@ Reply-body conventions:
 
 After final push, sweep-resolve stale older threads for removed code paths.
 
+## Reviewing CI / release-train changes
+
+When reviewing a PR that touches [.github/workflows/](../.github/workflows/) or [.github/ha-test-versions.json](../.github/ha-test-versions.json), check the change against these load-bearing invariants. Each one is intentional and was reached after a real failure mode; flag any drift.
+
+- **All test matrix slots gate equally.** [.github/ha-test-versions.json](../.github/ha-test-versions.json) has three slots — `minimum` (backward compat), `latest-stable`, `latest-beta` — consumed by [test-release-task.yml](../.github/workflows/test-release-task.yml). None of them carries `continue-on-error` or a `gating: false` field. Reject PRs that add either; reject schema changes that drop or rename a slot. The `latest-beta` slot can legitimately be `null` (when no HA pre-release is newer than `latest-stable`), but never `continue-on-error`.
+- **Develop publishes prereleases only on green.** [publish-release.yml](../.github/workflows/publish-release.yml)'s `create-release` requires `needs.test-release.result == 'success'` exactly — not `'skipped'`/`'failure'`/`'cancelled'`. Reject PRs that loosen this back to `!= 'failure'` or re-allow the `'skipped'` path on develop pushes.
+- **Main never auto-publishes.** [publish-release.yml](../.github/workflows/publish-release.yml) has no `push: [main]` trigger, only `workflow_dispatch` from main. Reject any PR that adds a `push: [main]` (or `push: [main, develop]`) trigger to publish-release. HACS auto-pulls new releases, so auto-publishing on main would force-update every user.
+- **HA-version-bump bot uses one rolling branch and runs daily.** [check-ha-version.yml](../.github/workflows/check-ha-version.yml) opens a single bundled PR on `ha-version-bump/matrix` (no version embedded, both slots in one PR) and runs on `cron: "0 6 * * *"`. Reject PRs that split this back into per-slot branches — that re-introduces a real race where a beta-clear PR could auto-merge before the corresponding stable bump. Reject PRs that switch to per-version branch names (accumulates stale red PRs) or drop the cron back to weekly.
+- **Beta failures do not silently merge.** With merge-bot configured to `gh pr merge --auto`, a failing test-release on a bot PR keeps the PR open, and develop's pin lags upstream until a human ports the integration. That's the intended outcome — don't suggest "just skip the beta slot for now" or "make it advisory."
+
+If a reviewer argues for relaxing any of these, escalate to the maintainer rather than implementing — these are explicit user decisions, not lint rules.
+
 ## When in doubt
 
 Read [AGENTS.md](../AGENTS.md) for the full picture (release flow, files you must not touch, code style, workflow YAML conventions). Don't restate this file's rules in commit bodies or PR descriptions — keep those focused on the change itself.

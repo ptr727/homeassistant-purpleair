@@ -36,26 +36,33 @@ jobs:
   test-release:
     name: Test release job
     needs: [gate]
-    # Manual stable releases on main only. Reuses test-release-task.yml —
-    # the same suite that gates PR merges — so a maintainer dispatching
-    # `gh workflow run publish-release.yml --ref main` against a regressed
-    # main tip cannot ship: ruff, mypy --strict, pyright, pytest matrix,
-    # hassfest, and HACS validation all have to pass first.
+    # Reuses test-release-task.yml — the same suite that gates PR merges
+    # (ruff, mypy --strict, pyright, pytest matrix, hassfest, HACS) — so
+    # neither a `gh workflow run publish-release.yml --ref main` against
+    # a regressed main tip NOR a develop push that broke something can
+    # publish.
+    #
+    # Runs on:
+    # - workflow_dispatch from main (gate=success), and
+    # - push to develop (gate=skipped because the gate job is dispatch-only).
+    # A `cancelled`/`failure` gate result skips this job, which then skips
+    # create-release below — exactly what we want.
+    #
+    # `always() &&` is required here: without it, GitHub auto-skips a job
+    # whose `needs:` dependency is skipped, regardless of the `if:` body —
+    # so on a develop push (gate=skipped) test-release would silently
+    # skip and create-release's `success`-only gate would skip publish
+    # entirely. `always()` overrides the auto-skip so the explicit
+    # success/skipped allowlist runs.
     #
     # Pass `build: false` so test-release-task skips its no-publish
     # build-release child. The create-release job below builds the
     # artifact for real immediately after, and two builds in the same
     # workflow run would (a) produce two same-named `purpleair-zip`
     # artifacts and (b) double the build cost for no extra signal.
-    #
-    # Skipped on push-to-develop because for those triggers
-    # test-pull-request.yml is also fired by the same push and runs the
-    # same suite (against the same SHA) in parallel. We don't strictly
-    # block on it before publishing the prerelease — develop is the
-    # rolling beta channel — and a failure shows up on the parallel
-    # run; running it inside publish-release.yml would just duplicate
-    # the work without strengthening the gate.
-    if: github.event_name == 'workflow_dispatch' && needs.gate.result == 'success'
+    if: >-
+      always() &&
+      (needs.gate.result == 'success' || needs.gate.result == 'skipped')
     uses: ./.github/workflows/test-release-task.yml
     secrets: inherit
     with:
@@ -64,18 +71,17 @@ jobs:
   create-release:
     name: Publish project release job
     needs: [gate, test-release]
-    # Two paths are valid:
+    # Publish only when test-release passed. Both publishing paths gate on
+    # the same suite:
     # - workflow_dispatch on main: gate=success, test-release=success.
-    # - push to develop: gate=skipped, test-release=skipped (the same
-    #   suite runs in parallel via test-pull-request.yml; gating here
-    #   would duplicate it without strengthening the prerelease gate).
-    # Explicitly allowlist success/skipped on each dependency so a
-    # `cancelled` outcome (timeout, manual cancel, runner failure) blocks
-    # publish — != 'failure' alone would let cancelled through.
+    # - push to develop:           gate=skipped, test-release=success.
+    # `gate` is allowed to be skipped (push path) but `test-release` must
+    # succeed — never `skipped`/`failure`/`cancelled` — so a broken develop
+    # push cannot ship a prerelease.
     if: >-
       always() &&
       (needs.gate.result == 'success' || needs.gate.result == 'skipped') &&
-      (needs.test-release.result == 'success' || needs.test-release.result == 'skipped')
+      needs.test-release.result == 'success'
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
     permissions:
