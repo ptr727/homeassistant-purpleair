@@ -137,122 +137,135 @@ jobs:
           print(f"beta_ha={beta[1] if beta else ''}")
           PY
 
-      - name: Read currently pinned versions step
-        id: current
-        run: |
-          set -euo pipefail
-          {
-            echo "stable_hacc=$(jq -r '."latest-stable"."pytest-hacc"' .github/ha-test-versions.json)"
-            echo "stable_ha=$(jq   -r '."latest-stable".ha'             .github/ha-test-versions.json)"
-            echo "beta_hacc=$(jq   -r '."latest-beta"."pytest-hacc" // ""' .github/ha-test-versions.json)"
-            echo "beta_ha=$(jq     -r '."latest-beta".ha // ""'             .github/ha-test-versions.json)"
-          } >> "$GITHUB_OUTPUT"
+      # ---- Apply changes + open one PR per cron tick ---------------------
+      # Both `latest-stable` and `latest-beta` updates are bundled into a
+      # single PR on a single rolling branch. The earlier two-PR design
+      # had a real race: when a new stable supersedes the current beta,
+      # the resolver would emit a stable bump *and* a beta clear at the
+      # same time. Two independent auto-merging PRs could then land out
+      # of order, leaving develop with stale stable + null beta until
+      # the second merged. Bundling makes the matrix update atomic —
+      # either the whole thing lands or nothing does.
 
-      # ---- Stable bump ---------------------------------------------------
-      # Only modifies `latest-stable`. The beta PR (below) handles any
-      # corresponding clear/promotion of `latest-beta` independently — keeping
-      # diffs small and PR ownership single-purpose.
-
-      - name: Update file for stable bump step
-        id: write-stable
-        if: |
-          steps.resolve.outputs.stable_hacc != steps.current.outputs.stable_hacc ||
-          steps.resolve.outputs.stable_ha   != steps.current.outputs.stable_ha
+      - name: Apply matrix changes and build PR metadata step
+        id: apply
         env:
           STABLE_HACC: ${{ steps.resolve.outputs.stable_hacc }}
           STABLE_HA: ${{ steps.resolve.outputs.stable_ha }}
-        run: |
-          set -euo pipefail
-          jq --arg ha   "$STABLE_HA" \
-             --arg hacc "$STABLE_HACC" \
-             '."latest-stable".ha = $ha
-              | ."latest-stable"."pytest-hacc" = $hacc' \
-             .github/ha-test-versions.json > .github/ha-test-versions.json.tmp
-          mv .github/ha-test-versions.json.tmp .github/ha-test-versions.json
-
-      - name: Create stable bump pull request step
-        if: steps.write-stable.outcome == 'success'
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        # Single rolling branch per stream (`stable`, `beta`). When tests
-        # fail on a bump PR, the next cron tick force-pushes the next pin
-        # to the same branch and the same PR keeps refreshing — a stale
-        # red PR doesn't accumulate per-version. Audit trail lives in PR
-        # title/body and the merged commit on develop, not in branch names.
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          base: develop
-          branch: ha-version-bump/stable
-          delete-branch: true
-          sign-commits: true
-          title: "Bump HA test matrix (stable) to ${{ steps.resolve.outputs.stable_ha }}"
-          commit-message: "Bump HA test matrix (stable) to ${{ steps.resolve.outputs.stable_ha }}"
-          body: |
-            Bumps `latest-stable` in `.github/ha-test-versions.json` to
-            `${{ steps.resolve.outputs.stable_ha }}` (via
-            `pytest-homeassistant-custom-component` `${{ steps.resolve.outputs.stable_hacc }}`).
-
-            - Home Assistant release notes: https://github.com/home-assistant/core/releases/tag/${{ steps.resolve.outputs.stable_ha }}
-            - pytest-homeassistant-custom-component release: https://pypi.org/project/pytest-homeassistant-custom-component/${{ steps.resolve.outputs.stable_hacc }}/
-
-            Tests run against the new version on this PR. If they pass,
-            merge-bot auto-merges into develop and the bump rolls into the
-            next prerelease published from develop.
-
-      # ---- Beta bump (separate PR, gates equally with stable) -----------
-      # `latest-beta` tracks the highest pytest-hacc whose HA pin is a
-      # pre-release strictly newer than `latest-stable.ha`. When no such
-      # beta exists (typical right after a stable lands), the resolver
-      # returns empty strings and this PR sets the slot to null.
-
-      - name: Reset ha-test-versions.json before beta write step
-        # peter-evans/create-pull-request commits the working-tree diff to
-        # its PR branch and then `git checkout`s back to the source ref,
-        # so the file should already be at develop's state here. This
-        # explicit restore is defensive: if that internal behaviour ever
-        # changes, a stale stable-bump edit must NOT leak into the beta
-        # PR. Cheap no-op when the file is already clean.
-        run: git checkout HEAD -- .github/ha-test-versions.json
-
-      - name: Update file for beta change step
-        id: write-beta
-        if: |
-          steps.resolve.outputs.beta_hacc != steps.current.outputs.beta_hacc ||
-          steps.resolve.outputs.beta_ha   != steps.current.outputs.beta_ha
-        env:
           BETA_HACC: ${{ steps.resolve.outputs.beta_hacc }}
           BETA_HA: ${{ steps.resolve.outputs.beta_ha }}
         run: |
           set -euo pipefail
-          # shellcheck disable=SC2153  # BETA_HA is set via env: above
-          if [ -z "$BETA_HACC" ]; then
-              jq '."latest-beta" = null' \
-                 .github/ha-test-versions.json > .github/ha-test-versions.json.tmp
-          else
-              jq --arg ha   "$BETA_HA" \
-                 --arg hacc "$BETA_HACC" \
-                 '."latest-beta" = { "ha": $ha, "pytest-hacc": $hacc }' \
-                 .github/ha-test-versions.json > .github/ha-test-versions.json.tmp
-          fi
-          mv .github/ha-test-versions.json.tmp .github/ha-test-versions.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
 
-      - name: Create beta change pull request step
-        if: steps.write-beta.outcome == 'success'
+          path = ".github/ha-test-versions.json"
+          with open(path) as f:
+              data = json.load(f)
+
+          res_s = (os.environ["STABLE_HACC"], os.environ["STABLE_HA"])
+          res_b = (os.environ["BETA_HACC"], os.environ["BETA_HA"])
+
+          cur_s = (
+              data["latest-stable"]["pytest-hacc"],
+              data["latest-stable"]["ha"],
+          )
+          cur_beta_obj = data.get("latest-beta")
+          cur_b = (
+              (cur_beta_obj["pytest-hacc"], cur_beta_obj["ha"])
+              if cur_beta_obj else ("", "")
+          )
+
+          stable_changed = res_s != cur_s
+          beta_changed = res_b != cur_b
+          any_changed = stable_changed or beta_changed
+          print(f"any_changed={'true' if any_changed else 'false'}")
+
+          if not any_changed:
+              raise SystemExit(0)
+
+          if stable_changed:
+              data["latest-stable"] = {"ha": res_s[1], "pytest-hacc": res_s[0]}
+          if beta_changed:
+              data["latest-beta"] = (
+                  {"ha": res_b[1], "pytest-hacc": res_b[0]} if res_b[0] else None
+              )
+
+          with open(path, "w") as f:
+              # ensure_ascii=False preserves the em-dash and other non-ASCII
+              # characters in the existing $comment field; the default would
+              # rewrite "—" as "—" and produce a noisy diff every run.
+              json.dump(data, f, indent=2, ensure_ascii=False)
+              f.write("\n")
+
+          # Title — single line, summarises every change.
+          parts = []
+          if stable_changed:
+              parts.append(f"stable: {res_s[1]}")
+          if beta_changed:
+              parts.append(f"beta: {res_b[1]}" if res_b[1] else "clear beta")
+          title = f"Bump HA test matrix ({', '.join(parts)})"
+          print(f"title={title}")
+
+          # Body — multi-line via the GHA output delimiter syntax.
+          body = [
+              "Bumps the bot-maintained HA test-matrix slots in"
+              " `.github/ha-test-versions.json`.",
+          ]
+          if stable_changed:
+              body += [
+                  "",
+                  "### `latest-stable`",
+                  "",
+                  f"- HA: `{cur_s[1]}` → `{res_s[1]}`",
+                  f"- pytest-hacc: `{cur_s[0]}` → `{res_s[0]}`",
+                  f"- HA release notes: https://github.com/home-assistant/core/releases/tag/{res_s[1]}",
+                  f"- pytest-hacc release: https://pypi.org/project/pytest-homeassistant-custom-component/{res_s[0]}/",
+              ]
+          if beta_changed:
+              body += ["", "### `latest-beta`", ""]
+              if res_b[1]:
+                  body += [
+                      f"- HA: `{cur_b[1] or '(none)'}` → `{res_b[1]}`",
+                      f"- pytest-hacc: `{cur_b[0] or '(none)'}` → `{res_b[0]}`",
+                      f"- HA release notes: https://github.com/home-assistant/core/releases/tag/{res_b[1]}",
+                      f"- pytest-hacc release: https://pypi.org/project/pytest-homeassistant-custom-component/{res_b[0]}/",
+                  ]
+              else:
+                  body += [
+                      f"Cleared. The previous beta pin (`{cur_b[1]}`) is no longer"
+                      " newer than the current stable pin — there is no upcoming HA"
+                      " pre-release on PyPI to test against.",
+                  ]
+          body += [
+              "",
+              "All three matrix slots gate equally — this PR auto-merges only when"
+              " tests pass against `minimum`, `latest-stable`, and (if non-null)"
+              " `latest-beta`. If a new HA beta breaks the integration, this PR"
+              " stays open until the integration is updated to support it.",
+          ]
+
+          print("body<<MATRIX_PR_BODY_EOF")
+          print("\n".join(body))
+          print("MATRIX_PR_BODY_EOF")
+          PY
+
+      - name: Create matrix bump pull request step
+        if: steps.apply.outputs.any_changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        # Single rolling branch — at most one bot PR open at a time.
+        # peter-evans force-pushes the latest pending matrix update
+        # (stable, beta, or both) to this branch on every cron tick,
+        # so the PR refreshes in place instead of accumulating per-
+        # version. Audit trail lives in the PR title/body and the
+        # merged commit on develop, not in branch names.
         with:
           token: ${{ steps.app-token.outputs.token }}
           base: develop
-          branch: ha-version-bump/beta
+          branch: ha-version-bump/matrix
           delete-branch: true
           sign-commits: true
-          title: ${{ steps.resolve.outputs.beta_ha != '' && format('Bump HA test matrix (beta) to {0}', steps.resolve.outputs.beta_ha) || 'Clear HA test matrix beta slot' }}
-          commit-message: ${{ steps.resolve.outputs.beta_ha != '' && format('Bump HA test matrix (beta) to {0}', steps.resolve.outputs.beta_ha) || 'Clear HA test matrix beta slot' }}
-          body: |
-            ${{ steps.resolve.outputs.beta_ha != '' && format('Bumps `latest-beta` in `.github/ha-test-versions.json` to `{0}` (via `pytest-homeassistant-custom-component` `{1}`).', steps.resolve.outputs.beta_ha, steps.resolve.outputs.beta_hacc) || format('Clears `latest-beta` in `.github/ha-test-versions.json`. The previous beta pin (`{0}`) is no longer newer than the current stable pin — there is no upcoming HA pre-release on PyPI to test against.', steps.current.outputs.beta_ha) }}
-
-            The beta slot gates equally with `minimum` and `latest-stable`:
-            tests must pass against this version for the bot's PR to
-            auto-merge. If a new HA beta breaks the integration, this PR
-            stays open until the integration is updated to support it.
-
-            ${{ steps.resolve.outputs.beta_ha != '' && format('- Home Assistant release notes: https://github.com/home-assistant/core/releases/tag/{0}', steps.resolve.outputs.beta_ha) || '' }}
-            ${{ steps.resolve.outputs.beta_ha != '' && format('- pytest-homeassistant-custom-component release: https://pypi.org/project/pytest-homeassistant-custom-component/{0}/', steps.resolve.outputs.beta_hacc) || '' }}
+          title: ${{ steps.apply.outputs.title }}
+          commit-message: ${{ steps.apply.outputs.title }}
+          body: ${{ steps.apply.outputs.body }}
