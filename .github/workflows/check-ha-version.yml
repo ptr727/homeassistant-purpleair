@@ -65,10 +65,15 @@ jobs:
         #     (`latest-stable` slot, replaces the old single `latest`),
         #   - and, if newer than that stable, the highest pytest-hacc whose
         #     pin is a pre-release HA (`latest-beta` slot).
-        # All three matrix slots gate equally; the beta slot is opt-in only
-        # in the sense that it's omitted entirely when no upcoming-HA beta
-        # exists. At most ~2-3 HTTP fetches per run because the descending
-        # walk terminates as soon as a stable is found.
+        # All three matrix slots gate equally; the beta slot is omitted
+        # entirely when no upcoming-HA beta exists. The walk hard-caps at
+        # the 10 most-recent pytest-hacc versions to bound runner time
+        # (~150s worst case at 15s/request). In practice it terminates
+        # within 1-2 fetches when the latest pytest-hacc pins a stable,
+        # and within ~4-7 during an active HA beta cycle. Hitting the cap
+        # without finding a stable is unprecedented in upstream history;
+        # the resolver fails loudly so a maintainer can investigate before
+        # relaxing the cap.
         run: |
           set -euo pipefail
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
@@ -82,8 +87,8 @@ jobs:
           def fetch(url):
               # 15s per request keeps the bot predictable when PyPI stalls;
               # without a timeout urllib waits indefinitely and the daily
-              # cron can pile up runners. The walk does at most ~2-3
-              # requests, so a slow PyPI fails fast rather than hanging.
+              # cron can pile up runners. Combined with WALK_LIMIT below
+              # this bounds total resolver time to ~150s worst case.
               with urllib.request.urlopen(url, timeout=15) as r:
                   return json.loads(r.read())
 
@@ -93,13 +98,15 @@ jobs:
                       return req[len("homeassistant=="):].split(";")[0].strip()
               return None
 
+          WALK_LIMIT = 10
+
           idx = fetch(f"{BASE}/json")
           versions = sorted(idx["releases"].keys(), key=Version, reverse=True)
 
           stable = None          # (hacc, ha) — highest pytest-hacc with stable HA pin
           beta_candidate = None  # (hacc, ha) — highest pytest-hacc with prerelease HA pin
 
-          for v in versions:
+          for v in versions[:WALK_LIMIT]:
               ha = ha_pin(fetch(f"{BASE}/{v}/json"))
               if not ha:
                   continue
@@ -111,7 +118,11 @@ jobs:
                   break
 
           if stable is None:
-              raise SystemExit(f"No stable {PKG} release found on PyPI")
+              raise SystemExit(
+                  f"No stable {PKG} release found within the {WALK_LIMIT} most "
+                  f"recent versions on PyPI; this is unprecedented in upstream "
+                  f"history — investigate before relaxing the cap."
+              )
 
           beta = beta_candidate
           if beta and Version(beta[1]) <= Version(stable[1]):
