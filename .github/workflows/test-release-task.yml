@@ -159,14 +159,16 @@ jobs:
       - name: Upload coverage to Codecov step
         # Tokenless OIDC uploads are rejected on protected-branch PR runs
         # ("Token required because branch is protected"), so the upload
-        # always uses CODECOV_TOKEN. `flags` lets Codecov break down
-        # coverage per HA matrix slot in the dashboard, while the repo's
+        # always uses CODECOV_TOKEN. `flags` keys on the slot label and
+        # the HA version so each slot stays uniquely identifiable in the
+        # Codecov dashboard even when slot HA versions coincide (e.g. if
+        # `minimum` ever catches up to `latest-stable`). The repo's
         # overall coverage badge merges all uploads for a SHA.
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
-          flags: ha-${{ matrix.ha-version }}
+          flags: ${{ matrix.label }}-ha-${{ matrix.ha-version }}
           fail_ci_if_error: false
 
   hassfest:

@@ -19,10 +19,10 @@ Versioning is handled by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerd
 
 ### Release flow
 
-- Merging a PR into `develop` automatically publishes a prerelease GitHub Release with a version like `0.1.5-g1a2b3c4` (the `-g{sha}` suffix marks it as a prerelease). Beta testers always have the latest develop snapshot.
+- Merging a PR into `develop` automatically publishes a prerelease GitHub Release with a version like `0.1.5-g1a2b3c4` (the `-g{sha}` suffix marks it as a prerelease) — **but only when the full test suite passes on the merge commit**. A broken develop push does not ship a prerelease.
 - Promoting `develop → main` (a normal PR) does **not** auto-publish. A maintainer cuts the stable release manually with `gh workflow run publish-release.yml --ref main`, which produces a clean release like `0.1.6`.
 - Dependabot PRs and HA-version-bump PRs auto-merge into `develop` after CI passes; their merge produces a fresh prerelease with no maintainer action.
-- A scheduled bot ([check-ha-version.yml](.github/workflows/check-ha-version.yml)) opens a "Bump Home Assistant test matrix to …" PR weekly when `pytest-homeassistant-custom-component` pins a newer HA version. The bumped HA version lives in [.github/ha-test-versions.json](.github/ha-test-versions.json).
+- A scheduled bot ([check-ha-version.yml](.github/workflows/check-ha-version.yml)) keeps the HA test matrix current with PyPI. It runs **daily at 06:00 UTC** and opens up to two PRs on rolling branches: `ha-version-bump/stable` (when `pytest-homeassistant-custom-component` pins a newer stable HA release) and `ha-version-bump/beta` (when it pins an HA pre-release newer than the current stable). Pinned versions live in [.github/ha-test-versions.json](.github/ha-test-versions.json) under three slots — `minimum` (hand-maintained backward-compat floor), `latest-stable`, and `latest-beta` (`null` when no upcoming beta exists). All three slots gate equally; a regression on any one fails the PR.
 
 ### Bumping the minimum HA version
 
