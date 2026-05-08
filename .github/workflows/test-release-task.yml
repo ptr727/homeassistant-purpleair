@@ -98,10 +98,15 @@ jobs:
     name: Read HA test matrix job
     # The matrix is sourced from .github/ha-test-versions.json so that
     # check-ha-version.yml can bump it via PR. `minimum` is hand-maintained
-    # (must match hacs.json["homeassistant"] and the pin in requirements.txt;
-    # currently 2026.4.0 because the entity registry's `aliases` field changed
-    # shape in 2026.4 and our snapshot tests can't satisfy both pre- and
-    # post-2026.4 formats); `latest-stable` and `latest-beta` are bot-maintained.
+    # and must match hacs.json["homeassistant"] (the user-facing minimum);
+    # currently 2026.4.0 because the entity registry's `aliases` field
+    # changed shape in 2026.4 and our snapshot tests can't satisfy both
+    # pre- and post-2026.4 formats. requirements.txt's `homeassistant==X`
+    # is a dev/CI bootstrap pin and may pin a higher patch in the same
+    # series — the pytest step below overrides it with
+    # `pip install --upgrade homeassistant==<minimum>` so the gate runs
+    # against `minimum` regardless. `latest-stable` and `latest-beta` are
+    # bot-maintained.
     # The beta slot is optional (null when no HA pre-release is newer than the
     # current stable). All three slots gate merges and prerelease publishes
     # equally — a regression against any one fails the PR.
