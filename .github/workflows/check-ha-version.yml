@@ -58,16 +58,17 @@ jobs:
 
       - name: Resolve latest stable + beta pytest-hacc/HA pairs step
         id: resolve
-        # Walk pytest-homeassistant-custom-component versions newest-first
-        # on PyPI, fetching each release's `homeassistant==` pin until we
-        # find both:
+        # Walk pytest-homeassistant-custom-component versions in PEP-440
+        # descending order (highest version first, sorted via
+        # `packaging.version.Version` — not upload time) on PyPI, fetching
+        # each release's `homeassistant==` pin until we find both:
         #   - the highest pytest-hacc whose pin is a stable HA release
         #     (`latest-stable` slot, replaces the old single `latest`),
         #   - and, if newer than that stable, the highest pytest-hacc whose
         #     pin is a pre-release HA (`latest-beta` slot).
         # All three matrix slots gate equally; the beta slot is omitted
         # entirely when no upcoming-HA beta exists. The walk hard-caps at
-        # the 10 most-recent pytest-hacc versions to bound runner time:
+        # the 10 highest pytest-hacc versions to bound runner time:
         # 1 index fetch + 10 per-version fetches × 15s timeout = ~165s
         # worst case. In practice it terminates within 1-2 fetches when
         # the latest pytest-hacc pins a stable,
