@@ -98,10 +98,18 @@ jobs:
     name: Read HA test matrix job
     # The matrix is sourced from .github/ha-test-versions.json so that
     # check-ha-version.yml can bump it via PR. `minimum` is hand-maintained
-    # (must match hacs.json["homeassistant"] and the pin in requirements.txt;
-    # currently 2026.4.0 because the entity registry's `aliases` field changed
-    # shape in 2026.4 and our snapshot tests can't satisfy both pre- and
-    # post-2026.4 formats); `latest` is bot-maintained.
+    # and must match hacs.json["homeassistant"] (the user-facing minimum);
+    # currently 2026.4.0 because the entity registry's `aliases` field
+    # changed shape in 2026.4 and our snapshot tests can't satisfy both
+    # pre- and post-2026.4 formats. requirements.txt's `homeassistant==X`
+    # is a dev/CI bootstrap pin and may pin a higher patch in the same
+    # series — the pytest step below overrides it with
+    # `pip install --upgrade homeassistant==<minimum>` so the gate runs
+    # against `minimum` regardless. `latest-stable` and `latest-beta` are
+    # bot-maintained.
+    # The beta slot is optional (null when no HA pre-release is newer than the
+    # current stable). All three slots gate merges and prerelease publishes
+    # equally — a regression against any one fails the PR.
     runs-on: ubuntu-latest
     outputs:
       include: ${{ steps.parse.outputs.include }}
@@ -114,18 +122,19 @@ jobs:
         run: |
           set -euo pipefail
           INCLUDE=$(jq -c '
-            [ .minimum, .latest ]
-            | map({
-                "python-version": "3.14",
-                "ha-version": .ha,
-                "pytest-hacc-version": ."pytest-hacc"
-              })
+            [
+              (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum"       }),
+              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable" })
+            ]
+            + ( if ."latest-beta" then
+                [ ."latest-beta" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-beta"   } ]
+              else [] end )
           ' .github/ha-test-versions.json)
           echo "include=$INCLUDE" >> "$GITHUB_OUTPUT"
           echo "Matrix: $INCLUDE"
 
   pytest:
-    name: "pytest job (HA ${{ matrix.ha-version }})"
+    name: "pytest job (HA ${{ matrix.ha-version }}, ${{ matrix.label }})"
     runs-on: ubuntu-latest
     needs: [read-versions]
     strategy:
@@ -155,14 +164,16 @@ jobs:
       - name: Upload coverage to Codecov step
         # Tokenless OIDC uploads are rejected on protected-branch PR runs
         # ("Token required because branch is protected"), so the upload
-        # always uses CODECOV_TOKEN. `flags` lets Codecov break down
-        # coverage per HA matrix slot in the dashboard, while the repo's
+        # always uses CODECOV_TOKEN. `flags` keys on the slot label and
+        # the HA version so each slot stays uniquely identifiable in the
+        # Codecov dashboard even when slot HA versions coincide (e.g. if
+        # `minimum` ever catches up to `latest-stable`). The repo's
         # overall coverage badge merges all uploads for a SHA.
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
-          flags: ha-${{ matrix.ha-version }}
+          flags: ${{ matrix.label }}-ha-${{ matrix.ha-version }}
           fail_ci_if_error: false
 
   hassfest:
