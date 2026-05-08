@@ -194,12 +194,14 @@ jobs:
 
           with open(path, "w") as f:
               # ensure_ascii=False preserves the em-dash and other non-ASCII
-              # characters in the existing $comment field; the default would
-              # rewrite "—" as "—" and produce a noisy diff every run.
+              # characters in the existing $comment field as their literal
+              # UTF-8 bytes. With the default ensure_ascii=True, json.dump
+              # escapes "—" to the six-byte sequence —, producing a
+              # noisy diff against the on-disk file every run.
               json.dump(data, f, indent=2, ensure_ascii=False)
               f.write("\n")
 
-          # Title — single line, summarises every change.
+          # Title — single line, summarizes every change.
           parts = []
           if stable_changed:
               parts.append(f"stable: {res_s[1]}")
