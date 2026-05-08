@@ -101,7 +101,10 @@ jobs:
     # (must match hacs.json["homeassistant"] and the pin in requirements.txt;
     # currently 2026.4.0 because the entity registry's `aliases` field changed
     # shape in 2026.4 and our snapshot tests can't satisfy both pre- and
-    # post-2026.4 formats); `latest` is bot-maintained.
+    # post-2026.4 formats); `latest-stable` and `latest-beta` are bot-maintained.
+    # The beta slot is optional (null when no HA pre-release is newer than the
+    # current stable). All three slots gate merges and prerelease publishes
+    # equally — a regression against any one fails the PR.
     runs-on: ubuntu-latest
     outputs:
       include: ${{ steps.parse.outputs.include }}
@@ -114,18 +117,19 @@ jobs:
         run: |
           set -euo pipefail
           INCLUDE=$(jq -c '
-            [ .minimum, .latest ]
-            | map({
-                "python-version": "3.14",
-                "ha-version": .ha,
-                "pytest-hacc-version": ."pytest-hacc"
-              })
+            [
+              (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum"       }),
+              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable" })
+            ]
+            + ( if ."latest-beta" then
+                [ ."latest-beta" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-beta"   } ]
+              else [] end )
           ' .github/ha-test-versions.json)
           echo "include=$INCLUDE" >> "$GITHUB_OUTPUT"
           echo "Matrix: $INCLUDE"
 
   pytest:
-    name: "pytest job (HA ${{ matrix.ha-version }})"
+    name: "pytest job (HA ${{ matrix.ha-version }}, ${{ matrix.label }})"
     runs-on: ubuntu-latest
     needs: [read-versions]
     strategy:
