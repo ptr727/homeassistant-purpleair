@@ -2,5 +2,5 @@
 aiopurpleair-ptr727==2026.8.0
 pytest-cov>=7,<8
 pytest-homeassistant-custom-component==0.13.324
-mypy>=2.0.0
+mypy>=2.1.0
 pyright==1.1.409
