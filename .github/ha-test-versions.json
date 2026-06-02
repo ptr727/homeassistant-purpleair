@@ -9,7 +9,7 @@
     "pytest-hacc": "0.13.333"
   },
   "latest-beta": {
-    "ha": "2026.6.0b0",
-    "pytest-hacc": "0.13.334"
+    "ha": "2026.6.0b2",
+    "pytest-hacc": "0.13.335"
   }
 }
