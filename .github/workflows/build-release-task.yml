@@ -130,7 +130,7 @@ jobs:
         # tag would land on main's tip instead of the develop commit that
         # built the artifact, leaving "Browse files" and `git checkout <tag>`
         # pointing at unrelated code.
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           tag_name: ${{ needs.get-version.outputs.Tag }}
           target_commitish: ${{ github.sha }}
