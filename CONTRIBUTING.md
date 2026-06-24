@@ -7,7 +7,7 @@ Contributions are welcome — bug reports, fixes, feature proposals, and documen
 1. Fork the repo and branch from `develop` (releases are cut from `main`).
 1. Make your change and update any affected documentation.
 1. Apply auto-fixes with `scripts/fix` (runs `ruff format` + `ruff check --fix`).
-1. Verify with `scripts/lint` (verify-only: `ruff format --check` + `ruff check` + `mypy --strict`). CI runs the same checks.
+1. Verify with `scripts/lint` (verify-only: `ruff format --check` + `ruff check` + `mypy --strict` + `pyright`). CI runs the same checks.
 1. Run the test suite with `pytest` (install `requirements-test.txt` first).
 1. Open a pull request against `develop` with a clear, descriptive title.
 
@@ -39,7 +39,7 @@ File issues on the [issue tracker](../../issues/new/choose). Good reports includ
 
 ## Coding style
 
-Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) — configured in [.ruff.toml](.ruff.toml), and type-checked with `mypy --strict`. Use `scripts/fix` to auto-fix and `scripts/lint` to verify (CI only runs the latter).
+Code is formatted and linted with [ruff](https://docs.astral.sh/ruff/) — configured in [.ruff.toml](.ruff.toml), and type-checked with `mypy --strict` and `pyright`. Use `scripts/fix` to auto-fix and `scripts/lint` to verify (CI only runs the latter).
 
 ## License
 
