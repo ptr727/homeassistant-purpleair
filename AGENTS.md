@@ -187,7 +187,7 @@ If a reviewer argues for relaxing any of these, escalate to the maintainer rathe
 **Before committing, the VS Code Problems pane should be quiet for the files you touched.** That means:
 
 - **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, `pyright` (basic mode + extra rules; see [pyrightconfig.json](pyrightconfig.json)), hassfest TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
-- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`, `yamllint`.
+- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`.
 
 **For Python linters**, false positives are common — HA's `dataclass(kw_only=True)` confuses pylint's argument resolution, pytest fixtures look like unused arguments, etc. Prefer to **disable recurring false positives project-wide in the linter's config file** (with a comment explaining why), rather than scattering inline suppressions. Avoid unjustified `# noqa` or `# pylint: disable=...` annotations; if an inline suppression is truly needed, keep it narrow and explain why.
 
@@ -202,7 +202,6 @@ markdownlint-cli2 README.md AGENTS.md HISTORY.md \
     CONTRIBUTING.md                                       # 0 errors expected
 actionlint .github/workflows/*.yml                        # silent expected
 shellcheck scripts/*                                      # silent expected
-yamllint .github/workflows/                               # silent expected
 ```
 
 ## Workflow YAML conventions
@@ -244,13 +243,12 @@ yamllint .github/workflows/                               # silent expected
 
 ## Linters available in the devcontainer
 
-The devcontainer ships these CLIs out of the box. Use them locally before pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/yamllint/markdownlint are not yet wired into CI, so local runs are the only gate.
+The devcontainer ships these CLIs out of the box. Use them locally before pushing — CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/markdownlint are not yet wired into CI, so local runs are the only gate.
 
 | Tool                | What it lints                                                                          | Quick command                             |
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `actionlint`        | GitHub Actions workflow YAML (also runs shellcheck on `run:` blocks)                   | `actionlint .github/workflows/*.yml`      |
 | `shellcheck`        | Standalone shell scripts (e.g. anything under [scripts/](scripts/))                    | `shellcheck scripts/*`                    |
-| `yamllint`          | Generic YAML structure / formatting                                                    | `yamllint .github/workflows/`             |
 | `markdownlint-cli2` | Markdown (`CONTRIBUTING.md`, `README.md`, `AGENTS.md`, etc.) — same engine as VS Code  | `markdownlint-cli2 '**/*.md'`             |
 | `pylint`            | Python (IDE-driven; not CI-gated)                                                      | `pylint custom_components/ tests/`        |
 | `ruff`              | Python lint + format (CI-required)                                                     | `scripts/fix` (auto-fix) / `scripts/lint` |
@@ -258,7 +256,7 @@ The devcontainer ships these CLIs out of the box. Use them locally before pushin
 
 Installation:
 
-- `shellcheck`, `yamllint`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` — `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
+- `shellcheck`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` — `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
 - Node.js LTS — `node:2` feature in [.devcontainer.json](.devcontainer.json), needed for `markdownlint-cli2`.
 - `markdownlint-cli2` — pinned `npm install -g` step in [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
 - `actionlint` — SHA256-pinned tarball download in [scripts/setup](scripts/setup).
@@ -281,7 +279,6 @@ This repo is derived from [ptr727/ProjectTemplate](https://github.com/ptr727/Pro
   - The release artifact is a single HACS `purpleair.zip` whose `manifest.json` `version` is stamped with the NBGV-computed version at build time ([build-release-task.yml](.github/workflows/build-release-task.yml)). The committed `manifest.json` `version` stays a `0.0.0` placeholder. This **version-injection-into-a-zip** shape is the HACS model; it does not use the template's generic `release-asset-<branch>-<target>` glob handoff because the HACS consumer reads the integration version from the stamped manifest inside the zip, not from a release asset name. Future HACS repos reuse this zip-deploy + manifest-injection pattern.
 - **Build-layer workflows are repo-owned.** [build-release-task.yml](.github/workflows/build-release-task.yml), [test-release-task.yml](.github/workflows/test-release-task.yml), [test-pull-request.yml](.github/workflows/test-pull-request.yml), [build-datebadge-task.yml](.github/workflows/build-datebadge-task.yml), and [check-ha-version.yml](.github/workflows/check-ha-version.yml) implement the HA-specific build, test matrix, and version-bump bot. They are not carried from the template's build layer; their invariants are documented under [HA test matrix](#ha-test-matrix--do-not-touch-manually) and [Reviewing CI / Release-Train Changes](#reviewing-ci--release-train-changes).
 - **`merge-ha-version-bump` is this repo's upstream-version equivalent.** The template's merge-bot ships `merge-upstream-version` for repos that track an upstream release via `check-upstream-version-task.yml`. This repo instead tracks HA versions via [check-ha-version.yml](.github/workflows/check-ha-version.yml), which opens its bundled bump PR on the rolling `ha-version-bump/matrix` branch; the merge-bot's `merge-ha-version-bump` job auto-merges that PR. It follows the same opened/reopened-only, base-ref-matched merge model as the template's bot jobs.
-- **`.yamllint` disables the `new-lines` rule.** This repo runs `yamllint` as a local linter (the template does not ship a `.yamllint`). The carried [.editorconfig](.editorconfig) governs `.yml`/`.yaml` as CRLF, which yamllint's default `new-lines` rule (expecting LF) would reject on every workflow file. `new-lines: disable` in [.yamllint](.yamllint) defers line-ending governance to `.editorconfig`.
 
 [workspace-link]: homeassistant-purpleair.code-workspace
 [qs]: https://developers.home-assistant.io/docs/core/integration-quality-scale
