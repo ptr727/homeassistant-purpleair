@@ -13,9 +13,36 @@ A HACS-installable Home Assistant **custom integration** for PurpleAir air-quali
 - **Develop → main PRs merge-commit** (one merge commit on main per release, develop's tip becomes a second parent and stays in main's ancestry — see [Develop → Main Promotion](#develop--main-promotion) below for why).
 - Open feature PRs against `develop`. `develop → main` is how stable releases are cut.
 
-## Commit messages and PR titles
+## Git and Commit Rules
 
-PR titles are descriptive and have no versioning effect. NBGV computes the version from [version.json](version.json) plus the git commit-height since that base version was last bumped, so commit messages are not parsed and don't need a Conventional-Commits prefix. Write a clear imperative subject — that's it. Bodies are optional; use them when *why* is non-obvious. Don't add `Co-Authored-By:` lines for AI tools unless the user explicitly asks.
+- **Default to staging, not committing.** Stage changes with `git add` and leave `git commit` to the developer unless the developer has explicitly authorized the agent to commit for the current ask ("commit this", "open a PR", etc.). Authorization is scope-bound - it covers the commits needed for that specific task, not a blanket commit license for the rest of the session.
+- **All commits must be cryptographically signed (SSH or GPG).** Branch protection enforces this on both branches; unsigned commits are rejected on push. Signing depends on environment configuration - `git config commit.gpgsign true`, a configured `user.signingkey`, and a working signing agent (loaded `ssh-agent` for SSH, or `gpg-agent` for GPG). If signing is not configured in the environment, **do not commit** - surface the missing config to the developer and stop at `git add`. Verify before any agent-authored commit (`git config --get commit.gpgsign && ssh-add -L` or the GPG equivalent). **Signing must be live before the *first* commit, not retrofitted.** Turning on `Require signed commits` against a branch that already has unsigned commits forces a rewrite of that entire history to re-sign it - changing every commit SHA and making whoever does the rewrite the committer and signer of every commit (a rebase preserves the `author` field but not the original signatures; you cannot sign another contributor's commits for them). During new-repo setup, never create commits until signing is verified.
+- **Never force push.** Do not run `git push --force` or `git push --force-with-lease` under any circumstances. Force pushing rewrites shared history and can cause data loss.
+- **Never run destructive git commands** (`git reset --hard`, `git checkout .`, `git restore .`, `git clean -f`) without explicit developer instruction.
+
+## Pull Request Title and Commit Message Conventions
+
+### Format
+
+- Imperative subject summarizing the change, <=72 characters, no trailing period. ("Add 24-hour PM2.5 average sensor", not "Added X" or "Adds X".)
+- Optional body, blank-line separated, explaining *why* the change is being made when that's non-obvious. The diff shows *what*.
+
+### Rules
+
+- Don't write `update stuff`, `wip`, or other vague titles. (Dependabot's default `Bump X from Y to Z` titles are fine - keep them.)
+- Don't add `Co-Authored-By:` lines unless the developer explicitly asks.
+- Don't put release-bump magnitude in the title - no "minor", "patch", "release v0.2.0", etc. Nerdbank.GitVersioning computes the next release version from `version.json` + git history. Dependency versions in dependency-bump titles are fine and expected.
+- Use US English spelling and match the existing heading style of the file you're editing: title case with lowercase short bind words (a, an, the, and, but, or, of, in, on, at, to, by, for, from); hyphenated compounds capitalize both parts unless the second is a short preposition (*Built-in*, *EPA-Corrected*, *24-Hour*).
+
+### Examples
+
+```text
+Surface 24-hour PM2.5 average as a separate sensor
+Skip empty PurpleAir API responses during polling
+Drop support for Home Assistant < 2026.4
+Bump aiopurpleair from 2025.08.1 to 2025.09.0
+Clarify HACS install steps in README
+```
 
 ## Writing style
 
@@ -67,49 +94,76 @@ Use the **"Create a merge commit"** option on develop → main PRs. Repo ruleset
 
 This was a recurring pain point under the previous squash-only setup: each develop → main squash dropped develop's ancestry and required a per-cycle admin-bypass merge commit on develop to resync. With merge-commit on main, that resync is unnecessary — main's history shows one merge commit per release (a feature, not a defect: each promotion is visible as a single auditable node), and develop stays linear.
 
-## PR review etiquette
+## PR Review Etiquette
 
-This repo uses a review loop: local coding agent iteration + remote automated review. Treat this as a contract, regardless of which local agent authored the changes.
+> **Mandatory in every derived repo.** This entire "PR Review Etiquette" section is the provider-agnostic review-loop *contract* and must be carried **verbatim** into every repo derived from this template, alongside the [`.github/copilot-instructions.md`](./.github/copilot-instructions.md) "GitHub Copilot Review Runbook" that implements it. Without both in-repo, an agent working in the derived repo has no pointer to the reliable Copilot mechanics and falls back to ad-hoc (and known-broken) behavior.
 
-### Expected review loop
+The repo runs a review loop on every PR: local agent iteration plus remote automated review (GitHub Copilot is the configured reviewer). Treat this as a contract regardless of which local agent authored the changes.
+
+### Merge Gate (read this first)
+
+**Do not merge - and do not enable auto-merge - unless ALL of these hold:**
+
+1. Required status checks are green (`mergeStateStatus: CLEAN`), **and**
+2. A Copilot review is confirmed on the **current head SHA** (not an earlier push), **and**
+3. **Every** Copilot finding on that head SHA is closed out - all review threads resolved, **and** any issue-level Copilot comments (which have no resolve action) triaged and replied to - so zero outstanding findings remain, **and**
+4. The maintainer has given **explicit** permission to merge.
+
+`mergeStateStatus: CLEAN` reflects **only** required statuses - it never reflects open bot review comments, so `CLEAN` alone is **never** sufficient to merge. A green/`CLEAN` PR with an unresolved Copilot finding fails this gate; treat it as "not mergeable" no matter what the merge-state field says. The agent never merges on its own (consistent with "default to staging"; merging is maintainer-authorized).
+
+**Merging is not releasing.** A merge to a release branch does **not** by itself publish; publishing is a separate step in the repo's release pipeline (a scheduled run or a manual dispatch), not an automatic consequence of merging. Never describe a merge as cutting a release, and never trigger a publish without explicit maintainer instruction.
+
+### Expected Review Loop
 
 1. Push changes to the PR branch.
-1. Request automated review.
-1. Verify review activity against the **current PR head SHA** (not an older commit).
-1. Triage findings.
-1. Apply fixes or provide a rationale for decline.
-1. Reply to comments/threads and resolve what was addressed.
-1. Re-run the loop after every fix push until no actionable findings remain.
+2. Re-request a review for the **current head SHA**. Auto-trigger is unreliable, so request it explicitly via the `requestReviews` GraphQL mutation (now reliable end-to-end - see the runbook); the UI is only a fallback.
+3. Wait for review activity on that head. A completed review that raises **no findings** is a valid terminal outcome for that head - proceed; do not re-trigger it or treat the absence of comments as a missing review.
+4. Triage findings.
+5. Apply fixes or write a rationale for declines.
+6. Reply to each thread and resolve what was addressed.
+7. Re-run the loop after every fix push until no actionable findings remain.
 
-Do not assume auto-trigger happened. If no review appears, use the provider-specific runbook to request it explicitly and verify completion. Provider mechanics are intentionally kept out of this file; use [Copilot instructions](.github/copilot-instructions.md) for GitHub Copilot specifics.
+Drive the loop to green - review confirmed on the latest head SHA and every actionable finding closed - then stop and apply the **Merge Gate** above: all four preconditions must hold, and `mergeStateStatus: CLEAN` alone never satisfies it.
 
-`mergeStateStatus: CLEAN` only checks required statuses and may not block on bot review comments. Merge only after review on the latest head SHA is confirmed and actionable findings are closed.
+For provider-specific mechanics (how to request review, query review state, post replies, resolve threads), see the **GitHub Copilot Review Runbook** in [.github/copilot-instructions.md](.github/copilot-instructions.md). This file owns the contract; that file owns the mechanics.
 
-### Triaging review comments
+### Triaging Review Comments
 
 For each comment, classify before responding:
 
-- **Bug** — wrong behavior, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when you're done.
-- **Style/convention** — the comment cites AGENTS.md or a repo convention. Two cases:
-  - The cited rule matches what the existing codebase already does → fix the offending code.
-  - The cited rule contradicts what's already in the tree, or industry norm → **update AGENTS.md instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. As a heuristic, three rounds on the same style category means the rule needs adjusting and the user needs to authorize it.
-- **Architectural opinion** — the comment proposes a different design ("constrain this to disabled-by-default", "move this elsewhere", "add a runtime guardrail"). This is judgement, not a bug. Surface it to the user with a recommendation; don't apply unilaterally.
+- **Bug** - wrong behavior, missing test coverage, or a real divergence between code and docs. Fix it. Reply with the fixing commit SHA when done.
+- **Style/convention** - the comment cites a rule from this file or a language-specific style guide. Two cases:
+  - The cited rule matches what the existing codebase already does -> fix the offending code.
+  - The cited rule contradicts what's in the tree, or industry norm -> **update the rule instead of the code**. The rule is wrong, not the code. Bouncing the same code across rounds is the symptom of a wrong rule. Heuristic: three rounds on the same style category means the rule needs adjusting and the user should authorize the rule change.
+- **Architectural opinion** - the comment proposes a different design ("constrain this to disabled-by-default", "move it elsewhere", "add a runtime guardrail"). This is judgment, not a bug. Surface it to the user with a recommendation; don't apply unilaterally.
 
-### Responding and resolution expectations
+### Responding and Resolution Expectations
 
-Reply inline with either the fixing commit SHA (for accepted issues) or a concise rationale (for declines). Resolve review threads only when addressed or intentionally declined with rationale. Issue-level comments have no resolution action — acknowledge with a reply if needed and move on.
+Reply inline with either the fixing commit SHA (for accepted issues) or a concise rationale (for declines). Resolve review threads when addressed or intentionally declined with rationale. Issue-level comments (those at `repos/.../issues/<N>/comments` rather than tied to a specific line) have no resolution action - acknowledge with a reply if needed and move on.
 
-After the final push on a PR, sweep old threads from earlier rounds whose code paths no longer exist; otherwise stale unresolved markers remain in the review UI.
+After the final push on a PR, sweep older threads from earlier rounds whose code paths no longer exist; otherwise stale unresolved markers remain in the review UI.
 
-### Escalating to the user
+### Escalating to the User
 
 Bring the user in when:
 
 - **Genuine design trade-off** surfaces (fail-open vs fail-closed, narrow vs broad refactor scope, "should we add a guardrail or trust the docstring"). Triage, recommend, ask.
-- **Repeated friction** across rounds without convergence — that's the AGENTS.md-needs-updating signal. Stop, summarize the pattern, and let the user authorize the rule change.
-- **Architectural redesign** is requested rather than a strict bug fix. Surface with a recommendation; never apply unilaterally.
+- **Repeated friction** across rounds without convergence - that's the rule-needs-updating signal. Stop, summarize the pattern, and let the user authorize the rule change.
+- **Architectural redesign** is requested rather than a bug fix. Surface with a recommendation; never apply unilaterally.
 
 Anti-pattern: don't keep flipping the code on the same style point. Flip the rule once and stick to the rule.
+
+## Reviewing CI / Release-Train Changes
+
+When reviewing a PR that touches [.github/workflows/](.github/workflows/) or [.github/ha-test-versions.json](.github/ha-test-versions.json), check the change against these load-bearing invariants. Each one is intentional and was reached after a real failure mode; flag any drift.
+
+- **All test matrix slots gate equally.** [.github/ha-test-versions.json](.github/ha-test-versions.json) has three slots - `minimum` (backward compat), `latest-stable`, `latest-beta` - consumed by [test-release-task.yml](.github/workflows/test-release-task.yml). None of them carries `continue-on-error` or a `gating: false` field. Reject PRs that add either; reject schema changes that drop or rename a slot. The `latest-beta` slot can legitimately be `null` (when no HA pre-release is newer than `latest-stable`), but never `continue-on-error`.
+- **Develop publishes prereleases only on green.** [publish-release.yml](.github/workflows/publish-release.yml)'s `create-release` requires `needs.test-release.result == 'success'` exactly - not `'skipped'`/`'failure'`/`'cancelled'`. Reject PRs that loosen this back to `!= 'failure'` or re-allow the `'skipped'` path on develop pushes.
+- **Main never auto-publishes.** [publish-release.yml](.github/workflows/publish-release.yml) has no `push: [main]` trigger, only `workflow_dispatch` from main. Reject any PR that adds a `push: [main]` (or `push: [main, develop]`) trigger to publish-release. HACS auto-pulls new releases, so auto-publishing on main would force-update every user.
+- **HA-version-bump bot uses one rolling branch and runs daily.** [check-ha-version.yml](.github/workflows/check-ha-version.yml) opens a single bundled PR on `ha-version-bump/matrix` (no version embedded, both slots in one PR) and runs on `cron: "0 6 * * *"`. Reject PRs that split this back into per-slot branches - that re-introduces a real race where a beta-clear PR could auto-merge before the corresponding stable bump. Reject PRs that switch to per-version branch names (accumulates stale red PRs) or drop the cron back to weekly.
+- **Beta failures do not silently merge.** With merge-bot configured to `gh pr merge --auto`, a failing test-release on a bot PR keeps the PR open, and develop's pin lags upstream until a human ports the integration. That's the intended outcome - don't suggest "just skip the beta slot for now" or "make it advisory."
+
+If a reviewer argues for relaxing any of these, escalate to the maintainer rather than implementing - these are explicit user decisions, not lint rules.
 
 ## Code style
 
@@ -216,6 +270,18 @@ Installation:
 - **Issue tracker / PRs**: prefer `gh` CLI — `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount when the host's `gh` token is file-backed; on credential-store hosts (macOS Keychain, Linux libsecret) the contributor chose either to authenticate `gh` once inside the container or to skip container `gh` entirely — see [README.md](README.md#devcontainer-setup) for which.
 - **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 — that's why `minimum` is pinned there).
 - **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
+
+## Template Adaptations
+
+This repo is derived from [ptr727/ProjectTemplate](https://github.com/ptr727/ProjectTemplate) and carries its shared artifacts verbatim (the [PR Review Etiquette](#pr-review-etiquette), [Git and Commit Rules](#git-and-commit-rules), and [Pull Request Title and Commit Message Conventions](#pull-request-title-and-commit-message-conventions) sections; `.github/copilot-instructions.md`; `.markdownlint-cli2.jsonc`; `.editorconfig`; `.gitattributes`; `CODESTYLE.md`; and the orchestration-layer merge-bot workflow). The deviations below are intentional and repo-specific.
+
+- **HACS zip-deploy publish model (shared model for future HACS repos).** This is a HACS-distributed Home Assistant integration, not a .NET/PyPI/Docker library, so the release path is bespoke and is the **reference model future HACS-derived repos follow** rather than the template's generic publisher:
+  - [publish-release.yml](.github/workflows/publish-release.yml) keeps a `push: [develop]` trigger for automatic prereleases (HACS beta testers consume develop's GitHub prereleases directly) plus a `workflow_dispatch` from `main` for stable releases. There is no weekly schedule and no `PUBLISH_ON_MERGE` variable - the develop-push prerelease *is* the continuous-release model this repo wants. `main` deliberately never auto-publishes (HACS auto-pulls every release, so a main auto-release would force-update every user). The `concurrency` group is global and ref-independent with `cancel-in-progress: false`, matching the template's publish-serialization rule: queue, never cancel a half-pushed release.
+  - [get-version-task.yml](.github/workflows/get-version-task.yml) has **no `ref` input and no branch matrix** - it versions the caller's checkout directly. The publisher builds one branch per trigger (develop on push, main on dispatch), never both branches in one matrix run, so the template's `ref`-threading is unnecessary here. It exposes `SemVer2`/`Tag`/`Prerelease` outputs tailored to the manifest-stamping flow.
+  - The release artifact is a single HACS `purpleair.zip` whose `manifest.json` `version` is stamped with the NBGV-computed version at build time ([build-release-task.yml](.github/workflows/build-release-task.yml)). The committed `manifest.json` `version` stays a `0.0.0` placeholder. This **version-injection-into-a-zip** shape is the HACS model; it does not use the template's generic `release-asset-<branch>-<target>` glob handoff because the HACS consumer reads the integration version from the stamped manifest inside the zip, not from a release asset name. Future HACS repos reuse this zip-deploy + manifest-injection pattern.
+- **Build-layer workflows are repo-owned.** [build-release-task.yml](.github/workflows/build-release-task.yml), [test-release-task.yml](.github/workflows/test-release-task.yml), [test-pull-request.yml](.github/workflows/test-pull-request.yml), [build-datebadge-task.yml](.github/workflows/build-datebadge-task.yml), and [check-ha-version.yml](.github/workflows/check-ha-version.yml) implement the HA-specific build, test matrix, and version-bump bot. They are not carried from the template's build layer; their invariants are documented under [HA test matrix](#ha-test-matrix--do-not-touch-manually) and [Reviewing CI / Release-Train Changes](#reviewing-ci--release-train-changes).
+- **`merge-ha-version-bump` is this repo's upstream-version equivalent.** The template's merge-bot ships `merge-upstream-version` for repos that track an upstream release via `check-upstream-version-task.yml`. This repo instead tracks HA versions via [check-ha-version.yml](.github/workflows/check-ha-version.yml), which opens its bundled bump PR on the rolling `ha-version-bump/matrix` branch; the merge-bot's `merge-ha-version-bump` job auto-merges that PR. It follows the same opened/reopened-only, base-ref-matched merge model as the template's bot jobs.
+- **`.yamllint` disables the `new-lines` rule.** This repo runs `yamllint` as a local linter (the template does not ship a `.yamllint`). The carried [.editorconfig](.editorconfig) governs `.yml`/`.yaml` as CRLF, which yamllint's default `new-lines` rule (expecting LF) would reject on every workflow file. `new-lines: disable` in [.yamllint](.yamllint) defers line-ending governance to `.editorconfig`.
 
 [workspace-link]: homeassistant-purpleair.code-workspace
 [qs]: https://developers.home-assistant.io/docs/core/integration-quality-scale

@@ -11,9 +11,12 @@ on:
   push:
     branches: [develop]
 
+# One global, ref-independent group so every publish serializes: develop-push prereleases and main-dispatch stable
+# releases both push to the same GitHub Releases repo, so a ref-scoped group could run two publishes concurrently.
+# Queue instead of cancel: cancelling a publish mid-flight can leave a half-created GitHub release.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
 
@@ -102,3 +105,31 @@ jobs:
     secrets: inherit
     permissions:
       contents: write
+
+  # Release artifacts are an intra-run handoff (the durable copy lives on the GitHub release), so leaving them
+  # accumulates against the small account-wide storage quota; delete them once every consumer has read them.
+  cleanup-artifacts:
+    name: Delete workflow artifacts job
+    needs: [create-release, date-badge]
+    # always() so a failed run still cleans up; independent of any required check so housekeeping never gates a merge.
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete workflow artifacts step
+        # continue-on-error: best-effort housekeeping must never red the run, even on an unexpected failure.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! ids=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts --paginate \
+            --jq '.artifacts[].id'); then
+            echo "::warning::Could not list run artifacts; skipping cleanup (storage may not be freed)."
+            ids=""
+          fi
+          for artifact_id in $ids; do
+            gh api --method DELETE "repos/${{ github.repository }}/actions/artifacts/$artifact_id" \
+              || echo "::warning::Failed to delete artifact $artifact_id; continuing."
+          done

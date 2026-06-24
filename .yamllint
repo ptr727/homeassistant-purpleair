@@ -3,6 +3,8 @@ extends: default
 rules:
   line-length: disable
   document-start: disable
+  # .editorconfig governs YAML as CRLF; don't fight it from yamllint.
+  new-lines: disable
   truthy:
     check-keys: false
   comments:
