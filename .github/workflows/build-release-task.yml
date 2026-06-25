@@ -104,6 +104,7 @@ jobs:
           name: purpleair-zip
           path: purpleair.zip
           if-no-files-found: error
+          retention-days: 1
 
   release:
     name: Publish GitHub release job
