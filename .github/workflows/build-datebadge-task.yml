@@ -33,9 +33,7 @@ jobs:
         run: echo "date=$(date)" >> "$GITHUB_OUTPUT"
 
       - name: Build BYOB date badge step
-        # RubbaBoy/BYOB doesn't publish SHA-pinnable releases, so this stays
-        # on the floating v1 tag (matches the upstream template).
-        uses: RubbaBoy/BYOB@v1
+        uses: RubbaBoy/BYOB@a4919104bc0ec7cfd7f113e42c405cc45246f2a4 # v1
         with:
           name: lastbuild
           label: "Last Build"
