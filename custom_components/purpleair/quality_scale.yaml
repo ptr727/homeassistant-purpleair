@@ -29,7 +29,7 @@ rules:
   unique-config-entry: done
 
   # Silver
-  # (action-exceptions listed under Bronze above — it's a shared rule.)
+  # (action-exceptions listed under Bronze above - it's a shared rule.)
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done

@@ -1,102 +1,109 @@
-# Copilot instructions
+# Copilot Instructions
 
-Repository conventions for GitHub Copilot (and any other agent reading this file).
+Repository conventions for GitHub Copilot (and any other AI agent reading this file).
 
-The **canonical guide is [AGENTS.md](../AGENTS.md)** at the repo root — read it first. It covers project layout, branch flow, code style, the release pipeline, and what NOT to touch (e.g. the placeholder `manifest.json` `version` and the HA test matrix). Treat AGENTS.md as the source of truth; this file just summarizes the commit/PR-title rules so the VS Code AI commit-message and PR-title generators get them without an extra fetch.
+The **canonical guide is [AGENTS.md](../AGENTS.md)** at the repo root - read it first, including the [PR Review Etiquette](../AGENTS.md#pr-review-etiquette) review-loop contract this file's runbook implements. This file is intentionally narrow: commit/PR-title conventions (summarized inline so VS Code's commit-message and PR-title generators have them) plus the GitHub Copilot Review Runbook.
 
-## Commit messages and pull request titles
+For code-style rules, see [`CODESTYLE.md`](../CODESTYLE.md) at the repo root - one guide with a General section plus per-language sections (.NET, Python).
 
-Feature → develop PRs squash-merge — the PR title becomes the single commit on develop. Develop → main PRs merge-commit — main's history shows one merge commit per release with develop's tip as the second parent. Titles are descriptive and have no versioning effect — versioning is handled by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) reading [version.json](../version.json) and git history, not by parsing commit messages.
+Do not duplicate language-specific rules here. **Project-specific conventions and API/behavioral contracts also belong in [AGENTS.md](../AGENTS.md), not here** - this file is intentionally limited to the inline commit/PR-title summary and the GitHub Copilot Review Runbook. Non-Copilot agents (Claude Code, Codex, Cursor, ...) are not directed to this file and don't read it by default, so any rule a reviewer must honor has to live in `AGENTS.md` to be provider-independent.
 
-### Format
+## Commit Messages and Pull Request Titles
 
-- Imperative subject summarizing the change, ≤ 72 characters, no trailing period. ("Add 24-hour PM2.5 average sensor", not "Added X" or "Adds X".)
-- Optional body, blank-line separated, explaining *why* the change is being made when that's non-obvious. The diff shows *what*.
+Summarized for VS Code's generators; the full rules, rationale, and examples are in [AGENTS.md "Pull Request Title and Commit Message Conventions"](../AGENTS.md#pull-request-title-and-commit-message-conventions).
 
-### Rules
-
-- Don't write `update stuff`, `wip`, or other vague titles. (Dependabot's default `Bump X from Y to Z` titles are fine — keep them.)
-- Don't add `Co-Authored-By:` lines unless the user explicitly asks.
-- Don't put release-bump magnitude in the title — no "minor", "patch", "release v0.2.0", etc. NBGV computes the next release version from `version.json` + git history. Dependency versions in dependency-bump titles are fine and expected.
-- Use US English spelling and match the existing heading style of the file you're editing: title case with lowercase short bind words (a, an, the, and, but, or, of, in, on, at, to, by, for, from); hyphenated compounds capitalize both parts unless the second is a short preposition (*Built-in*, *EPA-Corrected*, *24-Hour*).
-
-### Examples
-
-```text
-Surface 24-hour PM2.5 average as a separate sensor
-Skip empty PurpleAir API responses during polling
-Drop support for Home Assistant < 2026.4
-Bump aiopurpleair from 2025.08.1 to 2025.09.0
-Clarify HACS install steps in README
-```
+- Imperative subject, <= 72 characters, no trailing period; optional blank-line-separated body for the non-obvious *why*.
+- US English, title case with lowercase short bind words; no vague titles, no `Co-Authored-By:` unless asked, no release-bump magnitude (NBGV handles versioning). Dependabot's `Bump X from Y to Z` titles are fine.
+- develop PRs squash-merge (`gh pr merge --squash`), main PRs merge-commit (`--merge`); a mismatched flag is rejected by branch protection.
 
 ## GitHub Copilot Review Runbook
 
-Use this section for provider-specific mechanics. The expected review loop contract is defined in [AGENTS.md](../AGENTS.md); this section only describes how to make GitHub Copilot reliably execute it.
+> This runbook implements the [AGENTS.md "PR Review Etiquette"](../AGENTS.md#pr-review-etiquette) review-loop contract for GitHub Copilot. Without it in-repo, an agent has no pointer to the reliable Copilot mechanics and falls back to known-broken paths (the no-op `POST /requested_reviewers`, the wrong bot-login filter). In the API snippets below, fill the `ptr727` / `homeassistant-purpleair` / `<N>` placeholders.
 
-### Triggering and polling
+Use this section for provider-specific mechanics. The expected review loop *contract* (request review on every push, verify head-SHA coverage, triage findings, reply + resolve, escalate when stuck) is defined in [AGENTS.md -> PR Review Etiquette](../AGENTS.md#pr-review-etiquette). This section only describes how to make GitHub Copilot reliably execute it.
 
-The repo is configured for Copilot auto-review on PR open, and that initial trigger fires reliably in practice — but per AGENTS.md, agents must still verify head-SHA coverage (see "Verify review covered current head" below) rather than assume it ran. If the initial review doesn't appear, the maintainer requests Copilot from the PR UI; the agent does not.
+### Triggering and Polling
 
-**Re-review on follow-up commits is the unreliable case.** Copilot's auto-rereview on push fires only ~20% of the time and frequently posts "Copilot encountered an error and was unable to review" instead of a real review. When that happens (or when the agent confirms head-SHA coverage is missing after a push), **the maintainer must click "Re-request review" next to Copilot's avatar in the PR UI**. Agents must not attempt programmatic re-requests — every public path has been confirmed broken across multiple repos and either fails outright or silently no-ops.
+Auto-review on push is configured (via the branch ruleset's `copilot_code_review` rule with `review_on_push: true`) but fires inconsistently in practice - treat it as best-effort, not guaranteed. After every push, **re-request a review programmatically** via the GraphQL `requestReviews` mutation, passing the Copilot reviewer's bot node id in `botIds`. This drives the loop end-to-end without a UI hand-off.
 
-**Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which will make code changes rather than posting a review.
+**A review with no inline comments is still a completed review - not a failure, and not a reason to ask the maintainer to re-trigger.** Copilot very often posts a single formal review (GraphQL `state: COMMENTED`) whose body ends with "...reviewed N of N changed files ... and generated no comments" and adds **zero** inline threads. That review carries the head `commit.oid` and fully satisfies the loop - it is the clean-pass success case. Never read "no inline comments" as "the review didn't run," and never re-request or escalate to the maintainer because comments are absent.
 
-Known non-working programmatic re-request paths — agents have tried these, they fail, do not retry:
+**Round 1 is normally auto-seeded - poll for it before trying to self-trigger.** Auto-review-on-open supplies the first review with no `botIds` call needed, but it can lag one to three minutes. After opening a PR (or the first push), **poll** for a Copilot review on the head SHA (see [Verify Review Covered Current Head](#verify-review-covered-current-head)) before concluding none ran. The `requestReviews` mutation below is for **re-requesting on later pushes** (a new head SHA); by then a prior review exists, so its bot node id is readable. A missing bot node id on round 1 therefore means "the auto-review has not landed yet - wait and poll," **not** "ask the maintainer to kick it off."
 
-- `gh pr edit <N> --add-reviewer Copilot` → `Could not resolve user with login 'copilot'`.
+> **The reviewer login differs by API.** In **GraphQL** (`gh api graphql` and `gh pr view --json reviews`, which is GraphQL-backed) the `Bot.login` is `copilot-pull-request-reviewer` - **no `[bot]` suffix**. In the **REST** API (`gh api repos/.../issues|pulls/...`) the same account's `user.login` is `copilot-pull-request-reviewer[bot]` - **with** the suffix. Each query below uses the correct form for its API; match the API, not a single spelling, when adapting them.
+
+```sh
+# 1. PR node id + the Copilot reviewer's bot node id (read from any existing
+#    Copilot review; the reviewer login is `copilot-pull-request-reviewer`).
+PR_NODE=$(gh pr view <N> --json id --jq '.id')
+BOT_ID=$(gh api graphql -f query='
+{
+  repository(owner: "ptr727", name: "homeassistant-purpleair") {
+    pullRequest(number: <N>) {
+      reviews(first: 50) { nodes { author { __typename login ... on Bot { id } } } }
+    }
+  }
+}' --jq '[.data.repository.pullRequest.reviews.nodes[]
+          | select(.author.login == "copilot-pull-request-reviewer")
+          | .author.id] | first')
+
+# 2. Re-request a Copilot review on the current head.
+gh api graphql -f query='
+mutation($pr: ID!, $bot: ID!) {
+  requestReviews(input: { pullRequestId: $pr, botIds: [$bot], union: true }) {
+    pullRequest { id }
+  }
+}' -F pr="$PR_NODE" -F bot="$BOT_ID"
+```
+
+The bot node id is read from an existing Copilot **formal** review (`pullRequest.reviews`), so step 1 needs at least one prior formal review on the PR - the auto-review-on-open normally supplies the first one (it may have **no inline comments**; that still counts, and its bot node id is still readable). Poll for it (give auto-review-on-open a few minutes) before deciding it is missing. If Copilot posted **only an issue comment** and no formal review, the head is covered but `reviews` yields no bot node id - read the id from the Copilot issue comment's author by querying the PR's issue comments in GraphQL (`pullRequest.comments` -> author `... on Bot { id }`), or request `Copilot` once through the GitHub PR UI to produce a formal review. Manual UI seeding is the fallback specifically when no formal review exists to read the id from; then use the mutation for every subsequent re-request.
+
+**Do NOT post `@Copilot review` as a PR comment.** That comment triggers the Copilot *coding agent* (`copilot-swe-agent[bot]`), which makes code changes rather than posting a review.
+
+Known non-working request paths (don't rely on them - use the `requestReviews` mutation above instead):
+
 - `POST /requested_reviewers` with `reviewers=[Copilot]` can return 200 but no-op.
 - `copilot-pull-request-reviewer` as a requested reviewer slug returns 422.
-- `gh api ... -F 'reviewers[]=copilot-pull-request-reviewer'` returns an empty body and never fires a review.
-- GraphQL `requestReviews` rejects Copilot's bot node.
 
-The reverse direction — replying on review threads and resolving them via GraphQL (`addPullRequestReviewThreadReply` + `resolveReviewThread`, see "Reply and thread resolution workflow" below) — DOES work reliably and is the agent's responsibility once a review exists.
+### Verify Review Covered Current Head
 
-### Verify review covered current head
-
-Before merging, confirm Copilot reviewed the current PR head SHA. Copilot may respond as either a formal review (carries an exact commit SHA) or an issue comment (no SHA — use the most recent Copilot comment for manual confirmation). Check both.
+Before merging, confirm Copilot reviewed the current PR head SHA. Copilot may respond as either a formal review (carries an exact commit SHA) or an issue comment (no SHA - use the most recent Copilot comment for manual confirmation). Check both.
 
 ```sh
 PR_HEAD=$(gh pr view <N> --json headRefOid --jq '.headRefOid')
 
-# 1. Formal review — exact SHA match.
+# 1. Formal review - exact SHA match.
 gh pr view <N> --json reviews --jq \
   '.reviews[] | select(.author.login=="copilot-pull-request-reviewer") | .commit.oid' \
   | grep -q "$PR_HEAD" && echo "covered via formal review"
 
-# 2. Issue comment — show the most recent Copilot comment for manual confirmation.
-gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
-  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body: .body[:200]}'
+# 2. Issue comment - show the most recent Copilot comment for manual
+#    confirmation. This is the REST API, so the login carries the `[bot]` suffix.
+gh api repos/ptr727/homeassistant-purpleair/issues/<N>/comments --jq \
+  '[.[] | select(.user.login=="copilot-pull-request-reviewer[bot]")] | last | {created_at, body: .body[:200]}'
 ```
 
-Coverage is confirmed when (1) exits 0. For issue comments (path 2), body content is the only reliable signal — `created_at` is not: `git log -1 --format=%cI` is the **commit** timestamp, not the push timestamp, so amended or rebased commits can have an earlier timestamp and an older Copilot comment could satisfy a time check even though Copilot never saw the current head. Treat path (2) as confirmed only when the comment body explicitly refers to the current changes.
+Coverage is confirmed when (1) exits 0 - **a formal review with no inline comments still satisfies path (1)**, because coverage is about the head SHA, not the comment count. For issue comments (path 2), body content is the only reliable signal - `created_at` is not: `git log -1 --format=%cI` is the **commit** timestamp, not the push timestamp, so amended or rebased commits can have an earlier timestamp and an older Copilot comment could satisfy a time check even though Copilot never saw the current head. Treat path (2) as confirmed only when the comment body explicitly refers to the current changes.
 
-To enumerate findings, use the GraphQL unresolved-threads query in the "Reply and thread resolution workflow" section. For issue-level comments (Copilot sometimes posts summaries there), inspect manually:
+### Bounded Retry Workflow
 
-```sh
-gh api repos/<owner>/<repo>/issues/<N>/comments --jq \
-  '[.[] | select(.user.login=="copilot-pull-request-reviewer")] | last | {created_at, body}'
-```
+This path is only for a **genuinely missing** review - no Copilot review (formal *or* issue comment) covers the current head SHA after polling. A review that covered the head but produced no comments is a clean pass, not a missing review; do not enter this retry path for it.
 
-### Bounded retry workflow
+If a review did not run on the current head, retry:
 
-This applies only to follow-up-commit re-review, not the initial PR-open auto-trigger (which is reliable). Trigger this workflow when, after a push, head-SHA coverage cannot be confirmed by either route in "Verify review covered current head" above (no formal review with matching SHA, and no recent Copilot issue comment whose body refers to the current changes). If the most recent Copilot response on the current head is the explicit "Copilot encountered an error and was unable to review" message, escalate immediately rather than polling further — that's an explicit failure signal, not a still-in-flight one. A later successful review or coverage-confirming issue comment supersedes any earlier error message:
+1. Wait briefly and check head-SHA coverage (see above).
+1. Re-request the review via the `requestReviews` mutation (see "Triggering and Polling"); fall back to the GitHub PR UI only if the mutation no-ops.
+1. Retry up to two more times (three total).
+1. If still missing, mark review as blocked and escalate to the user/maintainer with what was attempted.
 
-1. Wait briefly and re-check head-SHA coverage in case the rereview is still in flight.
-1. If still missing or errored, ask the maintainer to click "Re-request review" next to Copilot's avatar in the PR UI. The agent must not retry via CLI/API — see "Triggering and polling" above.
-1. Once the maintainer re-requests, resume polling head-SHA coverage.
-1. After two failed maintainer-triggered re-requests on the same head, mark review as blocked and escalate.
-
-### Reply and thread resolution workflow
-
-This path is reliable for agents — unlike review *requesting*, the GraphQL thread mutations work consistently. Triage findings, post replies citing the fixing commit SHA or rationale, and resolve threads as they're addressed.
+### Reply and Thread Resolution Workflow
 
 List unresolved threads. Use `first: 100` with cursor-based pagination; if `hasNextPage` is true, re-run with `after: "<endCursor>"` to retrieve the next page:
 
 ```sh
 gh api graphql -f query='
 {
-  repository(owner: "<owner>", name: "<repo>") {
+  repository(owner: "ptr727", name: "homeassistant-purpleair") {
     pullRequest(number: <N>) {
       reviewThreads(first: 100) {
         nodes {
@@ -130,28 +137,18 @@ mutation($threadId: ID!) {
 }' -F threadId="PRRT_..."
 ```
 
-Issue-level Copilot comments (those in `issues/<N>/comments`) have no resolution action — GitHub provides no API or UI to resolve them. Reply if the finding warrants it; no resolution step is needed or possible.
+Issue-level Copilot comments (those in `issues/<N>/comments`) have no resolution action - GitHub provides no API or UI to resolve them. Reply if the finding warrants it; no resolution step is needed or possible.
 
 Reply-body conventions:
 
-- Accepted bug/style fix: include fixing commit SHA.
-- Declined style comment: cite the AGENTS rule and existing-tree precedent.
+- Accepted bug/style fix: include fixing commit SHA and a one-line summary.
+- Declined style comment: cite the rule (AGENTS.md or the CODESTYLE.md language section) and the existing-tree precedent.
 - Declined architecture proposal: one-sentence rationale.
 
-After final push, sweep-resolve stale older threads for removed code paths.
+After the final push, sweep-resolve stale older threads for removed code paths.
 
-## Reviewing CI / release-train changes
+## When in Doubt
 
-When reviewing a PR that touches [.github/workflows/](../.github/workflows/) or [.github/ha-test-versions.json](../.github/ha-test-versions.json), check the change against these load-bearing invariants. Each one is intentional and was reached after a real failure mode; flag any drift.
+Read [AGENTS.md](../AGENTS.md) for this repo's conventions. For code-style rules, [`CODESTYLE.md`](../CODESTYLE.md) (its General section plus the relevant language section) is authoritative. Don't restate any of these files' rules in commit bodies or PR descriptions - keep those focused on the change itself.
 
-- **All test matrix slots gate equally.** [.github/ha-test-versions.json](../.github/ha-test-versions.json) has three slots — `minimum` (backward compat), `latest-stable`, `latest-beta` — consumed by [test-release-task.yml](../.github/workflows/test-release-task.yml). None of them carries `continue-on-error` or a `gating: false` field. Reject PRs that add either; reject schema changes that drop or rename a slot. The `latest-beta` slot can legitimately be `null` (when no HA pre-release is newer than `latest-stable`), but never `continue-on-error`.
-- **Develop publishes prereleases only on green.** [publish-release.yml](../.github/workflows/publish-release.yml)'s `create-release` requires `needs.test-release.result == 'success'` exactly — not `'skipped'`/`'failure'`/`'cancelled'`. Reject PRs that loosen this back to `!= 'failure'` or re-allow the `'skipped'` path on develop pushes.
-- **Main never auto-publishes.** [publish-release.yml](../.github/workflows/publish-release.yml) has no `push: [main]` trigger, only `workflow_dispatch` from main. Reject any PR that adds a `push: [main]` (or `push: [main, develop]`) trigger to publish-release. HACS auto-pulls new releases, so auto-publishing on main would force-update every user.
-- **HA-version-bump bot uses one rolling branch and runs daily.** [check-ha-version.yml](../.github/workflows/check-ha-version.yml) opens a single bundled PR on `ha-version-bump/matrix` (no version embedded, both slots in one PR) and runs on `cron: "0 6 * * *"`. Reject PRs that split this back into per-slot branches — that re-introduces a real race where a beta-clear PR could auto-merge before the corresponding stable bump. Reject PRs that switch to per-version branch names (accumulates stale red PRs) or drop the cron back to weekly.
-- **Beta failures do not silently merge.** With merge-bot configured to `gh pr merge --auto`, a failing test-release on a bot PR keeps the PR open, and develop's pin lags upstream until a human ports the integration. That's the intended outcome — don't suggest "just skip the beta slot for now" or "make it advisory."
-
-If a reviewer argues for relaxing any of these, escalate to the maintainer rather than implementing — these are explicit user decisions, not lint rules.
-
-## When in doubt
-
-Read [AGENTS.md](../AGENTS.md) for the full picture (release flow, files you must not touch, code style, workflow YAML conventions). Don't restate this file's rules in commit bodies or PR descriptions — keep those focused on the change itself.
+**In a derived repo:** if you find a discrepancy that should be fixed in the template itself (this file or AGENTS.md is out of date, a rule is missing, something bit this repo and would bite the next), open an issue upstream in [`ptr727/ProjectTemplate`](https://github.com/ptr727/ProjectTemplate) rather than only fixing it locally - see the template's [AGENTS.md "Staying in Sync and Reporting Drift Upstream"](https://github.com/ptr727/ProjectTemplate/blob/main/AGENTS.md#staying-in-sync-and-reporting-drift-upstream).

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, develop]
   # Re-run on push to protected branches so the merged commit's coverage
-  # uploads to Codecov — Codecov's "default branch" badge derives from the
+  # uploads to Codecov - Codecov's "default branch" badge derives from the
   # latest upload tagged with the default-branch ref, which doesn't happen
   # on PR-only triggers because the upload SHA is the PR head, not the
   # post-merge commit.
@@ -25,7 +25,7 @@ jobs:
 
   # Wire branch protection's "required status check" to this single job.
   # When test-release-task contains multiple sibling jobs, the calling
-  # workflow only sees one aggregated `result` per `uses:` invocation —
+  # workflow only sees one aggregated `result` per `uses:` invocation -
   # `success` iff every child job in the called workflow succeeded.
   # https://github.com/orgs/community/discussions/12395#discussioncomment-12970019
   check-workflow-status:

@@ -103,13 +103,13 @@ jobs:
     # changed shape in 2026.4 and our snapshot tests can't satisfy both
     # pre- and post-2026.4 formats. requirements.txt's `homeassistant==X`
     # is a dev/CI bootstrap pin and may pin a higher patch in the same
-    # series — the pytest step below overrides it with
+    # series - the pytest step below overrides it with
     # `pip install --upgrade homeassistant==<minimum>` so the gate runs
     # against `minimum` regardless. `latest-stable` and `latest-beta` are
     # bot-maintained.
     # The beta slot is optional (null when no HA pre-release is newer than the
     # current stable). All three slots gate merges and prerelease publishes
-    # equally — a regression against any one fails the PR.
+    # equally - a regression against any one fails the PR.
     runs-on: ubuntu-latest
     outputs:
       include: ${{ steps.parse.outputs.include }}
@@ -203,7 +203,7 @@ jobs:
     # workflow_call delivers inputs.build as a real boolean (`true`/`false`)
     # but workflow_dispatch delivers it as the *string* `"true"`/`"false"`,
     # and the GitHub expression parser treats any non-empty string as truthy
-    # — so a bare `if: ${{ inputs.build }}` would run this job even on a
+    # - so a bare `if: ${{ inputs.build }}` would run this job even on a
     # manual dispatch with build=false. Compare against both forms.
     if: ${{ inputs.build == true || inputs.build == 'true' }}
     uses: ./.github/workflows/build-release-task.yml

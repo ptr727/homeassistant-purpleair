@@ -18,7 +18,6 @@ permissions:
   contents: read
 
 jobs:
-
   check:
     name: Check pytest-homeassistant-custom-component for newer HA pin job
     runs-on: ubuntu-latest
@@ -27,7 +26,6 @@ jobs:
       pull-requests: write
 
     steps:
-
       - name: Generate GitHub App token step
         # Use the codegen App so the resulting PR is App-authored: that triggers
         # PR workflows (PRs from GITHUB_TOKEN do not) and lets merge-bot pick
@@ -52,7 +50,7 @@ jobs:
 
       - name: Install resolver dependencies step
         # `packaging` provides PEP-440 ordering that correctly ranks
-        # 2026.5.0b0 < 2026.5.0 < 2026.6.0b0 — `sort -V` happens to agree
+        # 2026.5.0b0 < 2026.5.0 < 2026.6.0b0 - `sort -V` happens to agree
         # today but isn't a contract.
         run: python3 -m pip install --quiet packaging
 
@@ -60,7 +58,7 @@ jobs:
         id: resolve
         # Walk pytest-homeassistant-custom-component versions in PEP-440
         # descending order (highest version first, sorted via
-        # `packaging.version.Version` — not upload time) on PyPI, fetching
+        # `packaging.version.Version` - not upload time) on PyPI, fetching
         # each release's `homeassistant==` pin until we find both:
         #   - the highest pytest-hacc whose pin is a stable HA release
         #     (`latest-stable` slot, replaces the old single `latest`),
@@ -105,8 +103,8 @@ jobs:
           idx = fetch(f"{BASE}/json")
           versions = sorted(idx["releases"].keys(), key=Version, reverse=True)
 
-          stable = None          # (hacc, ha) — highest pytest-hacc with stable HA pin
-          beta_candidate = None  # (hacc, ha) — highest pytest-hacc with prerelease HA pin
+          stable = None          # (hacc, ha) - highest pytest-hacc with stable HA pin
+          beta_candidate = None  # (hacc, ha) - highest pytest-hacc with prerelease HA pin
 
           for v in versions[:WALK_LIMIT]:
               ha = ha_pin(fetch(f"{BASE}/{v}/json"))
@@ -123,12 +121,12 @@ jobs:
               raise SystemExit(
                   f"No stable {PKG} release found within the {WALK_LIMIT} most "
                   f"recent versions on PyPI; this is unprecedented in upstream "
-                  f"history — investigate before relaxing the cap."
+                  f"history - investigate before relaxing the cap."
               )
 
           beta = beta_candidate
           if beta and Version(beta[1]) <= Version(stable[1]):
-              # Beta pin is older than (or equal to) the latest stable —
+              # Beta pin is older than (or equal to) the latest stable -
               # nothing useful to early-warn against.
               beta = None
 
@@ -145,7 +143,7 @@ jobs:
       # the resolver would emit a stable bump *and* a beta clear at the
       # same time. Two independent auto-merging PRs could then land out
       # of order, leaving develop with stale stable + null beta until
-      # the second merged. Bundling makes the matrix update atomic —
+      # the second merged. Bundling makes the matrix update atomic -
       # either the whole thing lands or nothing does.
 
       - name: Apply matrix changes and build PR metadata step
@@ -197,14 +195,14 @@ jobs:
               # ensure_ascii=False preserves the em-dash and other non-ASCII
               # characters in the existing $comment field as their literal
               # UTF-8 bytes. With the default ensure_ascii=True, json.dump
-              # replaces "—" (U+2014 EM DASH) with a six-character ASCII
+              # replaces U+2014 (EM DASH) with a six-character ASCII
               # escape (backslash, u, 2, 0, 1, 4) in the output file,
               # producing a noisy diff against the on-disk version every
               # run.
               json.dump(data, f, indent=2, ensure_ascii=False)
               f.write("\n")
 
-          # Title — single line, summarizes every change.
+          # Title - single line, summarizes every change.
           parts = []
           if stable_changed:
               parts.append(f"stable: {res_s[1]}")
@@ -213,7 +211,7 @@ jobs:
           title = f"Bump HA test matrix ({', '.join(parts)})"
           print(f"title={title}")
 
-          # Body — multi-line via the GHA output delimiter syntax.
+          # Body - multi-line via the GHA output delimiter syntax.
           body = [
               "Bumps the bot-maintained HA test-matrix slots in"
               " `.github/ha-test-versions.json`.",
@@ -223,8 +221,8 @@ jobs:
                   "",
                   "### `latest-stable`",
                   "",
-                  f"- HA: `{cur_s[1]}` → `{res_s[1]}`",
-                  f"- pytest-hacc: `{cur_s[0]}` → `{res_s[0]}`",
+                  f"- HA: `{cur_s[1]}` -> `{res_s[1]}`",
+                  f"- pytest-hacc: `{cur_s[0]}` -> `{res_s[0]}`",
                   f"- HA release notes: https://github.com/home-assistant/core/releases/tag/{res_s[1]}",
                   f"- pytest-hacc release: https://pypi.org/project/pytest-homeassistant-custom-component/{res_s[0]}/",
               ]
@@ -232,20 +230,20 @@ jobs:
               body += ["", "### `latest-beta`", ""]
               if res_b[1]:
                   body += [
-                      f"- HA: `{cur_b[1] or '(none)'}` → `{res_b[1]}`",
-                      f"- pytest-hacc: `{cur_b[0] or '(none)'}` → `{res_b[0]}`",
+                      f"- HA: `{cur_b[1] or '(none)'}` -> `{res_b[1]}`",
+                      f"- pytest-hacc: `{cur_b[0] or '(none)'}` -> `{res_b[0]}`",
                       f"- HA release notes: https://github.com/home-assistant/core/releases/tag/{res_b[1]}",
                       f"- pytest-hacc release: https://pypi.org/project/pytest-homeassistant-custom-component/{res_b[0]}/",
                   ]
               else:
                   body += [
                       f"Cleared. The previous beta pin (`{cur_b[1]}`) is no longer"
-                      " newer than the current stable pin — there is no upcoming HA"
+                      " newer than the current stable pin - there is no upcoming HA"
                       " pre-release on PyPI to test against.",
                   ]
           body += [
               "",
-              "All three matrix slots gate equally — this PR auto-merges only when"
+              "All three matrix slots gate equally - this PR auto-merges only when"
               " tests pass against `minimum`, `latest-stable`, and (if non-null)"
               " `latest-beta`. If a new HA beta breaks the integration, this PR"
               " stays open until the integration is updated to support it.",
@@ -259,7 +257,7 @@ jobs:
       - name: Create matrix bump pull request step
         if: steps.apply.outputs.any_changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        # Single rolling branch — at most one bot PR open at a time.
+        # Single rolling branch - at most one bot PR open at a time.
         # peter-evans force-pushes the latest pending matrix update
         # (stable, beta, or both) to this branch on every cron tick,
         # so the PR refreshes in place instead of accumulating per-

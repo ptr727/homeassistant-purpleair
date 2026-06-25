@@ -32,7 +32,7 @@ jobs:
         # SemVer2 lives in NBGV (computed from version.json + git history).
         # Rewrite the field in-place on the runner before zipping so the zip
         # uploaded to HACS carries the actual release version. The change is
-        # only on the runner workspace — no commit is created.
+        # only on the runner workspace - no commit is created.
         env:
           SEMVER2: ${{ needs.get-version.outputs.SemVer2 }}
         run: |
@@ -43,7 +43,7 @@ jobs:
           echo "Stamped manifest.json version: $(jq -r .version custom_components/purpleair/manifest.json)"
 
       - name: Build purpleair.zip step
-        # Files-at-root layout — REQUIRED by HACS when hacs.json sets
+        # Files-at-root layout - REQUIRED by HACS when hacs.json sets
         # `zip_release: true` + `filename`. HACS extracts the asset directly
         # into <config>/custom_components/<domain>/, so the zip's contents
         # must be the integration's files at root (manifest.json,
@@ -54,7 +54,7 @@ jobs:
         # (e.g. <config>/custom_components/purpleair/) and have it work.
         # Exclude __pycache__/*.pyc as defense in depth (a clean CI checkout
         # won't have them, but local re-runs of this script might).
-        # Force a fresh archive — `zip` updates in place if the file exists,
+        # Force a fresh archive - `zip` updates in place if the file exists,
         # which on a re-run could carry stale entries (e.g. the old nested
         # purpleair/ wrapper) alongside the new root files.
         run: |
@@ -82,17 +82,17 @@ jobs:
           set -euo pipefail
           entries=$(unzip -Z1 purpleair.zip | sed 's|^\./||')
           if ! echo "$entries" | grep -qx 'manifest.json'; then
-              echo "::error::purpleair.zip missing manifest.json at root — HACS layout regression?"
+              echo "::error::purpleair.zip missing manifest.json at root - HACS layout regression?"
               unzip -l purpleair.zip
               exit 1
           fi
           if ! echo "$entries" | grep -qx '__init__.py'; then
-              echo "::error::purpleair.zip missing __init__.py at root — HACS layout regression?"
+              echo "::error::purpleair.zip missing __init__.py at root - HACS layout regression?"
               unzip -l purpleair.zip
               exit 1
           fi
           if echo "$entries" | grep -qE '^purpleair/'; then
-              echo "::error::purpleair.zip contains a top-level purpleair/ wrapper — HACS would extract one level too deep."
+              echo "::error::purpleair.zip contains a top-level purpleair/ wrapper - HACS would extract one level too deep."
               unzip -l purpleair.zip
               exit 1
           fi
@@ -104,6 +104,7 @@ jobs:
           name: purpleair-zip
           path: purpleair.zip
           if-no-files-found: error
+          retention-days: 1
 
   release:
     name: Publish GitHub release job

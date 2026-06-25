@@ -2,7 +2,7 @@ name: Publish project release action
 
 on:
   # Stable releases are manual: dispatched from main when a maintainer is
-  # ready to ship. Pushes to main do not auto-publish — that lets dependabot
+  # ready to ship. Pushes to main do not auto-publish - that lets dependabot
   # / HA-version-bump PRs merge to main without cutting a release.
   workflow_dispatch: {}
   # Pre-releases are automatic on every develop push so beta testers always
@@ -11,9 +11,12 @@ on:
   push:
     branches: [develop]
 
+# One global, ref-independent group so every publish serializes: develop-push prereleases and main-dispatch stable
+# releases both push to the same GitHub Releases repo, so a ref-scoped group could run two publishes concurrently.
+# Queue instead of cancel: cancelling a publish mid-flight can leave a half-created GitHub release.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
 
@@ -36,8 +39,8 @@ jobs:
   test-release:
     name: Test release job
     needs: [gate]
-    # Reuses test-release-task.yml — the same suite that gates PR merges
-    # (ruff, mypy --strict, pyright, pytest matrix, hassfest, HACS) — so
+    # Reuses test-release-task.yml - the same suite that gates PR merges
+    # (ruff, mypy --strict, pyright, pytest matrix, hassfest, HACS) - so
     # neither a `gh workflow run publish-release.yml --ref main` against
     # a regressed main tip NOR a develop push that broke something can
     # publish.
@@ -46,10 +49,10 @@ jobs:
     # - workflow_dispatch from main (gate=success), and
     # - push to develop (gate=skipped because the gate job is dispatch-only).
     # A `cancelled`/`failure` gate result skips this job, which then skips
-    # create-release below — exactly what we want.
+    # create-release below - exactly what we want.
     #
     # `always() &&` is required here: without it, GitHub auto-skips a job
-    # whose `needs:` dependency is skipped, regardless of the `if:` body —
+    # whose `needs:` dependency is skipped, regardless of the `if:` body -
     # so on a develop push (gate=skipped) test-release would silently
     # skip and create-release's `success`-only gate would skip publish
     # entirely. `always()` overrides the auto-skip so the explicit
@@ -76,7 +79,7 @@ jobs:
     # - workflow_dispatch on main: gate=success, test-release=success.
     # - push to develop:           gate=skipped, test-release=success.
     # `gate` is allowed to be skipped (push path) but `test-release` must
-    # succeed — never `skipped`/`failure`/`cancelled` — so a broken develop
+    # succeed - never `skipped`/`failure`/`cancelled` - so a broken develop
     # push cannot ship a prerelease.
     if: >-
       always() &&
@@ -102,3 +105,31 @@ jobs:
     secrets: inherit
     permissions:
       contents: write
+
+  # Release artifacts are an intra-run handoff (the durable copy lives on the GitHub release), so leaving them
+  # accumulates against the small account-wide storage quota; delete them once every consumer has read them.
+  cleanup-artifacts:
+    name: Delete workflow artifacts job
+    needs: [create-release, date-badge]
+    # always() so a failed run still cleans up; independent of any required check so housekeeping never gates a merge.
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete workflow artifacts step
+        # continue-on-error: best-effort housekeeping must never red the run, even on an unexpected failure.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! ids=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts --paginate \
+            --jq '.artifacts[].id'); then
+            echo "::warning::Could not list run artifacts; skipping cleanup (storage may not be freed)."
+            ids=""
+          fi
+          for artifact_id in $ids; do
+            gh api --method DELETE "repos/${{ github.repository }}/actions/artifacts/$artifact_id" \
+              || echo "::warning::Failed to delete artifact $artifact_id; continuing."
+          done

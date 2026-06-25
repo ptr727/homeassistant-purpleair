@@ -17,7 +17,7 @@ jobs:
     # Two gates protect the badge update:
     # 1. The caller (publish-release.yml) gates on workflow_dispatch so this
     #    reusable workflow is never invoked on the develop-push prerelease
-    #    path — that gate is cheap (no jobs run at all).
+    #    path - that gate is cheap (no jobs run at all).
     # 2. This inner Prerelease check catches the residual case where
     #    workflow_dispatch on main still produces a prerelease version,
     #    e.g. if version.json's `version` field is set to a prerelease base
@@ -33,9 +33,7 @@ jobs:
         run: echo "date=$(date)" >> "$GITHUB_OUTPUT"
 
       - name: Build BYOB date badge step
-        # RubbaBoy/BYOB doesn't publish SHA-pinnable releases, so this stays
-        # on the floating v1 tag (matches the upstream template).
-        uses: RubbaBoy/BYOB@v1
+        uses: RubbaBoy/BYOB@24f464284c1fd32028524b59607d417a2e36fee7 # v1.3.0
         with:
           name: lastbuild
           label: "Last Build"
