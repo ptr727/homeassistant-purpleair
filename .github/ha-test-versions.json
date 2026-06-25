@@ -1,5 +1,5 @@
 {
-  "$comment": "Pinned Home Assistant + pytest-homeassistant-custom-component versions consumed by test-release-task.yml's pytest matrix. `minimum` is hand-maintained and must match the homeassistant field in hacs.json. `latest-stable` is bot-maintained by check-ha-version.yml: highest pytest-hacc whose `homeassistant==` pin is a stable release. `latest-beta` is bot-maintained too: highest pytest-hacc whose pin is a pre-release strictly newer than `latest-stable.ha`, or null when no such beta is on PyPI. All three slots gate equally — a regression on any one fails the PR.",
+  "$comment": "Pinned Home Assistant + pytest-homeassistant-custom-component versions consumed by test-release-task.yml's pytest matrix. `minimum` is hand-maintained and must match the homeassistant field in hacs.json. `latest-stable` is bot-maintained by check-ha-version.yml: highest pytest-hacc whose `homeassistant==` pin is a stable release. `latest-beta` is bot-maintained too: highest pytest-hacc whose pin is a pre-release strictly newer than `latest-stable.ha`, or null when no such beta is on PyPI. All three slots gate equally - a regression on any one fails the PR.",
   "minimum": {
     "ha": "2026.4.0",
     "pytest-hacc": "0.13.321"
