@@ -4,9 +4,9 @@
 # `target-branch: "develop"` on every ecosystem entry routes Dependabot's
 # scheduled version-update PRs to the integration branch instead of the
 # repo default (`main`). That keeps dep bumps in the
-# `feature → develop → main` flow described in AGENTS.md: each bump joins
+# `feature -> develop -> main` flow described in AGENTS.md: each bump joins
 # the bot-triggered develop prerelease for early-warning testing, then
-# bundles into the next develop → main merge-commit alongside feature work.
+# bundles into the next develop -> main merge-commit alongside feature work.
 #
 # Caveat: `target-branch` only redirects scheduled version updates.
 # Dependabot *security update PRs* (the CVE-driven ones Dependabot opens
@@ -37,7 +37,7 @@ updates:
     ignore:
       # Home Assistant version is owned by check-ha-version.yml (which derives
       # it from pytest-homeassistant-custom-component on PyPI) and by the
-      # `homeassistant` field in hacs.json — not by Dependabot.
+      # `homeassistant` field in hacs.json - not by Dependabot.
       - dependency-name: "homeassistant"
       # pytest-homeassistant-custom-component pins a specific Home Assistant
       # version, so it must move in lockstep with .github/ha-test-versions.json

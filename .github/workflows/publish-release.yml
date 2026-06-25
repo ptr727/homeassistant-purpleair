@@ -2,7 +2,7 @@ name: Publish project release action
 
 on:
   # Stable releases are manual: dispatched from main when a maintainer is
-  # ready to ship. Pushes to main do not auto-publish — that lets dependabot
+  # ready to ship. Pushes to main do not auto-publish - that lets dependabot
   # / HA-version-bump PRs merge to main without cutting a release.
   workflow_dispatch: {}
   # Pre-releases are automatic on every develop push so beta testers always
@@ -39,8 +39,8 @@ jobs:
   test-release:
     name: Test release job
     needs: [gate]
-    # Reuses test-release-task.yml — the same suite that gates PR merges
-    # (ruff, mypy --strict, pyright, pytest matrix, hassfest, HACS) — so
+    # Reuses test-release-task.yml - the same suite that gates PR merges
+    # (ruff, mypy --strict, pyright, pytest matrix, hassfest, HACS) - so
     # neither a `gh workflow run publish-release.yml --ref main` against
     # a regressed main tip NOR a develop push that broke something can
     # publish.
@@ -49,10 +49,10 @@ jobs:
     # - workflow_dispatch from main (gate=success), and
     # - push to develop (gate=skipped because the gate job is dispatch-only).
     # A `cancelled`/`failure` gate result skips this job, which then skips
-    # create-release below — exactly what we want.
+    # create-release below - exactly what we want.
     #
     # `always() &&` is required here: without it, GitHub auto-skips a job
-    # whose `needs:` dependency is skipped, regardless of the `if:` body —
+    # whose `needs:` dependency is skipped, regardless of the `if:` body -
     # so on a develop push (gate=skipped) test-release would silently
     # skip and create-release's `success`-only gate would skip publish
     # entirely. `always()` overrides the auto-skip so the explicit
@@ -79,7 +79,7 @@ jobs:
     # - workflow_dispatch on main: gate=success, test-release=success.
     # - push to develop:           gate=skipped, test-release=success.
     # `gate` is allowed to be skipped (push path) but `test-release` must
-    # succeed — never `skipped`/`failure`/`cancelled` — so a broken develop
+    # succeed - never `skipped`/`failure`/`cancelled` - so a broken develop
     # push cannot ship a prerelease.
     if: >-
       always() &&

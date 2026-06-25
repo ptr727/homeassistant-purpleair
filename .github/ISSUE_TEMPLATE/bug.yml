@@ -43,7 +43,7 @@ body:
             custom_components.purpleair: debug
             aiopurpleair: debug
         ```
-        Or enable it from the UI: **Settings → Devices & Services → PurpleAir → ⋮ → Enable debug logging**.
+        Or enable it from the UI: **Settings -> Devices & Services -> PurpleAir -> ⋮ -> Enable debug logging**.
         Logs are downloaded as a file when you disable debug logging from the same menu.
 
         See [Home Assistant logger docs](https://www.home-assistant.io/integrations/logger/) for more.
@@ -56,7 +56,7 @@ body:
       label: "Diagnostics dump"
       description: |
         Drag the diagnostics file here.
-        **Settings → Devices & Services → PurpleAir → ⋮ → Download diagnostics.**
+        **Settings -> Devices & Services -> PurpleAir -> ⋮ -> Download diagnostics.**
         See [Home Assistant diagnostics docs](https://www.home-assistant.io/integrations/diagnostics/) for more.
 
   - type: input
