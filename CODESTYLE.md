@@ -10,7 +10,7 @@ These rules apply to every language in the repo.
 
 ### Tooling Names and Casing
 
-Use each tool's official casing in task labels, docs, and prose - `.NET` (not `.Net`), `CSharpier`, `ruff`, `pyright`, `mypy`. Don't invent personal variants.
+Use each tool's official casing in task labels, docs, and prose - `ruff`, `mypy`, `pyright`, `pytest`, `hassfest`, `HACS` (not `Hacs`), `NBGV`. Don't invent personal variants.
 
 ### Clean-Compile Verification
 
