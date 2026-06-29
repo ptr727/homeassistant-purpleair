@@ -157,5 +157,5 @@ The integration's shipped version lives in `custom_components/purpleair/manifest
 Before pushing or opening a PR:
 
 - VS Code's **Problems** pane should be quiet for the files you touched. The relevant linters are ruff (via the `charliermarsh.ruff` extension) and pyright (via the `ms-python.python` extension's bundled Pylance).
-- The CI gate is `scripts/lint` (`ruff format --check` + `ruff check` + `mypy --strict` + `pyright`) plus `pytest` - the same checks as the local loop above, run from the repo root.
+- CI runs the same checks as `scripts/lint` (`ruff format --check` + `ruff check` + `mypy --strict` + `pyright`) plus `pytest`, as separate workflow steps (not by invoking the script) - the authoritative gate.
 - Markdown in this directory follows the repo-wide [Markdown and Spelling](#markdown-and-spelling) rules.
