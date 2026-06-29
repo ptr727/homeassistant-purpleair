@@ -10,15 +10,15 @@ These rules apply to every language in the repo.
 
 ### Tooling Names and Casing
 
-Use each tool's official casing in task labels, docs, and prose - `.NET` (not `.Net`), `CSharpier`, `ruff`, `pyright`, `uv`. Don't invent personal variants.
+Use each tool's official casing in task labels, docs, and prose - `ruff`, `mypy`, `pyright`, `pytest`, `hassfest`, `HACS` (not `Hacs`), `NBGV`. Don't invent personal variants.
 
 ### Clean-Compile Verification
 
 Each language defines a **clean-compile** verification - the combination of build, formatter, linter, and code-analysis tools that must report clean before a commit. It is exposed as one or more **named** VS Code tasks (or, where a language ships no tasks, documented commands), and those definitions are **carried verbatim** across derived repos. The concrete names live in each language section below.
 
 - **Run it after every code change.** The relevant language's clean-compile must pass before you commit; CI runs the same checks as a backstop.
-- **The named task definition is the canonical spec** - its exact command sequence, arguments, and strictness. You may run it through the VS Code task **or** by invoking the equivalent native commands directly; either is fine **only if the sequence, arguments, and strictness match exactly**. No shortcuts and no more-lenient options (for example, never drop `--verify-no-changes` or loosen a `--severity`).
-- **A local commit/pre-commit gate is the repo's choice.** No single hook runner fits every language (a `dotnet`-tool runner like Husky.Net suits .NET but not Python), so none is mandated - but that is **not** a recommendation against commit gates. CI is the authoritative backstop regardless; a local gate is an additive convenience a repo may wire and keep - Husky.Net (and `dotnet husky run` as a style step) for .NET, `pre-commit` for Python. Keeping a working gate is not drift.
+- **The named task definition is the canonical spec** - its exact command sequence, arguments, and strictness. You may run it through the VS Code task **or** by invoking the equivalent native commands directly; either is fine **only if the sequence, arguments, and strictness match exactly**. No shortcuts and no more-lenient options (for example, never drop `ruff format --check`'s verify mode or loosen a lint/type-check severity).
+- **A local commit/pre-commit gate is the repo's choice.** No single hook runner fits every project, so none is mandated - but that is **not** a recommendation against commit gates. CI is the authoritative backstop regardless; a local gate (for example, `pre-commit` running `ruff`, `mypy`, and `pyright`) is an additive convenience a repo may wire and keep - this repo wires none today. Keeping a working gate is not drift.
 
 ### Analyzer Diagnostics and Suppressions
 
@@ -40,63 +40,66 @@ These apply repo-wide, in every directory:
 
 *This section is the style guide for the Python code this repo ships.*
 
-This is the style guide for any **Python project(s)** in this repo.
+This repo ships a **Home Assistant custom integration** (`custom_components/purpleair/`), not an installable package or wheel. There is no `uv`, no `uv.lock`, no build backend, and no `src/` layout - deal in the actual integration tree and the `scripts/*` dev loop described below.
 
 ### Toolchain
 
 | Tool | Role | Config |
 |---|---|---|
-| [uv](https://docs.astral.sh/uv/) | env, deps, build, publish | `pyproject.toml` `[dependency-groups]`, `uv.lock` |
-| [hatchling](https://hatch.pypa.io/latest/) | build backend | `pyproject.toml` `[build-system]` |
-| [ruff](https://docs.astral.sh/ruff/) | lint + format + import sort | `pyproject.toml` `[tool.ruff]` |
-| [pyright](https://microsoft.github.io/pyright/) | type checker | `pyproject.toml` `[tool.pyright]` |
+| [pip](https://pip.pypa.io/) | dependency install | `requirements.txt`, `requirements-test.txt` |
+| [ruff](https://docs.astral.sh/ruff/) | lint + format + import sort | `.ruff.toml` (repo root) |
+| [mypy](https://mypy-lang.org/) | strict type gate | CLI flags in `scripts/lint` (`--strict --follow-imports=silent`) |
+| [pyright](https://microsoft.github.io/pyright/) | type checker | `pyrightconfig.json` |
 | [pytest](https://docs.pytest.org/) | test runner | `pyproject.toml` `[tool.pytest.ini_options]` |
 
-`pyright` is consumed in two places: as a dev dependency (`uv run pyright` for CI/scripted runs) and via VS Code's **Pylance** extension (which embeds pyright). The standalone `ms-pyright.pyright` extension is in `unwantedRecommendations` because Pylance covers it. `mypy` is **not used** here - don't introduce it.
+Two type checkers run, and **both are gates**. `mypy --strict --follow-imports=silent` over `custom_components/purpleair/` is required by the platinum quality-scale `strict-typing` rule. `pyright` runs directly (`pyright`, configured by `pyrightconfig.json` at `typeCheckingMode: basic`) and is also the engine behind VS Code's **Pylance** extension, so the in-editor and CI experience stay in sync. Both run in `scripts/lint` and in CI.
 
 ### Local Development Loop
 
-From inside the Python project directory:
+The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 
 ```sh
-uv sync                          # creates .venv, installs deps + dev group
-uv run ruff format               # auto-format
-uv run ruff check --fix          # auto-fix lint
-uv run ruff check                # verify lint clean
-uv run ruff format --check       # verify format clean
-uv run pyright                   # verify types
-uv run pytest                    # run tests
-uv build                         # produce wheel + sdist in ./dist
+scripts/setup       # pip install requirements.txt + requirements-test.txt (and editable aiopurpleair)
+scripts/fix         # ruff format . && ruff check . --fix   (apply auto-fixes)
+scripts/lint        # verify-only: ruff format --check, ruff check, mypy --strict, pyright
+pytest              # run tests (install requirements-test.txt first)
+scripts/develop     # launch Home Assistant against ./config with the integration loaded
 ```
 
-The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is `uv run ruff format` + `uv run ruff check` + `uv run pyright`; run it (plus `uv run pytest`) before committing. These are documented commands, not VS Code tasks. CI runs the same clean-compile commands as the authoritative backstop. Git hooks are opt-in; wire `pre-commit` for `ruff` and `pyright` yourself if you want local enforcement.
+The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy --strict --follow-imports=silent custom_components/purpleair/` + `pyright`. Run it (plus `pytest`) before committing. These commands are also wired as VS Code tasks (`Fix:`, `Lint:`, `Test:`, `Develop:`) in [`.vscode/tasks.json`](./.vscode/tasks.json) for convenience. CI runs the same checks as the authoritative backstop. Git hooks are opt-in; wire `pre-commit` for `ruff`, `mypy`, and `pyright` yourself if you want local enforcement.
 
 ### Layout
 
-`src` layout - keeps the package out of the repo root and prevents accidental imports of unbuilt code:
+Home Assistant integration layout - the integration lives under `custom_components/purpleair/` and is loaded by Home Assistant from there; it is never built into a wheel:
 
 ```text
-<python-project>/
-    pyproject.toml
-    README.md
-    uv.lock                # committed for reproducible CI
-    src/
-        <package_name>/
-            __init__.py
-            _version.py
-            <modules>.py
-    tests/
-        __init__.py
+custom_components/purpleair/
+    manifest.json          # domain, requirements, version (NBGV-stamped at build)
+    __init__.py            # integration setup/teardown
+    config_flow.py
+    coordinator.py
+    sensor.py
+    entity.py
+    const.py
+    diagnostics.py
+    py.typed
+    quality_scale.yaml
+    strings.json / translations/ / icons.json
+tests/
+    conftest.py
+    components/purpleair/
         test_<module>.py
+        conftest.py
+        fixtures/ / snapshots/
 ```
 
 ### Code Style
 
 #### Formatting and Linting
 
-- **`ruff format` is authoritative.** Don't argue with the formatter; if it reformats your code, that's the final form. Configure (line length, target version) in `pyproject.toml` `[tool.ruff]`, not via inline `# fmt:` directives.
-- **Run `ruff check --fix` before committing.** Most ruff lint rules have safe autofixes; let the tool handle them. The configured rule families are listed under `[tool.ruff.lint]` `select`. Add new rule families project-wide rather than scattering inline `# noqa` markers.
-- **`# noqa` is a last resort.** When you must use one, scope it narrowly (`# noqa: E501`, not bare `# noqa`) and add a short comment on the same line explaining why. False-positive patterns that recur across the codebase belong in `[tool.ruff.lint]` `ignore` or per-file `[tool.ruff.lint.per-file-ignores]`, with a comment. Porting an existing codebase is not a license to add `ignore` / `per-file-ignores` blocks to mute newly surfaced lint - fix it (see [Analyzer Diagnostics and Suppressions](#analyzer-diagnostics-and-suppressions)).
+- **`ruff format` is authoritative.** Don't argue with the formatter; if it reformats your code, that's the final form. Configure (target version, formatter behavior) in `.ruff.toml`, not via inline `# fmt:` directives.
+- **Run `scripts/fix` (`ruff format .` + `ruff check . --fix`) before committing.** Most ruff lint rules have safe autofixes; let the tool handle them. The configured rule families are listed under `[lint]` `select` in `.ruff.toml`. Add new rule families project-wide rather than scattering inline `# noqa` markers.
+- **`# noqa` is a last resort.** When you must use one, scope it narrowly (`# noqa: E501`, not bare `# noqa`) and add a short comment on the same line explaining why. False-positive patterns that recur across the codebase belong in `[lint]` `ignore` or `[lint.per-file-ignores]` in `.ruff.toml`, with a comment. Porting an existing codebase is not a license to add `ignore` / `per-file-ignores` blocks to mute newly surfaced lint - fix it (see [Analyzer Diagnostics and Suppressions](#analyzer-diagnostics-and-suppressions)).
 
 #### Comments
 
@@ -112,9 +115,9 @@ The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verifi
 
 #### Type Hints
 
-- **All public APIs are typed.** Pyright runs on `src/` in strict mode (`[tool.pyright]` `strict = ["src"]`); tests run in standard mode.
+- **Everything is typed.** `mypy --strict` over `custom_components/purpleair/` is a CI gate (the platinum `strict-typing` rule), and `pyright` runs alongside it at `typeCheckingMode: basic` over `custom_components/purpleair` and `tests` (see `pyrightconfig.json`). Both must be clean.
 - **Use modern syntax**: `list[int]` not `List[int]`, `dict[str, X]` not `Dict[str, X]`, `X | None` not `Optional[X]`, `from __future__ import annotations` only when needed for forward references.
-- **Don't add `# type: ignore` to silence pyright errors without a comment** explaining the constraint. If a recurring false positive needs suppression, configure it project-wide in `[tool.pyright]`. A new port doesn't change this - fix freshly surfaced type errors rather than muting them (see [Analyzer Diagnostics and Suppressions](#analyzer-diagnostics-and-suppressions)).
+- **Don't add `# type: ignore` to silence type errors without a comment** explaining the constraint. If a recurring false positive needs suppression, configure it project-wide in `pyrightconfig.json` (pyright) or via the `scripts/lint` mypy flags. A new port doesn't change this - fix freshly surfaced type errors rather than muting them (see [Analyzer Diagnostics and Suppressions](#analyzer-diagnostics-and-suppressions)).
 
 #### Naming
 
@@ -125,8 +128,8 @@ The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verifi
 
 #### Imports
 
-- **Let ruff sort imports.** `[tool.ruff.lint]` `select` includes the `I` rule family (isort-equivalent). Don't hand-sort.
-- Standard library first, then third-party, then first-party (the project itself), each block separated by a blank line - ruff enforces this automatically.
+- **Let ruff sort imports.** `[lint]` `select` in `.ruff.toml` includes the `I` rule family (isort-equivalent), with Home Assistant's import conventions (`[lint.isort]`: `force-sort-within-sections`, `known-first-party = ["custom_components", "homeassistant", "tests"]`). Don't hand-sort.
+- Standard library first, then third-party, then first-party (the integration and `homeassistant`), separated per the configured isort sections - ruff enforces this automatically.
 - Avoid wildcard imports (`from x import *`) outside `__init__.py` re-exports.
 
 #### Patterns to Avoid
@@ -138,8 +141,8 @@ The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verifi
 
 ### Tests
 
-- `pytest` with the configuration in `[tool.pytest.ini_options]`. Default invocation: `uv run pytest`.
-- One test file per module under test, named `test_<module>.py`.
+- `pytest` with the configuration in `pyproject.toml` `[tool.pytest.ini_options]` (`asyncio_mode = "auto"`, `testpaths = ["tests"]`). Install `requirements-test.txt` first, then invoke `pytest`. Tests build on `pytest-homeassistant-custom-component`.
+- Tests live under `tests/components/purpleair/`, one test file per module under test, named `test_<module>.py`.
 - Test functions named `test_<scenario>_<expected_behavior>` - descriptive, not numbered.
 - Use fixtures (defined in `conftest.py` for shared ones, or per-test for narrowly-scoped) instead of setup/teardown methods.
 - **Avoid mocking when fakes work.** Hand-rolled fakes that implement the protocol you depend on are usually clearer and break less than `unittest.mock` magic.
@@ -147,12 +150,12 @@ The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verifi
 
 ### Versioning
 
-`_version.py` ships with `__version__ = "0.0.0"` as a placeholder. Until you wire `_version.py` to something that increments (the usual options are `hatch-vcs`, a version.json bridge, or manual bumps), no new PyPI versions will land - publishing with `skip-existing: true` keeps a stuck placeholder version from failing the run.
+The integration's shipped version lives in `custom_components/purpleair/manifest.json`. The checked-in value is the placeholder `"version": "0.0.0"`; at build time NBGV computes the real version from `version.json` (major.minor floor `0.2` plus git height) and **stamps `manifest.json` on the runner only** - no commit, no `_version.py`, no `hatch-vcs`. See [WORKFLOW.md](./WORKFLOW.md) for the full version model. Don't hand-edit the placeholder.
 
 ### Linter Cleanliness
 
 Before pushing or opening a PR:
 
 - VS Code's **Problems** pane should be quiet for the files you touched. The relevant linters are ruff (via the `charliermarsh.ruff` extension) and pyright (via the `ms-python.python` extension's bundled Pylance).
-- The CI gate is `uv run ruff check && uv run ruff format --check && uv run pyright && uv run pytest` - same as the local commands above, run from the Python project directory.
+- CI runs the same checks as `scripts/lint` (`ruff format --check` + `ruff check` + `mypy --strict` + `pyright`) plus `pytest`, as separate workflow steps (not by invoking the script) - the authoritative gate.
 - Markdown in this directory follows the repo-wide [Markdown and Spelling](#markdown-and-spelling) rules.
