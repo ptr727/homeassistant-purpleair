@@ -1,15 +1,15 @@
 name: Test pull request action
 
 on:
-  pull_request:
-    branches: [main, develop]
-  # Re-run on push to protected branches so the merged commit's coverage
-  # uploads to Codecov — Codecov's "default branch" badge derives from the
-  # latest upload tagged with the default-branch ref, which doesn't happen
-  # on PR-only triggers because the upload SHA is the PR head, not the
-  # post-merge commit.
+  # Push to every branch IS the PR check: one run = one branch, self-testing.
+  # main and develop are members of `**`, so a push to a protected branch
+  # still re-runs here and re-uploads coverage on the merged commit's SHA -
+  # Codecov's "default branch" badge derives from the latest upload tagged
+  # with the default-branch ref, which a PR-head-only trigger would miss.
+  # No pull_request trigger: a fork PR cannot push here, so it produces no run; a maintainer lands a fork
+  # contribution on an in-repo branch to run the required check before merge.
   push:
-    branches: [main, develop]
+    branches: ['**']
   workflow_dispatch:
 
 concurrency:
@@ -20,19 +20,22 @@ jobs:
 
   test-release:
     name: Test release job
+    # Skip the phantom run a branch deletion would otherwise fire under push:['**'].
+    if: ${{ !github.event.deleted }}
     uses: ./.github/workflows/test-release-task.yml
     secrets: inherit
 
   # Wire branch protection's "required status check" to this single job.
   # When test-release-task contains multiple sibling jobs, the calling
-  # workflow only sees one aggregated `result` per `uses:` invocation —
+  # workflow only sees one aggregated `result` per `uses:` invocation -
   # `success` iff every child job in the called workflow succeeded.
   # https://github.com/orgs/community/discussions/12395#discussioncomment-12970019
   check-workflow-status:
-    name: Check pull request workflow status
+    name: Check pull request workflow status job
     runs-on: ubuntu-latest
     needs: [test-release]
-    if: always()
+    # always() so the aggregator runs even when a need failed; !deleted skips the branch-deletion phantom run.
+    if: ${{ always() && !github.event.deleted }}
     steps:
       - name: Check workflow results step
         run: |

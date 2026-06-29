@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Set up Python step
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
           cache: pip
@@ -57,10 +57,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Set up Python step
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
           cache: pip
@@ -77,10 +77,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Set up Python step
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.14"
           cache: pip
@@ -103,19 +103,19 @@ jobs:
     # changed shape in 2026.4 and our snapshot tests can't satisfy both
     # pre- and post-2026.4 formats. requirements.txt's `homeassistant==X`
     # is a dev/CI bootstrap pin and may pin a higher patch in the same
-    # series — the pytest step below overrides it with
+    # series - the pytest step below overrides it with
     # `pip install --upgrade homeassistant==<minimum>` so the gate runs
     # against `minimum` regardless. `latest-stable` and `latest-beta` are
     # bot-maintained.
     # The beta slot is optional (null when no HA pre-release is newer than the
     # current stable). All three slots gate merges and prerelease publishes
-    # equally — a regression against any one fails the PR.
+    # equally - a regression against any one fails the PR.
     runs-on: ubuntu-latest
     outputs:
       include: ${{ steps.parse.outputs.include }}
     steps:
       - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Build matrix include array step
         id: parse
@@ -143,10 +143,10 @@ jobs:
         include: ${{ fromJSON(needs.read-versions.outputs.include) }}
     steps:
       - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Set up Python ${{ matrix.python-version }} step
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -169,7 +169,7 @@ jobs:
         # Codecov dashboard even when slot HA versions coincide (e.g. if
         # `minimum` ever catches up to `latest-stable`). The repo's
         # overall coverage badge merges all uploads for a SHA.
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
@@ -182,10 +182,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository step
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run hassfest validation step
-        uses: home-assistant/actions/hassfest@f6f29a7ee3fa0eccadf3620a7b9ee00ab54ec03b # master
+        uses: home-assistant/actions/hassfest@f4ca6f671bd429efb108c0f2fa0ae8af0215986c # master
 
   hacs:
     # https://github.com/hacs/action
@@ -203,7 +203,7 @@ jobs:
     # workflow_call delivers inputs.build as a real boolean (`true`/`false`)
     # but workflow_dispatch delivers it as the *string* `"true"`/`"false"`,
     # and the GitHub expression parser treats any non-empty string as truthy
-    # — so a bare `if: ${{ inputs.build }}` would run this job even on a
+    # - so a bare `if: ${{ inputs.build }}` would run this job even on a
     # manual dispatch with build=false. Compare against both forms.
     if: ${{ inputs.build == true || inputs.build == 'true' }}
     uses: ./.github/workflows/build-release-task.yml

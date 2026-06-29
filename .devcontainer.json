@@ -24,10 +24,10 @@
             "version": "3.14"
         },
         "ghcr.io/devcontainers-extra/features/apt-packages:1": {
-            "packages": "ffmpeg,libturbojpeg0,libpcap-dev,shellcheck,yamllint"
+            "packages": "ffmpeg,libturbojpeg0,libpcap-dev,shellcheck"
         },
         "ghcr.io/devcontainers/features/github-cli:1": {},
-        "ghcr.io/devcontainers/features/node:2": {
+        "ghcr.io/devcontainers/features/node:": {
             "version": "lts"
         }
     },

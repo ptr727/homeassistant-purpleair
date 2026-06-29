@@ -33,7 +33,7 @@
             }
         },
         {
-            "label": "Lint: ruff + mypy (verify)",
+            "label": "Lint: ruff + mypy + pyright (verify)",
             "type": "shell",
             "command": "scripts/lint",
             "group": {
