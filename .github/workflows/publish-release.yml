@@ -1,18 +1,20 @@
 name: Publish project release action
 
 on:
-  # Stable releases are manual: dispatched from main when a maintainer is
-  # ready to ship. Pushes to main do not auto-publish - that lets dependabot
-  # / HA-version-bump PRs merge to main without cutting a release.
+  # Releases are dispatch-only - merges never publish (HACS is a pull model;
+  # the maintainer ships on demand). Dispatch from main cuts a STABLE release
+  # (clean NBGV SemVer); dispatch from develop cuts a PRERELEASE (NBGV appends
+  # -gSHA so successive prereleases never collide on the same tag).
   workflow_dispatch: {}
-  # Pre-releases are automatic on every develop push so beta testers always
-  # have the latest. The -gSHA prerelease segment in the NBGV version keeps
-  # successive prereleases from colliding on the same tag.
-  push:
-    branches: [develop]
+  # The weekly schedule RETESTS the shipped main against the latest HA matrix
+  # and STOPS - it never publishes. It is the publisher-side complement to
+  # check-ha-version.yml (which retests develop): a red scheduled run flags
+  # upstream HA drift breaking the released integration for a maintainer to act on.
+  schedule:
+    - cron: '0 2 * * MON'
 
-# One global, ref-independent group so every publish serializes: develop-push prereleases and main-dispatch stable
-# releases both push to the same GitHub Releases repo, so a ref-scoped group could run two publishes concurrently.
+# One global, ref-independent group so every publish serializes: a main-dispatch stable release and a develop-dispatch
+# prerelease both push to the same GitHub Releases repo, so a ref-scoped group could run two publishes concurrently.
 # Queue instead of cancel: cancelling a publish mid-flight can leave a half-created GitHub release.
 concurrency:
   group: ${{ github.workflow }}
@@ -22,17 +24,17 @@ jobs:
 
   gate:
     name: Gate dispatch ref job
-    # Reject manual dispatches from anywhere other than main. The push trigger
-    # is already constrained to develop by `on.push.branches`, so it doesn't
-    # need an equivalent check.
+    # Only main or develop may dispatch. main -> stable, develop -> prerelease
+    # (NBGV classifies by github.ref). The schedule path skips this gate and
+    # runs the retest-only leg below.
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Assert dispatch is from main step
+      - name: Assert dispatch ref step
         run: |
           set -euo pipefail
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-              echo "::error::Stable releases must be dispatched from main; got ${{ github.ref }}."
+          if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "develop" ]; then
+              echo "::error::Publish must be dispatched from main (stable) or develop (prerelease); got ${{ github.ref_name }}."
               exit 1
           fi
 
@@ -41,22 +43,20 @@ jobs:
     needs: [gate]
     # Reuses test-release-task.yml - the same suite that gates PR merges
     # (ruff, mypy --strict, pyright, pytest matrix, hassfest, HACS) - so
-    # neither a `gh workflow run publish-release.yml --ref main` against
-    # a regressed main tip NOR a develop push that broke something can
-    # publish.
+    # neither a dispatch against a regressed tip can publish nor a scheduled
+    # retest of main can pass silently.
     #
     # Runs on:
-    # - workflow_dispatch from main (gate=success), and
-    # - push to develop (gate=skipped because the gate job is dispatch-only).
+    # - workflow_dispatch from main/develop (gate=success), and
+    # - schedule (gate=skipped because the gate job is dispatch-only).
     # A `cancelled`/`failure` gate result skips this job, which then skips
     # create-release below - exactly what we want.
     #
     # `always() &&` is required here: without it, GitHub auto-skips a job
     # whose `needs:` dependency is skipped, regardless of the `if:` body -
-    # so on a develop push (gate=skipped) test-release would silently
-    # skip and create-release's `success`-only gate would skip publish
-    # entirely. `always()` overrides the auto-skip so the explicit
-    # success/skipped allowlist runs.
+    # so on the schedule (gate=skipped) test-release would silently skip.
+    # `always()` overrides the auto-skip so the explicit success/skipped
+    # allowlist runs and the scheduled retest of main actually executes.
     #
     # Pass `build: false` so test-release-task skips its no-publish
     # build-release child. The create-release job below builds the
@@ -74,16 +74,16 @@ jobs:
   create-release:
     name: Publish project release job
     needs: [gate, test-release]
-    # Publish only when test-release passed. Both publishing paths gate on
-    # the same suite:
-    # - workflow_dispatch on main: gate=success, test-release=success.
-    # - push to develop:           gate=skipped, test-release=success.
-    # `gate` is allowed to be skipped (push path) but `test-release` must
-    # succeed - never `skipped`/`failure`/`cancelled` - so a broken develop
-    # push cannot ship a prerelease.
+    # Publish ONLY on dispatch (never on schedule): the schedule retests main
+    # and stops. Both dispatch refs publish on a green suite:
+    # - dispatch on main:    gate=success, test-release=success -> stable.
+    # - dispatch on develop: gate=success, test-release=success -> prerelease.
+    # `test-release` must succeed - never `skipped`/`failure`/`cancelled` - so
+    # a broken tip cannot ship.
     if: >-
       always() &&
-      (needs.gate.result == 'success' || needs.gate.result == 'skipped') &&
+      github.event_name == 'workflow_dispatch' &&
+      needs.gate.result == 'success' &&
       needs.test-release.result == 'success'
     uses: ./.github/workflows/build-release-task.yml
     secrets: inherit
@@ -93,24 +93,11 @@ jobs:
       # Push to GitHub Releases (no NuGet/Docker Hub equivalents for an HA component).
       github: true
 
-  date-badge:
-    name: Create BYOB date badge job
-    needs: [create-release]
-    # Stable releases only arrive via workflow_dispatch on main (the gate
-    # job enforces this). Skip the entire reusable workflow on develop-push
-    # prereleases so we don't pay for a checkout + NBGV setup just to skip
-    # the badge update.
-    if: github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/build-datebadge-task.yml
-    secrets: inherit
-    permissions:
-      contents: write
-
   # Release artifacts are an intra-run handoff (the durable copy lives on the GitHub release), so leaving them
   # accumulates against the small account-wide storage quota; delete them once every consumer has read them.
   cleanup-artifacts:
     name: Delete workflow artifacts job
-    needs: [create-release, date-badge]
+    needs: [create-release]
     # always() so a failed run still cleans up; independent of any required check so housekeeping never gates a merge.
     if: always()
     runs-on: ubuntu-latest
