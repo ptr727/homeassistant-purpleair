@@ -66,7 +66,7 @@ pytest              # run tests (install requirements-test.txt first)
 scripts/develop     # launch Home Assistant against ./config with the integration loaded
 ```
 
-The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy --strict --follow-imports=silent custom_components/purpleair/` + `pyright`. Run it (plus `pytest`) before committing. These are documented commands, not VS Code tasks. CI runs the same checks as the authoritative backstop. Git hooks are opt-in; wire `pre-commit` for `ruff`, `mypy`, and `pyright` yourself if you want local enforcement.
+The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy --strict --follow-imports=silent custom_components/purpleair/` + `pyright`. Run it (plus `pytest`) before committing. These commands are also wired as VS Code tasks (`Fix:`, `Lint:`, `Test:`, `Develop:`) in [`.vscode/tasks.json`](./.vscode/tasks.json) for convenience. CI runs the same checks as the authoritative backstop. Git hooks are opt-in; wire `pre-commit` for `ruff`, `mypy`, and `pyright` yourself if you want local enforcement.
 
 ### Layout
 
