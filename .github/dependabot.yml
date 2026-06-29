@@ -1,25 +1,33 @@
 ---
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
-# `target-branch: "develop"` on every ecosystem entry routes Dependabot's
-# scheduled version-update PRs to the integration branch instead of the
-# repo default (`main`). That keeps dep bumps in the
-# `feature -> develop -> main` flow described in AGENTS.md: each bump joins
-# the bot-triggered develop prerelease for early-warning testing, then
-# bundles into the next develop -> main merge-commit alongside feature work.
+# Dual-target main AND develop: every ecosystem is duplicated so Dependabot
+# keeps both branches updated and avoids merge drift between them. develop's
+# bumps join the bot-tested develop line; main's bumps keep the shipped branch
+# current without waiting on a develop -> main promotion.
 #
-# Caveat: `target-branch` only redirects scheduled version updates.
-# Dependabot *security update PRs* (the CVE-driven ones Dependabot opens
-# in response to security alerts) are opened against the default branch
-# (`main`) and do not honor `target-branch`. The merge-bot's `case`
-# statement in .github/workflows/merge-bot-pull-request.yml handles
-# either base correctly, and a maintainer can retarget manually from
-# the PR UI if a one-off needs the other branch.
+# Scheduled version updates honor `target-branch`. Dependabot security update
+# PRs (the CVE-driven ones) always open against the default branch (main) and
+# ignore `target-branch`; the merge-bot `case` in
+# merge-bot-pull-request.yml handles either base, and a maintainer can
+# retarget from the PR UI if a one-off needs the other branch.
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "devcontainers"
+    directory: "/"
     target-branch: "develop"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "main"
     schedule:
       interval: "daily"
 
@@ -31,18 +39,34 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Home Assistant version is owned by check-ha-version.yml (from
+      # pytest-homeassistant-custom-component on PyPI) and by hacs.json's
+      # `homeassistant` field - not Dependabot.
+      - dependency-name: "homeassistant"
+      # pytest-homeassistant-custom-component pins a specific HA version, so it
+      # moves in lockstep with .github/ha-test-versions.json via check-ha-version.yml.
+      - dependency-name: "pytest-homeassistant-custom-component"
+      # pytest-homeassistant-custom-component also pins pytest-cov, so widening
+      # this constraint independently can break resolution.
+      - dependency-name: "pytest-cov"
+
+  - package-ecosystem: "pip"
+    directory: "/"
     target-branch: "develop"
     schedule:
       interval: "daily"
     ignore:
-      # Home Assistant version is owned by check-ha-version.yml (which derives
-      # it from pytest-homeassistant-custom-component on PyPI) and by the
-      # `homeassistant` field in hacs.json - not by Dependabot.
+      # Home Assistant version is owned by check-ha-version.yml (from
+      # pytest-homeassistant-custom-component on PyPI) and by hacs.json's
+      # `homeassistant` field - not Dependabot.
       - dependency-name: "homeassistant"
-      # pytest-homeassistant-custom-component pins a specific Home Assistant
-      # version, so it must move in lockstep with .github/ha-test-versions.json
-      # via check-ha-version.yml rather than an independent Dependabot PR.
+      # pytest-homeassistant-custom-component pins a specific HA version, so it
+      # moves in lockstep with .github/ha-test-versions.json via check-ha-version.yml.
       - dependency-name: "pytest-homeassistant-custom-component"
-      # pytest-homeassistant-custom-component also pins its pytest-cov version,
-      # so widening this direct constraint independently can break resolution.
+      # pytest-homeassistant-custom-component also pins pytest-cov, so widening
+      # this constraint independently can break resolution.
       - dependency-name: "pytest-cov"
