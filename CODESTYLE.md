@@ -98,7 +98,7 @@ tests/
 #### Formatting and Linting
 
 - **`ruff format` is authoritative.** Don't argue with the formatter; if it reformats your code, that's the final form. Configure (target version, formatter behavior) in `.ruff.toml`, not via inline `# fmt:` directives.
-- **Run `scripts/fix` (`ruff check . --fix`) before committing.** Most ruff lint rules have safe autofixes; let the tool handle them. The configured rule families are listed under `[lint]` `select` in `.ruff.toml`. Add new rule families project-wide rather than scattering inline `# noqa` markers.
+- **Run `scripts/fix` (`ruff format .` + `ruff check . --fix`) before committing.** Most ruff lint rules have safe autofixes; let the tool handle them. The configured rule families are listed under `[lint]` `select` in `.ruff.toml`. Add new rule families project-wide rather than scattering inline `# noqa` markers.
 - **`# noqa` is a last resort.** When you must use one, scope it narrowly (`# noqa: E501`, not bare `# noqa`) and add a short comment on the same line explaining why. False-positive patterns that recur across the codebase belong in `[lint]` `ignore` or `[lint.per-file-ignores]` in `.ruff.toml`, with a comment. Porting an existing codebase is not a license to add `ignore` / `per-file-ignores` blocks to mute newly surfaced lint - fix it (see [Analyzer Diagnostics and Suppressions](#analyzer-diagnostics-and-suppressions)).
 
 #### Comments
