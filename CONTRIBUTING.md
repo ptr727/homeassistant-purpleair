@@ -9,7 +9,7 @@ Contributions are welcome - bug reports, fixes, feature proposals, and documenta
 1. Apply auto-fixes with `scripts/fix` (runs `ruff format` + `ruff check --fix`).
 1. Verify with `scripts/lint` (verify-only: `ruff format --check` + `ruff check` + `mypy --strict` + `pyright`). CI runs the same checks.
 1. Run the test suite with `pytest` (install `requirements-test.txt` first).
-1. Open a pull request against `develop` with a clear, descriptive title.
+1. Open a pull request against `develop` with a clear, descriptive title. CI runs on every branch push (not on `pull_request`); a fork PR's pushes do not run the base-repo check, so a maintainer re-runs the required check by landing your change on an in-repo branch before merge.
 
 ## PR titles and versioning
 
@@ -19,9 +19,10 @@ Versioning is handled by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerd
 
 ### Release flow
 
-- Merging a PR into `develop` automatically publishes a prerelease GitHub Release with a version like `0.1.5-g1a2b3c4` (the `-g{sha}` suffix marks it as a prerelease) - **but only when the full test suite passes on the merge commit**. A broken develop push does not ship a prerelease.
-- Promoting `develop -> main` (a normal PR) does **not** auto-publish. A maintainer cuts the stable release manually with `gh workflow run publish-release.yml --ref main`, which produces a clean release like `0.1.6`.
-- Dependabot PRs and HA-version-bump PRs auto-merge into `develop` after CI passes; their merge produces a fresh prerelease with no maintainer action.
+- Merging a PR into `develop` does **not** publish - merges never publish. Releases are cut on demand by dispatching the publisher: `gh workflow run publish-release.yml --ref develop` cuts a prerelease (`0.2.5-g1a2b3c4`, the `-g{sha}` suffix marks it prerelease), and `--ref main` cuts a clean stable release (`0.2.6`). A dispatch publishes only when the full test suite passes on that ref.
+- Promoting `develop -> main` (a normal merge-commit PR) does **not** auto-publish; the maintainer dispatches the stable release from `main` afterward.
+- Dependabot PRs and HA-version-bump PRs auto-merge into `develop` after CI passes; merging them does **not** publish.
+- A weekly scheduled run of [publish-release.yml](.github/workflows/publish-release.yml) **retests** the shipped `main` against the latest HA matrix and never publishes - a red run flags upstream HA drift breaking the released integration for a maintainer to act on.
 - A scheduled bot ([check-ha-version.yml](.github/workflows/check-ha-version.yml)) keeps the HA test matrix current with PyPI. It runs **daily at 06:00 UTC** and opens a single bundled PR on the rolling branch `ha-version-bump/matrix` whenever a newer `pytest-homeassistant-custom-component` release on PyPI pins a stable HA release, an HA pre-release newer than the current stable, or both. Pinned versions live in [.github/ha-test-versions.json](.github/ha-test-versions.json) under three slots - `minimum` (hand-maintained backward-compat floor), `latest-stable`, and `latest-beta` (`null` when no upcoming beta exists). All three slots gate equally; a regression on any one fails the PR.
 
 ### Bumping the minimum HA version

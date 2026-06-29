@@ -6,6 +6,8 @@ on:
   # still re-runs here and re-uploads coverage on the merged commit's SHA -
   # Codecov's "default branch" badge derives from the latest upload tagged
   # with the default-branch ref, which a PR-head-only trigger would miss.
+  # No pull_request trigger: a fork PR cannot push here, so it produces no run; a maintainer lands a fork
+  # contribution on an in-repo branch to run the required check before merge.
   push:
     branches: ['**']
   workflow_dispatch:
