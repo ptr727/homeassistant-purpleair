@@ -18,7 +18,7 @@ Each language defines a **clean-compile** verification - the combination of buil
 
 - **Run it after every code change.** The relevant language's clean-compile must pass before you commit; CI runs the same checks as a backstop.
 - **The named task definition is the canonical spec** - its exact command sequence, arguments, and strictness. You may run it through the VS Code task **or** by invoking the equivalent native commands directly; either is fine **only if the sequence, arguments, and strictness match exactly**. No shortcuts and no more-lenient options (for example, never drop `ruff format --check`'s verify mode or loosen a lint/type-check severity).
-- **A local commit/pre-commit gate is the repo's choice.** No single hook runner fits every project, so none is mandated - but that is **not** a recommendation against commit gates. CI is the authoritative backstop regardless; a local gate (for this repo, `pre-commit` wired to run `ruff`, `mypy`, and `pyright`) is an additive convenience a repo may wire and keep. Keeping a working gate is not drift.
+- **A local commit/pre-commit gate is the repo's choice.** No single hook runner fits every project, so none is mandated - but that is **not** a recommendation against commit gates. CI is the authoritative backstop regardless; a local gate (for example, `pre-commit` running `ruff`, `mypy`, and `pyright`) is an additive convenience a repo may wire and keep - this repo wires none today. Keeping a working gate is not drift.
 
 ### Analyzer Diagnostics and Suppressions
 
