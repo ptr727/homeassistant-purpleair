@@ -486,7 +486,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   (`group: ${{ github.workflow }}`) with `cancel-in-progress: false`, so a stable and a prerelease publish
   serialize. CI and the tracker use a `...github.ref`/workflow group with `cancel-in-progress: true`; the
   merge-bot keys on the PR number with `cancel-in-progress: false`.
-- **D7.2 Skipped jobs still need valid permissions.** Output: every reusable job declares valid
+- **D7.2 Skipped jobs still need valid permissions.** Output: every reusable job runs under valid least-privilege
   `permissions:`; a callee's extra scope (`contents: write` for the release, `actions: write` for cleanup)
   is granted by the caller.
 - **D7.3 Boolean inputs both forms.** Output: the `build` input is declared in both `workflow_call` and
