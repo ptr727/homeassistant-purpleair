@@ -127,8 +127,8 @@ jobs:
         # auto-generated notes, and the artifact is attached in one shot.
         # `target_commitish` MUST be set explicitly: softprops doesn't pass a
         # default through, and GitHub's REST API then defaults the new tag to
-        # the repository's default branch (main). On `push: develop` runs the
-        # tag would land on main's tip instead of the develop commit that
+        # the repository's default branch (main). For a develop dispatch the
+        # tag would then land on main's tip instead of the develop commit that
         # built the artifact, leaving "Browse files" and `git checkout <tag>`
         # pointing at unrelated code.
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
