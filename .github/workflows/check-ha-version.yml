@@ -193,7 +193,7 @@ jobs:
 
           with open(path, "w") as f:
               # ensure_ascii=False writes the $comment field (and any other
-              # text) verbatim as UTF-8 bytes. The current $comment is plain
+              # text) as written, not \u-escaped. The current $comment is plain
               # ASCII, but should any non-ASCII character ever be added, the
               # default ensure_ascii=True would rewrite it as a backslash-u
               # escape, producing a noisy diff against the on-disk version
