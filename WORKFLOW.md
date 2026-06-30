@@ -247,7 +247,7 @@ release is keyless and GitHub-native.
 ### Flow diagrams
 
 Four diagrams trace the architecture above: the pull-request gate, the dispatch-only publisher, the
-weekly retest tripwire, and the bot automation. They are the same outcomes the section 4 contract specifies, drawn
+weekly retest tripwire, and the bot automation. They depict the same outcomes that the section 4 contract specifies, drawn
 from the workflow YAML; if a diagram and a guarantee disagree, one of them is a defect. Triggers are
 blue, gates yellow, durable/published outputs green, and stop/skip outcomes red.
 
