@@ -244,6 +244,125 @@ main tip dispatched), not the API's default of the repository default branch. Th
 `prerelease` boolean is NBGV's derived `Prerelease`. There is no NuGet push, no Docker push, no OIDC - the
 release is keyless and GitHub-native.
 
+### Flow diagrams
+
+Four diagrams trace the architecture above: the pull-request gate, the dispatch-only publisher, the
+weekly retest tripwire, and the bot automation. They are the same outcomes section 4 contracts, drawn
+from the workflow YAML; if a diagram and a guarantee disagree, one of them is a defect. Triggers are
+blue, gates yellow, durable/published outputs green, and stop/skip outcomes red.
+
+**Pull request (CI) - `test-pull-request.yml`.** Every push head-resolves the reusable validate task
+(ruff, mypy, pyright, the HA-version pytest matrix, hassfest, HACS, and a no-publish zip build), and a
+single aggregator produces the ruleset-bound required check (D1, D6).
+
+```mermaid
+flowchart TD
+    T(["push: every branch ['**']<br/>(or workflow_dispatch)"]):::trig
+    T --> D{"github.event.deleted?"}:::gate
+    D -- "yes: branch deletion" --> X(["test-release + aggregator skip<br/>no failed run, no pending check"]):::stop
+    D -- "no" --> TR["test-release job<br/>(test-release-task.yml, build: true)"]
+    subgraph TRT ["test-release-task.yml"]
+        RF["ruff job<br/>check + format --check"]
+        MY["mypy job<br/>--strict"]
+        PY["pyright job"]
+        PT["pytest job (matrix)<br/>minimum, latest-stable,<br/>latest-beta (if non-null)"]
+        HF["hassfest job"]
+        HC["HACS validation job"]
+        BR["build-release job (github: false)<br/>stamp manifest, zip at root,<br/>assert HACS layout, no release"]
+        RF --> BR
+        MY --> BR
+        PY --> BR
+        PT --> BR
+        HF --> BR
+        HC --> BR
+    end
+    TR --> TRT
+    TRT --> A{"Check pull request workflow status job<br/>test-release succeeded?"}:::gate
+    A -- "yes" --> G(["required check passes<br/>merge unblocked"]):::pub
+    A -- "no" --> R(["required check fails<br/>merge blocked"]):::stop
+    classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef gate fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef pub fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+**Publish (dispatch-only) - `publish-release.yml` -> `build-release-task.yml`.** ONLY a
+`workflow_dispatch` reaches `create-release`. The `gate` job restricts the dispatch ref to `main` or
+`develop`, the validate task gates it, NBGV versions once, and the GitHub release is cut with
+`purpleair.zip` attached (D2, D3, D4).
+
+```mermaid
+flowchart TD
+    WD(["workflow_dispatch"]):::trig --> GT{"gate job<br/>ref in (main, develop)?"}:::gate
+    GT -- "no: feature branch" --> GX(["fail ::error::<br/>test-release + create-release skip"]):::stop
+    GT -- "yes" --> TR
+    TR["test-release job<br/>(test-release-task.yml, build: false)<br/>ruff/mypy/pyright/pytest/hassfest/HACS"] --> CG{"create-release guard<br/>event = workflow_dispatch AND<br/>gate = success AND<br/>test-release = success?"}:::gate
+    CG -- "no" --> CSKIP(["create-release skipped<br/>no publish"]):::stop
+    CG -- "yes" --> BRT
+    subgraph BRT ["build-release-task.yml (github: true)"]
+        GV["get-version job<br/>NBGV @master, runs once<br/>SemVer2 + Tag + Prerelease"] --> BD["build job<br/>stamp manifest, zip at root,<br/>assert HACS layout"]
+        BD --> REL[("GitHub release<br/>tag = SemVer2 at github.sha<br/>prerelease = derived flag<br/>purpleair.zip attached")]:::pub
+    end
+    REL --> CL(["cleanup-artifacts job<br/>always(), best-effort"]):::stop
+    classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef gate fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef pub fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+**Weekly retest tripwire - `publish-release.yml` on `schedule`.** The Monday cron retests the shipped
+`main` against the live HA matrix and NEVER publishes: `gate` is dispatch-gated so it skips, the
+`always()` guard lets `test-release` run anyway, and `create-release` self-skips. A red run flags an
+upstream Home Assistant break for a human to fix and release manually (D4.1, D4.5).
+
+```mermaid
+flowchart TD
+    SCH(["schedule: cron 0 2 * * MON<br/>retest main, never publish"]):::trig --> GTS{"gate job<br/>event = workflow_dispatch?"}:::gate
+    GTS -- "no: schedule" --> GSKIP(["gate skipped"]):::stop
+    GSKIP --> TRS["test-release job<br/>always() AND gate in (success, skipped)<br/>full HA-matrix retest of main"]
+    TRS --> TROK{"suite passed?"}:::gate
+    TROK -- "yes" --> CRS(["create-release self-skips<br/>(event != workflow_dispatch)<br/>NO release"]):::stop
+    TROK -- "no" --> TRIP(["run reds = TRIPWIRE<br/>upstream HA break on main<br/>human fixes + dispatches release"]):::stop
+    classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef gate fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef pub fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+**Automation - Dependabot + HA-version tracker + merge-bot.** Daily the tracker resolves the latest HA
+pins and opens a rolling bundled PR; Dependabot opens its own PRs; the merge-bot enables auto-merge (or
+disables it on a maintainer push). A merged change NEVER publishes here - it ships on the next dispatch
+(D8).
+
+```mermaid
+flowchart TD
+    SCH(["schedule daily 06:00 UTC<br/>(or workflow_dispatch)"]):::trig --> CHK
+    subgraph CHT ["check-ha-version.yml"]
+        CHK["resolve latest stable + beta HA<br/>from pytest-hacc on PyPI"] --> CHC{"matrix changed?"}:::gate
+        CHC -- "no" --> CHN(["no PR"]):::stop
+        CHC -- "yes" --> CPR["open/refresh PR (App token)<br/>ha-version-bump/matrix -> develop"]
+    end
+    DEP(["Dependabot opens PR<br/>main + develop, any ecosystem"]):::trig --> MB
+    CPR --> MB
+    subgraph MBT ["merge-bot-pull-request.yml (pull_request_target, App token)"]
+        MB{"event / author"}:::gate
+        MB -- "opened/reopened<br/>dependabot[bot]" --> ED{"semver-major?"}:::gate
+        ED -- "yes" --> HUM(["human review<br/>not auto-merged"]):::stop
+        ED -- "no" --> EN["enable auto-merge<br/>squash develop / merge main"]
+        MB -- "opened/reopened<br/>ptr727-codegen[bot]<br/>ha-version-bump/* -> develop" --> ENH["enable auto-merge (squash)"]
+        MB -- "synchronize by maintainer" --> DIS["disable auto-merge"]
+    end
+    EN --> CK{"required checks pass?"}:::gate
+    ENH --> CK
+    CK -- "yes" --> MRG(["PR merges (App token, --delete-branch)"]):::pub
+    CK -- "no" --> BLK(["merge blocked<br/>maintainer notified"]):::stop
+    MRG -. "merges NEVER publish here" .-> DSP(["ships on next workflow_dispatch"]):::stop
+    classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef gate fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef pub fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
 ## 4. Behavioral contract - expected outcomes
 
 Each is a **MUST**, stated as input -> output plus the failure it prevents.
