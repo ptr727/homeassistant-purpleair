@@ -192,13 +192,12 @@ jobs:
               )
 
           with open(path, "w") as f:
-              # ensure_ascii=False preserves the em-dash and other non-ASCII
-              # characters in the existing $comment field as their literal
-              # UTF-8 bytes. With the default ensure_ascii=True, json.dump
-              # replaces U+2014 (EM DASH) with a six-character ASCII
-              # escape (backslash, u, 2, 0, 1, 4) in the output file,
-              # producing a noisy diff against the on-disk version every
-              # run.
+              # ensure_ascii=False writes the $comment field (and any other
+              # text) verbatim as UTF-8 bytes. The current $comment is plain
+              # ASCII, but should any non-ASCII character ever be added, the
+              # default ensure_ascii=True would rewrite it as a backslash-u
+              # escape, producing a noisy diff against the on-disk version
+              # every run. This keeps the file byte-for-byte stable.
               json.dump(data, f, indent=2, ensure_ascii=False)
               f.write("\n")
 
