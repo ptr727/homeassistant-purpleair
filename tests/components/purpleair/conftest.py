@@ -1,8 +1,9 @@
 """Define fixtures for PurpleAir tests."""
 
 from collections.abc import Generator
+import importlib
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Final
 from unittest.mock import AsyncMock, Mock, patch
 
 from aiopurpleair.endpoints.sensors import NearbySensorResult
@@ -11,7 +12,10 @@ from aiopurpleair.models.organizations import GetOrganizationResponse
 from aiopurpleair.models.sensors import GetSensorsResponse, SensorModel
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, load_fixture
-from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from pytest_homeassistant_custom_component.syrupy import (
+    HomeAssistantSnapshotExtension,
+    HomeAssistantSnapshotSerializer,
+)
 from syrupy.assertion import SnapshotAssertion
 
 from custom_components.purpleair.const import (
@@ -28,11 +32,54 @@ from homeassistant.core import HomeAssistant
 
 from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 
+# HA 2026.7 replaced several plain-string mapping keys with StrEnum members:
+# entity-registry `capabilities` keys became SensorEntityCapabilityAttribute and
+# State `attributes` keys became EntityStateAttribute. A StrEnum member's repr()
+# is `<EntityStateAttribute.DEVICE_CLASS: 'device_class'>` rather than the old
+# `'device_class'`, so a single shared syrupy snapshot would match only one HA
+# version and fail every other leg of the version matrix (minimum, latest-stable
+# and latest-beta all share one .ambr file). Normalize these *key* enums back to
+# their string value so the serialized snapshot is byte-identical on every HA
+# version; enum *values* (e.g. SensorStateClass.MEASUREMENT) keep their rich
+# repr. Mirrors the extension's own _IntFlagWrapper repr-normalization.
+#
+# Resolved via importlib rather than a static `from ... import <name>`: the
+# enums do not exist before 2026.7, and a static import would trip pyright's
+# reportAttributeAccessIssue when CI type-checks against the older HA pinned in
+# requirements. On older HA getattr returns None for the absent symbols, so the
+# tuple stays empty, the keys are already plain strings, and the serializer is a
+# no-op. Append any future HA key-enum to the list below.
+_STRENUM_KEY_TYPES: list[type[Any]] = []
+for _module_name, _enum_name in (
+    ("homeassistant.components.sensor.const", "SensorEntityCapabilityAttribute"),
+    ("homeassistant.const", "EntityStateAttribute"),
+):
+    _key_enum = getattr(importlib.import_module(_module_name), _enum_name, None)
+    if _key_enum is not None:
+        _STRENUM_KEY_TYPES.append(_key_enum)
+_STRENUM_KEY_TYPES_TUPLE: Final[tuple[type[Any], ...]] = tuple(_STRENUM_KEY_TYPES)
+
+
+class _PurpleAirSnapshotSerializer(HomeAssistantSnapshotSerializer):
+    """Serialize StrEnum mapping keys by their string value across HA versions."""
+
+    @classmethod
+    def _serialize(cls, data: Any, **kwargs: Any) -> str:
+        if isinstance(data, _STRENUM_KEY_TYPES_TUPLE):
+            data = str(data.value)
+        return super()._serialize(data, **kwargs)
+
+
+class _PurpleAirSnapshotExtension(HomeAssistantSnapshotExtension):
+    """HA snapshot extension using the version-agnostic StrEnum mapping-key serializer."""
+
+    serializer_class = _PurpleAirSnapshotSerializer
+
 
 @pytest.fixture
 def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
     """Return snapshot assertion fixture with the Home Assistant extension."""
-    return snapshot.use_extension(HomeAssistantSnapshotExtension)
+    return snapshot.use_extension(_PurpleAirSnapshotExtension)
 
 
 @pytest.fixture(name="get_keys_response")
