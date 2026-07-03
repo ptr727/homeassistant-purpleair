@@ -1,6 +1,7 @@
 """Define fixtures for PurpleAir tests."""
 
 from collections.abc import Generator
+import importlib
 from types import MappingProxyType
 from typing import Any, Final
 from unittest.mock import AsyncMock, Mock, patch
@@ -40,22 +41,22 @@ from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 # and latest-beta all share one .ambr file). Normalize these *key* enums back to
 # their string value so the serialized snapshot is byte-identical on every HA
 # version; enum *values* (e.g. SensorStateClass.MEASUREMENT) keep their rich
-# repr. Mirrors the extension's own _IntFlagWrapper repr-normalization. The
-# imports are guarded and collected into a tuple because the enums do not exist
-# before 2026.7 - append any future HA key-enum here.
+# repr. Mirrors the extension's own _IntFlagWrapper repr-normalization.
+#
+# Resolved via importlib rather than a static `from ... import <name>`: the
+# enums do not exist before 2026.7, and a static import would trip pyright's
+# reportAttributeAccessIssue when CI type-checks against the older HA pinned in
+# requirements. getattr(..., None) yields an empty tuple on older HA, where the
+# keys are already plain strings and the serializer is a no-op. Append any
+# future HA key-enum to the list below.
 _STRENUM_KEY_TYPES: list[type] = []
-try:
-    from homeassistant.components.sensor.const import SensorEntityCapabilityAttribute
-
-    _STRENUM_KEY_TYPES.append(SensorEntityCapabilityAttribute)
-except ImportError:  # HA < 2026.7 keys `capabilities` with plain strings.
-    pass
-try:
-    from homeassistant.const import EntityStateAttribute
-
-    _STRENUM_KEY_TYPES.append(EntityStateAttribute)
-except ImportError:  # HA < 2026.7 keys State `attributes` with plain strings.
-    pass
+for _module_name, _enum_name in (
+    ("homeassistant.components.sensor.const", "SensorEntityCapabilityAttribute"),
+    ("homeassistant.const", "EntityStateAttribute"),
+):
+    _key_enum = getattr(importlib.import_module(_module_name), _enum_name, None)
+    if _key_enum is not None:
+        _STRENUM_KEY_TYPES.append(_key_enum)
 _STRENUM_KEY_TYPES_TUPLE: Final = tuple(_STRENUM_KEY_TYPES)
 
 
