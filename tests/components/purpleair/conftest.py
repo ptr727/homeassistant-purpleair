@@ -34,8 +34,8 @@ from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 
 # HA 2026.7 replaced several plain-string mapping keys with StrEnum members:
 # entity-registry `capabilities` keys became SensorEntityCapabilityAttribute and
-# State `attributes` keys became EntityStateAttribute. A StrEnum reprs as
-# `<EntityStateAttribute.DEVICE_CLASS: 'device_class'>` instead of the old
+# State `attributes` keys became EntityStateAttribute. A StrEnum member's repr()
+# is `<EntityStateAttribute.DEVICE_CLASS: 'device_class'>` rather than the old
 # `'device_class'`, so a single shared syrupy snapshot would match only one HA
 # version and fail every other leg of the version matrix (minimum, latest-stable
 # and latest-beta all share one .ambr file). Normalize these *key* enums back to
@@ -46,9 +46,9 @@ from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 # Resolved via importlib rather than a static `from ... import <name>`: the
 # enums do not exist before 2026.7, and a static import would trip pyright's
 # reportAttributeAccessIssue when CI type-checks against the older HA pinned in
-# requirements. getattr(..., None) yields an empty tuple on older HA, where the
-# keys are already plain strings and the serializer is a no-op. Append any
-# future HA key-enum to the list below.
+# requirements. On older HA getattr returns None for the absent symbols, so the
+# tuple stays empty, the keys are already plain strings, and the serializer is a
+# no-op. Append any future HA key-enum to the list below.
 _STRENUM_KEY_TYPES: list[type[Any]] = []
 for _module_name, _enum_name in (
     ("homeassistant.components.sensor.const", "SensorEntityCapabilityAttribute"),
