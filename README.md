@@ -229,15 +229,15 @@ A separate **PurpleAir API points are exhausted** repair issue fires (severity e
 
 This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes][purpleair-api-link] collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
 
-The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library. [`manifest.json`](custom_components/purpleair/manifest.json) pins the distribution published to PyPI as `aiopurpleair-ptr727==2026.8.0`, maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library. It adds:
+The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library. [`manifest.json`](custom_components/purpleair/manifest.json) pins the distribution published to PyPI as `ptr727-aiopurpleair==2026.8.3`, maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library. It adds:
 
 - 30 exception subclasses covering the documented API error codes, wired into `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc. instead of pattern-matching on `str(err)`.
 - A `GET /v1/organization` endpoint exposed on `API` as `api.organizations`, with a `GetOrganizationResponse` Pydantic model carrying `remaining_points`, `consumption_rate`, `organization_id`, `organization_name`, `api_version`, and `timestamp_utc`.
 - 100 % test coverage for both additions, no breaking changes to the public API.
 
-The library is shipped under a distinct PyPI name (`aiopurpleair-ptr727`) so it doesn't collide with the canonical `aiopurpleair` distribution; the import path stays `aiopurpleair`, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
+The library is shipped under a distinct PyPI name (`ptr727-aiopurpleair`) so it doesn't collide with the canonical `aiopurpleair` distribution; the import path stays `aiopurpleair`, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
 
-These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link], but that pull request was abandoned after the maintainer became unresponsive. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `aiopurpleair-ptr727`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
+These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link], but that pull request was abandoned after the maintainer became unresponsive. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
 
 All error codes and semantics in the fork are verified against the [official PurpleAir API documentation][purpleair-api-link].
 

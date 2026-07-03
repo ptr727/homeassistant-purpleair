@@ -271,7 +271,7 @@ Installation:
 
 - **Issue tracker / PRs**: prefer `gh` CLI - `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount when the host's `gh` token is file-backed; on credential-store hosts (macOS Keychain, Linux libsecret) the contributor chose either to authenticate `gh` once inside the container or to skip container `gh` entirely - see [README.md](README.md#devcontainer-setup) for which.
 - **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 - that's why `minimum` is pinned there).
-- **Shared client library**: the `aiopurpleair` client this integration depends on is maintained at [`ptr727/aiopurpleair`](https://github.com/ptr727/aiopurpleair) (published as `aiopurpleair-ptr727`); client-side changes (new endpoints, error codes) belong there, not in this repo. The upstream [home-assistant/core#140901][ha-core-pr-link] PR has been abandoned and is retained for historical attribution only - don't mirror changes to it.
+- **Shared client library**: the `aiopurpleair` client this integration depends on is maintained at [`ptr727/aiopurpleair`](https://github.com/ptr727/aiopurpleair) (published as `ptr727-aiopurpleair`); client-side changes (new endpoints, error codes) belong there, not in this repo. The upstream [home-assistant/core#140901][ha-core-pr-link] PR has been abandoned and is retained for historical attribution only - don't mirror changes to it.
 
 ## Template Adaptations
 

@@ -61,7 +61,7 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   passed from the build job to the release job). The durable copy lives on the GitHub release.
 - **Shipped version** - NBGV's `SemVer2`, computed from `version.json` (`0.2` floor) plus git height. It is
   stamped into `manifest.json` at build time and used as the release tag. Independent of the integration's
-  own dependency pins (`aiopurpleair-ptr727`) and the HA test-matrix versions.
+  own dependency pins (`ptr727-aiopurpleair`) and the HA test-matrix versions.
 - **GitHub App token** - a short-lived installation token from `actions/create-github-app-token`, minted
   from the App credentials (`CODEGEN_APP_CLIENT_ID` / `CODEGEN_APP_PRIVATE_KEY`). The merge-bot and the
   tracker use it, not `GITHUB_TOKEN`: a `GITHUB_TOKEN` push does not trigger downstream workflows, and that
