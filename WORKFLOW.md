@@ -218,8 +218,8 @@ A pull request exercises its own workflow files. No change waits to reach `main`
 
 ### Self-sufficiency: automatic updates and HA-version tracking
 
-- **Dependabot pull requests merge themselves** once the required checks pass, except a **semver-major**
-  bump (any ecosystem), which waits for human review. Dependabot is **dual-target** (`main` **and**
+- **Dependabot pull requests merge themselves** once the required checks pass - every tier, **semver-major**
+  included: the required checks are the gate, not the version bump. Dependabot is **dual-target** (`main` **and**
   `develop`) so both branches stay current and never drift apart; a `develop` bump is sync-only and never
   publishes (merges do not publish here), and a `main` bump likewise ships only when a maintainer next
   dispatches a release. A merged bump does **not** itself publish.
@@ -346,9 +346,7 @@ flowchart TD
     CPR --> MB
     subgraph MBT ["merge-bot-pull-request.yml (pull_request_target, App token)"]
         MB{"event / author"}:::gate
-        MB -- "opened/reopened<br/>dependabot[bot]" --> ED{"semver-major?"}:::gate
-        ED -- "yes" --> HUM(["human review<br/>not auto-merged"]):::stop
-        ED -- "no" --> EN["enable auto-merge<br/>squash develop / merge main"]
+        MB -- "opened/reopened<br/>dependabot[bot]<br/>every tier, semver-major included" --> EN["enable auto-merge<br/>squash develop / merge main"]
         MB -- "opened/reopened<br/>ptr727-codegen[bot]<br/>ha-version-bump/* -> develop" --> ENH["enable auto-merge (squash)"]
         MB -- "synchronize by maintainer" --> DIS["disable auto-merge"]
     end
@@ -502,11 +500,12 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   on `develop`, merge-commit on `main` by the PR's base ref; disables auto-merge when a maintainer pushes to
   a bot branch (`synchronize`, actor != bot). Concurrency keyed on the PR number. *Prevents two PRs
   colliding in auto-merge; a bot merge that fails to trigger downstream workflows.*
-- **D8.2 Dependabot auto-merges on green, semver-major excepted, dual-target.** Output: every Dependabot PR
-  auto-merges once the required checks pass, except a semver-major bump (human review). Dependabot is
-  configured for **both** `main` and `develop` (drift-avoidance); a merged bump does **not** itself publish
-  (merges never publish here) - a `develop` bump is sync-only, a `main` bump ships on the next dispatch.
-  *Prevents a breaking update merging unverified; a safe update stalled on a human; cross-branch drift.*
+- **D8.2 Dependabot auto-merges on green - every tier, dual-target.** Output: every Dependabot PR
+  auto-merges once the required checks pass, **semver-major included**: the required checks are the gate,
+  not the version bump. Dependabot is configured for **both** `main` and `develop` (drift-avoidance); a
+  merged bump does **not** itself publish (merges never publish here) - a `develop` bump is sync-only, a
+  `main` bump ships on the next dispatch. *Prevents a safe update stalling on a human; cross-branch drift; a
+  regressed bump merging (the required checks still gate every tier).*
 - **D8.3 HA-version tracker.** Output: the tracker runs daily (and on dispatch), resolves the latest stable
   and beta HA from `pytest-homeassistant-custom-component` on PyPI, and opens **one** bundled App-signed
   rolling PR (`ha-version-bump/matrix`) to `develop` rewriting `.github/ha-test-versions.json`; the
@@ -571,8 +570,8 @@ assert the fact behind each applicable guarantee with a `file:line` citation:
   number; CI/tracker use the standard group; reusable jobs declare permissions; the `build` boolean compares
   both forms.
 - **D8/D9:** the merge-bot runs on `pull_request_target` with the App token, keyed on PR number, merges with
-  `--delete-branch`, and carries `merge-ha-version-bump`; Dependabot auto-merge excepts semver-major and is
-  dual-target; the tracker is daily, App-signed, single rolling PR to develop; no codegen, NuGet/Docker
+  `--delete-branch`, and carries `merge-ha-version-bump`; Dependabot auto-merge covers every tier
+  (semver-major included) and is dual-target; the tracker is daily, App-signed, single rolling PR to develop; no codegen, NuGet/Docker
   task, date-badge, or `PUBLISH_ON_MERGE`; actions SHA-pinned except `dotnet/nbgv@master`; names / shells /
   conditionals per section 2.
 
@@ -594,7 +593,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 | S9 | tracker merges an HA-matrix bump to `develop` | `ha-test-versions.json` updated; develop CI retests the new matrix; **no publish** | D8.3 |
 | S10 | PR with a ruff / mypy / pyright / pytest failure | `test-release` reds -> aggregator blocks the merge | D1.2, D1.5 |
 | S11 | `version.json` floor bump merged | merges don't publish -> no immediate release; the new floor ships on the next dispatch | D3.3, D4.1 |
-| S12 | Dependabot semver-major bump | merge-bot skips it (semver-major exception) -> stays open for human review; no merge, no publish | D8.2 |
+| S12 | Dependabot semver-major bump | merge-bot enables auto-merge like any tier -> merges once the required checks pass; no publish | D8.2 |
 | S13 | a branch is **deleted** (push, all-zeros SHA) | the `!github.event.deleted` guard skips both CI jobs -> no failed run, no pending required check | D1.1 |
 | S14 | dispatch against a regressed tip (a failing test) | `test-release` reds -> `create-release` skips (requires `success`) -> no broken release ships | D4.6 |
 
