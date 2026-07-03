@@ -504,8 +504,9 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   auto-merges once the required checks pass, **semver-major included**: the required checks are the gate,
   not the version bump. Dependabot is configured for **both** `main` and `develop` (drift-avoidance); a
   merged bump does **not** itself publish (merges never publish here) - a `develop` bump is sync-only, a
-  `main` bump ships on the next dispatch. *Prevents a safe update stalling on a human; cross-branch drift; a
-  regressed bump merging (the required checks still gate every tier).*
+  `main` bump ships on the next dispatch. *Prevents a safe update stalling on a human, and cross-branch
+  drift; the required checks gate every tier equally, so a bump that breaks a covered path reds CI and stays
+  open instead of merging.*
 - **D8.3 HA-version tracker.** Output: the tracker runs daily (and on dispatch), resolves the latest stable
   and beta HA from `pytest-homeassistant-custom-component` on PyPI, and opens **one** bundled App-signed
   rolling PR (`ha-version-bump/matrix`) to `develop` rewriting `.github/ha-test-versions.json`; the
