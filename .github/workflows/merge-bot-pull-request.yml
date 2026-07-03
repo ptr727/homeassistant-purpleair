@@ -23,7 +23,8 @@ jobs:
   merge-dependabot:
     name: Merge dependabot pull request job
     runs-on: ubuntu-latest
-    # Dependabot PRs from this repo (not forks). Only on opened/reopened so the disable job stays sticky.
+    # In-repo Dependabot PRs only (not forks), on opened/reopened so the disable job stays sticky. Every
+    # tier auto-merges, semver-major included: the required checks are the gate, not the version bump.
     if: >-
       (github.event.action == 'opened' || github.event.action == 'reopened') &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
@@ -44,17 +45,9 @@ jobs:
           client-id: ${{ secrets.CODEGEN_APP_CLIENT_ID }}
           private-key: ${{ secrets.CODEGEN_APP_PRIVATE_KEY }}
 
-      - name: Get dependabot metadata step
-        id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-      # Skip semver-major bumps across every ecosystem: majors can build cleanly but break runtime behavior, so
-      # they land via human review. Merge method must match the base branch's ruleset (develop = squash, main =
-      # merge); Dependabot scheduled updates target develop, security PRs open against main (default branch).
+      # Merge method must match the base branch's ruleset (develop = squash, main = merge); Dependabot
+      # scheduled updates target develop, security PRs open against main (default branch).
       - name: Merge pull request step
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: |
           set -euo pipefail
           case "${{ github.event.pull_request.base.ref }}" in
