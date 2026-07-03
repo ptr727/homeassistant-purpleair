@@ -49,7 +49,7 @@ from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 # requirements. getattr(..., None) yields an empty tuple on older HA, where the
 # keys are already plain strings and the serializer is a no-op. Append any
 # future HA key-enum to the list below.
-_STRENUM_KEY_TYPES: list[type] = []
+_STRENUM_KEY_TYPES: list[type[Any]] = []
 for _module_name, _enum_name in (
     ("homeassistant.components.sensor.const", "SensorEntityCapabilityAttribute"),
     ("homeassistant.const", "EntityStateAttribute"),
@@ -57,7 +57,7 @@ for _module_name, _enum_name in (
     _key_enum = getattr(importlib.import_module(_module_name), _enum_name, None)
     if _key_enum is not None:
         _STRENUM_KEY_TYPES.append(_key_enum)
-_STRENUM_KEY_TYPES_TUPLE: Final = tuple(_STRENUM_KEY_TYPES)
+_STRENUM_KEY_TYPES_TUPLE: Final[tuple[type[Any], ...]] = tuple(_STRENUM_KEY_TYPES)
 
 
 class _PurpleAirSnapshotSerializer(HomeAssistantSnapshotSerializer):
@@ -71,7 +71,7 @@ class _PurpleAirSnapshotSerializer(HomeAssistantSnapshotSerializer):
 
 
 class _PurpleAirSnapshotExtension(HomeAssistantSnapshotExtension):
-    """HA snapshot extension using the version-agnostic capability-key serializer."""
+    """HA snapshot extension using the version-agnostic StrEnum mapping-key serializer."""
 
     serializer_class = _PurpleAirSnapshotSerializer
 
