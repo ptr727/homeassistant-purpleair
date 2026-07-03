@@ -229,7 +229,7 @@ A separate **PurpleAir API points are exhausted** repair issue fires (severity e
 
 This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes][purpleair-api-link] collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
 
-The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library. [`manifest.json`](custom_components/purpleair/manifest.json) pins the distribution published to PyPI as `ptr727-aiopurpleair==2026.8.3`, maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library. It adds:
+The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library. [`manifest.json`](custom_components/purpleair/manifest.json) pins the distribution published to PyPI as `ptr727-aiopurpleair==1.0.0`, maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library. It adds:
 
 - 30 exception subclasses covering the documented API error codes, wired into `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc. instead of pattern-matching on `str(err)`.
 - A `GET /v1/organization` endpoint exposed on `API` as `api.organizations`, with a `GetOrganizationResponse` Pydantic model carrying `remaining_points`, `consumption_rate`, `organization_id`, `organization_name`, `api_version`, and `timestamp_utc`.
