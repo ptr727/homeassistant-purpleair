@@ -13,6 +13,8 @@ A HACS-installable Home Assistant **custom integration** for PurpleAir air-quali
 - **Develop -> main PRs merge-commit** (one merge commit on main per release, develop's tip becomes a second parent and stays in main's ancestry - see [Develop -> Main Promotion](#develop---main-promotion) below for why).
 - Open feature PRs against `develop`. `develop -> main` is how stable releases are cut.
 - The branch rulesets that enforce this (merge methods, required check, signed commits, strict-status off), the repository settings, and the required secret names are codified in [`repo-config/`](repo-config/); `repo-config/configure.sh apply` syncs the live repo and `check` audits it for drift (the 5D audit). Do not restate the ruleset details elsewhere.
+- **Mirror to `develop` any change that lands on `main` outside the feature -> develop -> main flow.** A reconciliation-branch fix made to resolve a `develop -> main` promotion conflict, or a security PR that merges only to `main`, leaves `develop` behind on that content - and forward-only `develop` never back-merges to catch up (the same parallel-target principle as the bots). Before basing new work on `develop`, or diagnosing a defect from it, check `git diff origin/develop origin/main`: a non-empty content diff means develop is stale and the defect may already be fixed on `main`.
+- **Put issue-closing keywords (`Closes #N`) in the `develop -> main` promotion PR, not the feature or develop PR.** GitHub auto-closes an issue only from the PR (or commit) that merges to the default branch (`main`); a `Closes #N` that merges only to `develop` does not fire on promotion and leaves the issue open. Tag the promotion PR's description, or close the issue manually once the fix reaches `main`.
 
 ## Git and Commit Rules
 
