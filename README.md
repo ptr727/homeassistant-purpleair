@@ -237,7 +237,7 @@ The integration's typed error handling, organization coordinator, and low-points
 
 The library is shipped under a distinct PyPI name (`ptr727-aiopurpleair`) so it doesn't collide with the canonical `aiopurpleair` distribution; the import path stays `aiopurpleair`, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
 
-These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link], but that pull request was abandoned after the maintainer became unresponsive. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
+These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link] as [bachya/aiopurpleair#719][bachya-aiopurpleair-pr-link], but that pull request was abandoned after the maintainer became unresponsive and has since been closed. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
 
 All error codes and semantics in the fork are verified against the [official PurpleAir API documentation][purpleair-api-link].
 
@@ -570,6 +570,7 @@ gh auth status
 [aiopurpleair-repo-link]: https://github.com/ptr727/aiopurpleair
 [airnow-aqi-link]: https://www.airnow.gov/aqi/aqi-basics/
 [bachya-aiopurpleair-link]: https://github.com/bachya/aiopurpleair
+[bachya-aiopurpleair-pr-link]: https://github.com/bachya/aiopurpleair/pull/719
 [bachya-link]: https://github.com/bachya
 [buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-pull-request.yml?logo=github&label=Build%20Status
 [commits-link]: https://github.com/ptr727/homeassistant-purpleair/commits/main
