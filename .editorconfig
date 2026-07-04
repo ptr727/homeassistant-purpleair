@@ -1,53 +1,30 @@
 # https://editorconfig.org
 
-# https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names
-# https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions
-# https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/overview
-
-# https://github.com/dotnet/runtime/blob/main/docs/coding-guidelines/coding-style.md
-# https://github.com/dotnet/runtime/blob/main/.editorconfig
-
-# https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-format
-# dotnet format style --verify-no-changes --severity=info --verbosity=detailed
-
 # Root config
 root = true
 
-# Defaults
+# Defaults - CRLF by default so files are correct on both Windows and Linux (LF-only
+# confuses Windows tooling); only execution-sensitive scripts are pinned to LF below.
 [*]
 charset = utf-8
+end_of_line = crlf
 indent_size = 4
 indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-# Markdown files
+# Markdown files - trailing whitespace is significant (hard line breaks)
 [*.md]
-end_of_line = crlf
 trim_trailing_whitespace = false
 
-# Xml files
-[*.{xml,csproj,props,targets}]
-end_of_line = crlf
-indent_size = 2
-
-# Yaml files
+# YAML files
 [*.{yml,yaml}]
-end_of_line = crlf
 indent_size = 2
 
-# JSON and JSONC files
-[*.{json,jsonc}]
-end_of_line = crlf
-
-# Linux scripts
+# Shell scripts must stay LF - a CRLF shebang breaks execution on Linux. Covers
+# both *.sh and the extensionless executables in scripts/ (develop, fix, lint, setup).
 [*.sh]
 end_of_line = lf
 
-# Dockerfiles - CRLF breaks RUN heredocs and line continuations
-[{Dockerfile,*.Dockerfile}]
+[scripts/*]
 end_of_line = lf
-
-# Windows scripts
-[*.{cmd,bat,ps1}]
-end_of_line = crlf
