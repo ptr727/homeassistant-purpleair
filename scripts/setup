@@ -49,7 +49,7 @@ if command -v npm >/dev/null 2>&1; then
         echo "Installed: ${installed_markdownlint}"
     fi
 else
-    echo "npm not available; skipping markdownlint-cli2 install (IDE-only tool)." >&2
+    echo "npm not available; skipping markdownlint-cli2 install. It is a CI-gated check - run it via its Docker image or in the devcontainer." >&2
 fi
 
 # --- aiopurpleair checkout ------------------------------------------------
