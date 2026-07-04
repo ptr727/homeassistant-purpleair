@@ -237,13 +237,13 @@ The integration's typed error handling, organization coordinator, and low-points
 
 The library is shipped under a distinct PyPI name (`ptr727-aiopurpleair`) so it doesn't collide with the canonical `aiopurpleair` distribution; the import path stays `aiopurpleair`, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
 
-These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link] as [bachya/aiopurpleair#719][bachya-aiopurpleair-pr-link], but that pull request was abandoned after the maintainer became unresponsive and has since been closed. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
+These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link] as [bachya/aiopurpleair#719][bachya-aiopurpleair-pr-link], but that pull request was abandoned. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
 
 All error codes and semantics in the fork are verified against the [official PurpleAir API documentation][purpleair-api-link].
 
 ### Upstream Home Assistant PR
 
-An earlier version of this integration was submitted for inclusion in Home Assistant core as [home-assistant/core#140901][ha-core-pr-link] (with accompanying docs at [home-assistant/home-assistant.io#38063][ha-docs-pr-link]). That PR sat pending review and has since been abandoned.
+An earlier version of this integration was submitted for inclusion in Home Assistant core as [home-assistant/core#140901][ha-core-pr-link] (with accompanying docs at [home-assistant/home-assistant.io#38063][ha-docs-pr-link]). That PR has since been abandoned.
 
 This version has continued to move forward and now **supersedes** the PR in functionality.
 
