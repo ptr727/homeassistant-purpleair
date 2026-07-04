@@ -7,7 +7,6 @@ A Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality 
 ### Build Status
 
 [![Build Status][buildstatus-shield]][actions-link]\
-[![Last Build][lastbuild-shield]][actions-link]\
 [![Last Commit][lastcommit-shield]][commits-link]\
 [![Coverage][coverage-shield]][coverage-link]\
 [![HACS Custom][hacs-shield]][hacs-link]\
@@ -325,7 +324,6 @@ Licensed under the [Apache 2.0 License][license-link] and [NOTICE](./NOTICE)\
 [haversion-link]: https://www.home-assistant.io/blog/categories/release-notes/
 [haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.4.0%2B-41BDF5?logo=homeassistant
 [issues-link]: https://github.com/ptr727/homeassistant-purpleair/issues
-[lastbuild-shield]: https://byob.yarr.is/ptr727/homeassistant-purpleair/lastbuild
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
 [license-link]: ./LICENSE
 [license-shield]: https://img.shields.io/github/license/ptr727/homeassistant-purpleair?label=License
