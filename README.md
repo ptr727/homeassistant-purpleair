@@ -327,7 +327,7 @@ uv sync --all-groups
 uv run pytest
 ```
 
-`scripts/setup` for this integration installs only its own test requirements; it does not bootstrap the `aiopurpleair/` workspace folder.
+`scripts/setup` clones the `aiopurpleair/` folder (from [`ptr727/aiopurpleair`][aiopurpleair-repo-link], gitignored) and pip-installs it **editable** into the integration's dev environment, so local library edits flow into both `scripts/develop` and pytest without round-tripping through PyPI. It does not run the library's own `uv sync` unless you opt in with `RUN_AIOPURPLEAIR_SETUP=1`.
 
 Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/tasks.json) - open **Command Palette -> Tasks: Run Task**, or use the shortcuts below:
 
