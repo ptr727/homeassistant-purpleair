@@ -152,7 +152,7 @@ classifying from `github.ref` on a real-branch-tip checkout, and emits `SemVer2`
 (`build-release-task` calls `get-version-task` once and reads its outputs in both the build and release
 jobs). `main` (the public ref, `publicReleaseRefSpec = ^refs/heads/main$`) builds a clean `X.Y.Z`; every
 other branch a prerelease `X.Y.Z-g<sha>`. *Keeps the stamped `manifest.json` version and the release tag in
-agreement.* NBGV needs only `version.json` (floor `1.0`) and git height, so it works although the repo
+agreement.* NBGV needs only `version.json` (floor `1.0`, `versionHeightOffset -1`) and git height, so it works although the repo
 builds no .NET assembly. The `Prerelease` flag is derived by testing `SemVer2` for any `-` segment (not from
 NBGV's `PrereleaseVersion`, which carries only an explicit `-tag` from `version.json`), so a dispatch from
 the wrong branch stays honest about its prerelease status.
@@ -419,7 +419,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   branch -> `X.Y.Z-g<sha>` (`Prerelease=true`). `publicReleaseRefSpec` is `^refs/heads/main$`; the GitHub
   release `prerelease` boolean is the derived `Prerelease`.
 - **D3.3 Version floor + git height.** Output: `version.json` sets the major.minor floor (`1.0`), NBGV
-  appends the git height as the patch, never bumped on a cadence. The NBGV version is stamped into
+  appends the git height (adjusted by `versionHeightOffset`, currently `-1`) as the patch, never bumped on a cadence. The NBGV version is stamped into
   `manifest.json` and drives the release tag; it is independent of the integration's `requirements` pins and
   the HA test-matrix versions. *(Who raises the floor and when is a human-process rule in `AGENTS.md`.)*
 
