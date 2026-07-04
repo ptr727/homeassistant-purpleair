@@ -5,6 +5,9 @@ root = true
 
 # Defaults - CRLF by default so files are correct on both Windows and Linux (LF-only
 # confuses Windows tooling); only execution-sensitive scripts are pinned to LF below.
+# This is deliberate and paired with `.gitattributes` `* -text`: git stores these
+# endings as-is (no normalization), and existing files were converted once in a
+# dedicated commit - so day-to-day edits do not produce EOL-only churn.
 [*]
 charset = utf-8
 end_of_line = crlf

@@ -2,7 +2,7 @@
 # Install dev requirements for this repo:
 #   1. Python base + test requirements (requirements.txt, requirements-test.txt).
 #   2. Editable checkout of aiopurpleair at ./aiopurpleair (gitignored),
-#      replacing the pinned PyPI install with your local fork for in-container dev.
+#      replacing the pinned PyPI install with your local checkout for in-container dev.
 #   3. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
@@ -28,8 +28,8 @@ python3 -m pip install --requirement requirements-test.txt
 # CLI runs match the davidanson.vscode-markdownlint extension's output.
 # Node.js is supplied by the `ghcr.io/devcontainers/features/node:2`
 # devcontainer feature; if it's missing (e.g. running scripts/setup outside
-# the devcontainer) we just skip — markdown linting is IDE-driven and not
-# part of the CI gate.
+# the devcontainer) we just skip this local install — markdown is also linted
+# in CI (the Docs lint job), so this only mirrors the IDE extension locally.
 MARKDOWNLINT_VERSION=0.22.1
 
 if command -v npm >/dev/null 2>&1; then
@@ -53,17 +53,17 @@ else
 fi
 
 # --- aiopurpleair checkout ------------------------------------------------
-# Local editable install of the aiopurpleair fork inside the repo root (gitignored).
+# Local editable install of the aiopurpleair library inside the repo root (gitignored).
 # Edits to the library flow through to both `scripts/develop` (HA runtime) and
 # pytest without round-tripping through PyPI.
 #
 # Lives inside the repo (not /workspaces/) because /workspaces is root-owned in
 # devcontainers and `vscode` can't create siblings there.
 #
-# The version check below trips loudly if your fork's pyproject.toml version
-# diverges from the manifest.json pin -- otherwise HA's package check would silently
-# reinstall aiopurpleair==<pinned> from PyPI at integration load, overwriting the
-# editable install.
+# The version check below trips loudly if the library checkout's pyproject.toml
+# version diverges from the manifest.json pin -- otherwise HA's package check would
+# silently reinstall ptr727-aiopurpleair==<pinned> from PyPI at integration load,
+# overwriting the editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/aiopurpleair.git
 AIOPURPLEAIR_BRANCH=main
@@ -122,7 +122,7 @@ if "==" in req:
     if Version(installed) != Version(expected):
         raise RuntimeError(
             f"{pkg_name} editable install reports {installed}; manifest.json expects {expected}. "
-            f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
+            f"Sync the library checkout's pyproject.toml version, or update manifest.json + requirements-test.txt."
         )
     print(f"{pkg_name} editable install verified at version {installed}")
 else:
