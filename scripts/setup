@@ -66,7 +66,11 @@ fi
 # overwriting the editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/aiopurpleair.git
-AIOPURPLEAIR_BRANCH=main
+# Track develop, not main: the integration pins the ptr727-aiopurpleair prerelease
+# (see manifest.json / requirements-test.txt), which carries the grouped api.keys
+# endpoints; main (stable) still exposes the flat api.async_check_api_key(). Switch
+# this to main once the integration pins a stable release that includes api.keys.
+AIOPURPLEAIR_BRANCH=develop
 USE_EDITABLE_AIOPURPLEAIR=true
 
 if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then
