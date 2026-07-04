@@ -8,11 +8,11 @@ The repo includes a VS Code devcontainer and helper scripts:
 scripts/setup     # install dev requirements
 scripts/develop   # boot Home Assistant against ./config with this integration loaded
 scripts/fix       # apply ruff auto-fixes (format + check --fix)
-scripts/lint      # verify-only: ruff format --check + ruff check + mypy --strict (mirrors CI)
+scripts/lint      # verify-only: ruff format --check + ruff check + mypy --strict + pyright (mirrors CI)
 pytest            # run the test suite (after pip install -r requirements-test.txt)
 ```
 
-`scripts/lint` is the CI gate - it fails non-zero on any ruff, format, or `mypy --strict` violation so "green locally" matches "green on GitHub". When it fails on an auto-fixable issue, run `scripts/fix` and re-run lint.
+`scripts/lint` is the CI gate - it fails non-zero on any ruff, format, `mypy --strict`, or `pyright` violation so "green locally" matches "green on GitHub". When it fails on an auto-fixable issue, run `scripts/fix` and re-run lint.
 
 If you also run tests in the `aiopurpleair/` workspace folder, use a separate virtual environment for that repo - it is managed with [uv][uv-link] and has its own lock:
 
@@ -31,7 +31,7 @@ Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/t
 | `scripts/setup` | **Setup: Install dev requirements** | Tasks: Run Task |
 | `scripts/develop` | **Develop: Run Home Assistant** | Tasks: Run Task |
 | `scripts/fix` | **Fix: ruff format + check --fix** | Tasks: Run Task |
-| `scripts/lint` | **Lint: ruff + mypy (verify)** | `Ctrl+Shift+B` (default build task) |
+| `scripts/lint` | **Lint: ruff + mypy + pyright (verify)** | `Ctrl+Shift+B` (default build task) |
 | `pytest` | **Test: pytest** | Tasks: Run Test Task (default test) |
 
 Additional useful tasks in the same file:
