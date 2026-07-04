@@ -239,7 +239,7 @@ The library is shipped under a distinct PyPI name (`ptr727-aiopurpleair`) so it 
 
 These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link] as [bachya/aiopurpleair#719][bachya-aiopurpleair-pr-link], but that pull request was abandoned. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
 
-All error codes and semantics in the fork are verified against the [official PurpleAir API documentation][purpleair-api-link].
+All error codes and semantics in the library are verified against the [official PurpleAir API documentation][purpleair-api-link].
 
 ### Upstream Home Assistant PR
 
