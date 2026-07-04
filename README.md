@@ -305,7 +305,7 @@ The Read Key can also be added at sensor-add time for new sensors - see [3. Add 
 This integration is an independent implementation based on the [`home-assistant/core` PurpleAir component][ha-core-components-link].\
 It was created to be maintained independently after the upstream PR [home-assistant/core#140901][ha-core-pr-link] - reducing API token usage and adding support for private sensors - was abandoned.
 
-The original Apache 2.0 copyright is retained alongside the current maintainer's in [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+The original Apache 2.0 copyright is retained alongside that of the current maintainer in [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
 
 ## License
 
