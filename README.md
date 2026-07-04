@@ -32,7 +32,7 @@ A Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality 
 - Enabled-by-default diagnostic entities: Confidence, Channel state, Last seen - these surface the values the availability gate uses, so a sensor marked Unavailable can be diagnosed at a glance from its device card. They cost zero extra API points (already fetched on every refresh).
 - Disabled-by-default diagnostic entities: Channel flags, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
 - Platinum-tier quality-scale compliance.
-- ⚠️ Automatic upgrading from the core v1 schema is a one way operation.
+- ⚠️ Automatic upgrading from the core v1 schema is a one-way operation.
 
 See [Release History](./HISTORY.md) for complete release notes and older versions.
 
@@ -91,7 +91,7 @@ See [Release History](./HISTORY.md) for complete release notes and older version
 
 ## Installation
 
-> ⚠️ **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in one and migrates existing config entries to the new integration. The upgrade is automatic and preserves entity IDs and history, but migration is a one way operation. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
+> ⚠️ **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in one and migrates existing config entries to the new integration. The upgrade is automatic and preserves entity IDs and history, but migration is a one-way operation (there's no supported path back to the built-in integration - it can't read the migrated v2 schema). In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ### Via HACS (Recommended)
 
