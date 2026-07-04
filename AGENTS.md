@@ -63,7 +63,7 @@ Use **US English spelling** in code comments, identifiers, commit messages, PR d
 
 The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) from [version.json](version.json) and git history - nothing in the working tree carries the actual version number.
 
-- [version.json](version.json) holds the base `major.minor` (currently `0.2`) and the `publicReleaseRefSpec` regex matching `^refs/heads/main$`. NBGV adds the commit height as the patch component, and on non-public refs (anything not matching `publicReleaseRefSpec`) appends a `-g{sha}` prerelease segment. So `main` produces clean SemVer like `0.2.5`; `develop` produces prereleases like `0.2.5-g1a2b3c4`.
+- [version.json](version.json) holds the base `major.minor` (currently `1.0`) and the `publicReleaseRefSpec` regex matching `^refs/heads/main$`. NBGV adds the commit height as the patch component, and on non-public refs (anything not matching `publicReleaseRefSpec`) appends a `-g{sha}` prerelease segment. So `main` produces clean SemVer like `1.0.5`; `develop` produces prereleases like `1.0.5-g1a2b3c4`.
 - Bump `version.json`'s base `version` field manually only when cutting a new minor or major series (e.g. `0.1` -> `0.2`). NBGV handles patch (height) automatically.
 - The `version` field in [custom_components/purpleair/manifest.json](custom_components/purpleair/manifest.json) is a `0.0.0` placeholder. Do not edit it. [build-release-task.yml](.github/workflows/build-release-task.yml) overwrites it with the NBGV-computed version on the runner before zipping the released artifact, so the published HACS zip carries the real version while git stays clean.
 - [hacs.json](hacs.json) has no `version` field; HACS reads the integration version from the manifest stamped at build time.
@@ -84,8 +84,8 @@ The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Ner
 
 [publish-release.yml](.github/workflows/publish-release.yml) is **dispatch-only**: merges never publish. HACS is a pull model, so the maintainer ships on demand, not on every merge. It triggers two ways:
 
-- **`workflow_dispatch` on `main`** - manual **stable** release. After merging `develop -> main`, a maintainer runs `gh workflow run publish-release.yml --ref main`. The `gate` job accepts a dispatch only from `main` or `develop`. The `test-release` suite (the same one that gates PR merges) runs first; `create-release` only proceeds on `test-release.result == 'success'`. NBGV computes a clean version like `0.2.6` (no `-g{sha}` because `main` matches `publicReleaseRefSpec`), stamps it into `manifest.json`, builds `purpleair.zip`, and produces a non-prerelease GitHub Release.
-- **`workflow_dispatch` on `develop`** - manual **prerelease**, for when a beta-tester build is wanted. `gh workflow run publish-release.yml --ref develop`. NBGV computes a version like `0.2.5-g1a2b3c4` (develop does not match `publicReleaseRefSpec`), and softprops marks the GitHub Release as a prerelease. Same artifact and same uniqueness guarantee as a stable release, but maintainer-initiated rather than automatic on push.
+- **`workflow_dispatch` on `main`** - manual **stable** release. After merging `develop -> main`, a maintainer runs `gh workflow run publish-release.yml --ref main`. The `gate` job accepts a dispatch only from `main` or `develop`. The `test-release` suite (the same one that gates PR merges) runs first; `create-release` only proceeds on `test-release.result == 'success'`. NBGV computes a clean version like `1.0.6` (no `-g{sha}` because `main` matches `publicReleaseRefSpec`), stamps it into `manifest.json`, builds `purpleair.zip`, and produces a non-prerelease GitHub Release.
+- **`workflow_dispatch` on `develop`** - manual **prerelease**, for when a beta-tester build is wanted. `gh workflow run publish-release.yml --ref develop`. NBGV computes a version like `1.0.5-g1a2b3c4` (develop does not match `publicReleaseRefSpec`), and softprops marks the GitHub Release as a prerelease. Same artifact and same uniqueness guarantee as a stable release, but maintainer-initiated rather than automatic on push.
 
 **Merges never publish.** [publish-release.yml](.github/workflows/publish-release.yml) has no `push` trigger - feature merges, Dependabot bumps, HA-matrix bumps, and `develop -> main` promotions all land without cutting a release. HACS auto-pulls new GitHub Releases, so an automatic release would force-update every user; the maintainer wants both branches *ready* to cut a release on demand, not shipping one on every merge.
 
@@ -190,8 +190,8 @@ If a reviewer argues for relaxing any of these, escalate to the maintainer rathe
 
 **Before committing, the VS Code Problems pane should be quiet for the files you touched.** That means:
 
-- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, `pyright` (basic mode + extra rules; see [pyrightconfig.json](pyrightconfig.json)), hassfest TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
-- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`.
+- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, `pyright` (basic mode + extra rules; see [pyrightconfig.json](pyrightconfig.json)), hassfest TRANSLATIONS/REQUIREMENTS validation (run `scripts/lint`); plus the **Docs lint job** - `markdownlint` (all `*.md`, config in [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)), `cspell` on `README.md` + `HISTORY.md` (word list in [cspell.json](cspell.json)), `actionlint`, and `shellcheck` on `scripts/*`.
+- **IDE-driven**: `pylint` only (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)); it is not part of the CI gate.
 
 **For Python linters**, false positives are common - HA's `dataclass(kw_only=True)` confuses pylint's argument resolution, pytest fixtures look like unused arguments, etc. Prefer to **disable recurring false positives project-wide in the linter's config file** (with a comment explaining why), rather than scattering inline suppressions. Avoid unjustified `# noqa` or `# pylint: disable=...` annotations; if an inline suppression is truly needed, keep it narrow and explain why.
 
@@ -246,7 +246,7 @@ shellcheck scripts/*                                      # silent expected
 
 ## Linters available in the devcontainer
 
-The devcontainer ships these CLIs out of the box. Use them locally before pushing - CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/markdownlint are not yet wired into CI, so local runs are the only gate.
+The devcontainer ships these CLIs out of the box. Use them locally before pushing - CI runs `ruff` + `mypy --strict` + `pyright` + `pytest`, plus a **Docs lint job** that runs `markdownlint`, `cspell` (README + HISTORY), `actionlint`, and `shellcheck`. Only `pylint` is IDE-only.
 
 | Tool                | What it lints                                                                          | Quick command                             |
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
