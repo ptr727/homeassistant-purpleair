@@ -295,9 +295,17 @@ There is no in-place downgrade until the built-in integration adopts schema v2. 
 
 Bug reports and feature requests are welcome on the [issue tracker][issues-link]. For questions, troubleshooting help, or ideas you're not sure are bugs, use [GitHub Discussions][discussions-link].
 
-## Development
+## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow (branching, lint/test commands, PR guidelines) and [AGENTS.md](AGENTS.md) for the deeper contributor/agent reference (release flow, code style, devcontainer notes).
+- **Branching workflow**:
+  - Feature branch -> `develop` via **squash merge**; `develop` -> `main` via **merge commit**. Both methods are pinned in the branch rulesets.
+  - CI runs on every branch push (there is no `pull_request` trigger); a fork PR's pushes don't run the base-repo check, so a maintainer lands the change on an in-repo branch before merge.
+  - Dependabot and the HA-version-bump bot target `develop` and auto-merge once the required check passes.
+  - See [`WORKFLOW.md`](WORKFLOW.md) and [`AGENTS.md`](AGENTS.md) for the full release flow and HA-version-bump process.
+- **Code style**: [ruff](https://docs.astral.sh/ruff/) (config in [.ruff.toml](.ruff.toml)), `mypy --strict`, and `pyright`; see [CODESTYLE.md](CODESTYLE.md). Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
+- **Reporting bugs**: file issues on the [issue tracker][issues-link] with your Home Assistant and integration versions, reproduction steps, and relevant logs or diagnostics.
+
+## Development
 
 The repo includes a VS Code devcontainer and helper scripts:
 
@@ -311,24 +319,15 @@ pytest            # run the test suite (after pip install -r requirements-test.t
 
 `scripts/lint` is the CI gate - it fails non-zero on any ruff, format, or `mypy --strict` violation so "green locally" matches "green on GitHub". When it fails on an auto-fixable issue, run `scripts/fix` and re-run lint.
 
-If you also run tests in the `aiopurpleair/` workspace folder, prefer a separate virtual environment for that repo. This integration targets Python 3.14, while aiopurpleair's Poetry lock may pin older C-extension builds that do not compile on 3.14 in all branches.
-
-Recommended approach:
+If you also run tests in the `aiopurpleair/` workspace folder, use a separate virtual environment for that repo - it is managed with [uv](https://docs.astral.sh/uv/) and has its own lock:
 
 ```sh
 cd aiopurpleair
-python3 -m venv .venv
-. .venv/bin/activate
-./script/setup
+uv sync --all-groups
+uv run pytest
 ```
 
-`scripts/setup` for this integration intentionally does not auto-run `aiopurpleair/script/setup`; it only ensures the minimal missing test dependency (`aresponses`) is installed in the current environment.
-
-If you explicitly want to run the library's own setup from the integration bootstrap, opt in with:
-
-```sh
-RUN_AIOPURPLEAIR_SETUP=1 scripts/setup
-```
+`scripts/setup` for this integration installs only its own test requirements; it does not bootstrap the `aiopurpleair/` workspace folder.
 
 Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/tasks.json) - open **Command Palette -> Tasks: Run Task**, or use the shortcuts below:
 
@@ -343,9 +342,6 @@ Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/t
 Additional useful tasks in the same file:
 
 - **Test: pytest + branch coverage** - run CI-style branch coverage locally.
-- **Setup: aiopurpleair venv** - create `aiopurpleair/.venv` and upgrade `pip`.
-- **Setup: aiopurpleair deps (poetry)** - run `aiopurpleair/script/setup` inside that venv.
-- **Test: aiopurpleair pytest (venv)** - run aiopurpleair tests inside that venv.
 
 ### Devcontainer Setup
 

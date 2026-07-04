@@ -53,7 +53,7 @@ Use **US English spelling** in code comments, identifiers, commit messages, PR d
 
 **Headings** are title case with lowercase short bind words: a, an, the, and, but, or, of, in, on, at, to, by, for, from. Verbs (including *is/are/was*) and other content words are capitalized. Hyphenated compounds capitalize the second part unless it's a short preposition - *Built-in*, *EPA-Corrected*, *24-Hour*. Keep headings short; long qualifiers belong in the first sentence under the heading rather than in the heading itself.
 
-**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized) for shields, external URLs, and any URL referenced more than once - see [README.md](README.md) for the canonical layout. Single-use relative links to local repo files (e.g. `[.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)`) are fine inline; that's the established convention in this file and [CONTRIBUTING.md](CONTRIBUTING.md). Write one logical paragraph per line - line-length isn't enforced (MD013 is disabled in `.markdownlint-cli2.jsonc`) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim; use a trailing `\` for a deliberate hard line break, not trailing whitespace.
+**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized) for shields, external URLs, and any URL referenced more than once - see [README.md](README.md) for the canonical layout. Single-use relative links to local repo files (e.g. `[.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)`) are fine inline; that's the established convention in this file. Write one logical paragraph per line - line-length isn't enforced (MD013 is disabled in `.markdownlint-cli2.jsonc`) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim; use a trailing `\` for a deliberate hard line break, not trailing whitespace.
 
 **Cross-reference scoping**: the fact that an upstream Home Assistant core PR exists (now abandoned) is intentionally confined to the **Upstream Home Assistant PR** section in [README.md](README.md). Don't introduce or re-introduce mentions of it in other sections (Migration, lead block-quote, etc.) - describe the limitation in terms of what would resolve it ("until the built-in integration adopts schema v2") rather than the abandoned PR. The mention is kept only for historical attribution, and scattered references would all need updating.
 
@@ -202,8 +202,7 @@ Verifying locally:
 ```sh
 scripts/lint                                              # CI gate
 pylint custom_components/ tests/                          # 10/10 expected
-markdownlint-cli2 README.md AGENTS.md HISTORY.md \
-    CONTRIBUTING.md                                       # 0 errors expected
+markdownlint-cli2 README.md AGENTS.md HISTORY.md         # 0 errors expected
 actionlint .github/workflows/*.yml                        # silent expected
 shellcheck scripts/*                                      # silent expected
 ```
@@ -253,7 +252,7 @@ The devcontainer ships these CLIs out of the box. Use them locally before pushin
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `actionlint`        | GitHub Actions workflow YAML (also runs shellcheck on `run:` blocks)                   | `actionlint .github/workflows/*.yml`      |
 | `shellcheck`        | Standalone shell scripts (e.g. anything under [scripts/](scripts/))                    | `shellcheck scripts/*`                    |
-| `markdownlint-cli2` | Markdown (`CONTRIBUTING.md`, `README.md`, `AGENTS.md`, etc.) - same engine as VS Code  | `markdownlint-cli2 '**/*.md'`             |
+| `markdownlint-cli2` | Markdown (`README.md`, `AGENTS.md`, `HISTORY.md`, etc.) - same engine as VS Code       | `markdownlint-cli2 '**/*.md'`             |
 | `pylint`            | Python (IDE-driven; not CI-gated)                                                      | `pylint custom_components/ tests/`        |
 | `ruff`              | Python lint + format (CI-required)                                                     | `scripts/fix` (auto-fix) / `scripts/lint` |
 | `mypy --strict`     | Python type checking (CI-required)                                                     | `scripts/lint`                            |
