@@ -91,7 +91,7 @@ See [Release History](./HISTORY.md) for complete release notes and older version
 
 ## Installation
 
-> ⚠️ **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in one and migrates existing config entries to the new integration. The upgrade is automatic and preserves entity IDs and history, but migration is a one way operation. See [Migration][migration-link] below for details. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
+> ⚠️ **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in one and migrates existing config entries to the new integration. The upgrade is automatic and preserves entity IDs and history, but migration is a one way operation. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ### Via HACS (Recommended)
 
@@ -342,7 +342,6 @@ Licensed under the [Apache 2.0 License][license-link] and [NOTICE](./NOTICE)\
 [ha-core-components-link]: https://github.com/home-assistant/core/tree/dev/homeassistant/components/purpleair
 [ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
 [hacs-xyz-link]: https://hacs.xyz/
-[migration-link]: #migration-from-the-built-in-integration
 [purpleair-api-link]: https://api.purpleair.com/
 [purpleair-api-pm25-link]: https://api.purpleair.com/#api-sensors-get-sensor-data
 [purpleair-api-pricing-link]: https://community.purpleair.com/t/api-pricing/4523
