@@ -211,10 +211,10 @@ shellcheck scripts/*                                      # silent expected
 **Run the lint CLIs; don't skip a check or defer it to CI just because a tool isn't installed.** `cspell` and `markdownlint-cli2` are Node tools and `actionlint`/`shellcheck` may be absent outside the devcontainer. When a CLI isn't on `PATH`, run the same tool via its official Docker image (CI runs these through GitHub Actions, but the images run the identical binaries) instead of leaving the check unrun:
 
 ```sh
-docker run --rm -v "$PWD:/workdir" ghcr.io/streetsidesoftware/cspell:latest --no-progress --config cspell.json README.md HISTORY.md
-docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:latest '**/*.md'
-docker run --rm -v "$PWD:/workdir" rhysd/actionlint:latest -color
-docker run --rm -v "$PWD:/workdir" koalaman/shellcheck:latest scripts/*
+docker run --rm -v "$PWD:/workdir" -w /workdir ghcr.io/streetsidesoftware/cspell:latest --no-progress --config cspell.json README.md HISTORY.md
+docker run --rm -v "$PWD:/workdir" -w /workdir davidanson/markdownlint-cli2:latest '**/*.md'
+docker run --rm -v "$PWD:/workdir" -w /workdir rhysd/actionlint:latest -color
+docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest scripts/*
 ```
 
 ## Workflow YAML conventions
