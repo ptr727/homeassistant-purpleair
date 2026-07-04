@@ -6,6 +6,10 @@ Notes for AI coding agents working in this repo. Keep responses concise; prefer 
 
 A HACS-installable Home Assistant **custom integration** for PurpleAir air-quality sensors. Code lives in [custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only, `mypy --strict`, ruff, [platinum quality scale][qs].
 
+## Supported development platforms
+
+Development is supported on **Linux only** - native Linux, WSL2, or the [devcontainer](#devcontainer). Home Assistant Core has POSIX-only dependencies and does not run on Windows natively, so a Windows-native environment cannot boot the integration (`scripts/develop`) and cannot reliably run the HA test harness (`pytest`); Windows contributors use WSL2 or the devcontainer. This is a deliberate scope decision, not an oversight: the `scripts/*` dev loop and the `scripts/lint` gate assume a POSIX shell, and every rule in this guide is written for that environment. There is no "I couldn't run `scripts/lint` because I'm on Windows" exception - a supported dev environment always has bash.
+
 ## Branches and merging
 
 - Pipeline is `feature -> develop -> main`. Both `develop` and `main` are protected; everything lands via PR.

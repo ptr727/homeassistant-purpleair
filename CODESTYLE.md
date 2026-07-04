@@ -56,6 +56,8 @@ Two type checkers run, and **both are gates**. `mypy --strict --follow-imports=s
 
 ### Local Development Loop
 
+Development targets **Linux only** - native Linux, WSL2, or the devcontainer. Home Assistant Core doesn't run on Windows natively, so there is no Windows-native dev path (these `scripts/*` are bash); see [AGENTS.md](AGENTS.md#supported-development-platforms).
+
 The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 
 ```sh
