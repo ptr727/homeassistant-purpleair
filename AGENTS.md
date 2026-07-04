@@ -203,8 +203,18 @@ Verifying locally:
 scripts/lint                                              # CI gate
 pylint custom_components/ tests/                          # 10/10 expected
 markdownlint-cli2 README.md AGENTS.md HISTORY.md         # 0 errors expected
+cspell --config cspell.json README.md HISTORY.md         # 0 issues expected
 actionlint .github/workflows/*.yml                        # silent expected
 shellcheck scripts/*                                      # silent expected
+```
+
+**Run the lint CLIs; don't skip a check or defer it to CI just because a tool isn't installed.** `cspell` and `markdownlint-cli2` are Node tools and `actionlint`/`shellcheck` may be absent outside the devcontainer. When a CLI isn't on `PATH`, run it via the same Docker image CI uses instead of leaving the check unrun:
+
+```sh
+docker run --rm -v "$PWD:/workdir" ghcr.io/streetsidesoftware/cspell:latest --no-progress --config cspell.json README.md HISTORY.md
+docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:latest '**/*.md'
+docker run --rm -v "$PWD:/workdir" rhysd/actionlint:latest -color
+docker run --rm -v "$PWD:/workdir" koalaman/shellcheck:latest scripts/*
 ```
 
 ## Workflow YAML conventions

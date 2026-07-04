@@ -1,8 +1,6 @@
 # PurpleAir Integration for Home Assistant
 
-A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir][purpleair-link] air-quality sensors.
-
-> **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in and migrates existing config entries forward - the upgrade is automatic and preserves entity IDs and history. **The downgrade is not:** if you later remove this custom integration, the built-in cannot read the migrated v2 entries. See [Migration][migration-link] below for details. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
+A Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality sensors.
 
 ## Build and Distribution
 
@@ -11,22 +9,19 @@ A Home Assistant [custom integration][ha-custom-integration-link] for [PurpleAir
 [![Build Status][buildstatus-shield]][actions-link]\
 [![Last Build][lastbuild-shield]][actions-link]\
 [![Last Commit][lastcommit-shield]][commits-link]\
-[![Coverage][coverage-shield]][coverage-link]
+[![Coverage][coverage-shield]][coverage-link]\
+[![HACS Custom][hacs-shield]][hacs-link]\
+[![Quality Scale][qualityscale-shield]][qualityscale-link]\
+[![Home Assistant][haversion-shield]][haversion-link]
 
 ### Releases
 
-[![Release Version][releaseversion-shield]][releases-link]\
-[![Pre-Release Version][prereleaseversion-shield]][releases-link]\
-[![HACS Custom][hacs-shield]][hacs-link]\
-[![Quality Scale][qualityscale-shield]][qualityscale-link]\
-[![Home Assistant][haversion-shield]][haversion-link]\
-[![License][license-shield]][license-link]
+[![GitHub Release][releaseversion-shield]][releases-link]\
+[![GitHub Pre-Release][prereleaseversion-shield]][releases-link]
 
 ### Release Notes
 
-Release highlights - see [Release History](./HISTORY.md) for details.
-
-**Version 0.1**:
+**Version 1.0**:
 
 - Private sensor support via per-sensor read keys (free API points when querying your own sensors).
 - Subentry layout - one subentry per sensor; automatic v1 -> v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.
@@ -39,8 +34,40 @@ Release highlights - see [Release History](./HISTORY.md) for details.
 - Disabled-by-default diagnostic entities: Channel flags, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
 - Platinum-tier quality-scale compliance.
 
-See [GitHub Releases][releases-link] for per-release changes.\
-See [Release History](./HISTORY.md) for historic changes.
+See [Release History](./HISTORY.md) for complete release notes and older versions.
+
+## Table of Contents
+
+- [PurpleAir Integration for Home Assistant](#purpleair-integration-for-home-assistant)
+  - [Build and Distribution](#build-and-distribution)
+    - [Build Status](#build-status)
+    - [Releases](#releases)
+    - [Release Notes](#release-notes)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Installation](#installation)
+    - [Via HACS (Recommended)](#via-hacs-recommended)
+    - [Manual](#manual)
+  - [Configuration](#configuration)
+    - [1. Get a PurpleAir API Key](#1-get-a-purpleair-api-key)
+    - [2. Add the Integration in Home Assistant](#2-add-the-integration-in-home-assistant)
+    - [3. Add Sensors](#3-add-sensors)
+    - [Account-Level Diagnostics](#account-level-diagnostics)
+  - [Sensor Behavior and Calibration](#sensor-behavior-and-calibration)
+    - [PM2.5 Mass Concentration](#pm25-mass-concentration)
+    - [Rolling Averages](#rolling-averages)
+    - [Internal Temperature and Humidity](#internal-temperature-and-humidity)
+    - [EPA-Corrected PM2.5 (`PM2.5 EPA Mass Concentration`)](#epa-corrected-pm25-pm25-epa-mass-concentration)
+    - [US AQI from 24-Hour PM2.5 (`PM2.5 Air Quality Index`)](#us-aqi-from-24-hour-pm25-pm25-air-quality-index)
+    - [Availability Signals](#availability-signals)
+    - [API Points and Field Selection](#api-points-and-field-selection)
+  - [Migration from the Built-in Integration](#migration-from-the-built-in-integration)
+    - [Upgrade: Built-in -\> Custom](#upgrade-built-in---custom)
+    - [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key)
+  - [Questions or Issues](#questions-or-issues)
+  - [Contributing](#contributing)
+  - [Credits](#credits)
+  - [License](#license)
 
 ## Features
 
@@ -63,6 +90,8 @@ See [Release History](./HISTORY.md) for historic changes.
 **Sensor owners can access data for their own sensors free of charge**, see [PurpleAir community: API points for sensor owners][free-points-link]. To run this integration long-term at no cost for your own sensors, use the **Read Key** that was provided via email during sensor registration.
 
 ## Installation
+
+> **Not the built-in PurpleAir integration.** This custom integration shares the `purpleair` domain with the core built-in one. When loaded, Home Assistant's loader picks the custom version over the built-in and migrates existing config entries forward - the upgrade is automatic and preserves entity IDs and history. See [Migration][migration-link] below for details. In the **Add Integration** picker this appears as **"PurpleAir (custom)"** to distinguish it from the built-in **"PurpleAir"**.
 
 ### Via HACS (Recommended)
 
@@ -223,40 +252,14 @@ The integration tracks remaining points and consumption rate via the [Account-Le
 
 A separate **PurpleAir API points are exhausted** repair issue fires (severity error) if the account runs out of points entirely; it clears automatically on the next successful refresh after points are restored.
 
-## Upstream PRs
-
-### Upstream `aiopurpleair` PR
-
-This integration depends on the `aiopurpleair` library. The latest canonical release (`aiopurpleair==2025.08.1`) covers only the sensors endpoints and maps three error codes to exceptions, which means several of the [API's documented error codes][purpleair-api-link] collapse to a generic `PurpleAirError`, and there is no `GET /v1/organization` endpoint for tracking remaining API points.
-
-The integration's typed error handling, organization coordinator, and low-points repair issue all depend on additions that aren't in the canonical library. [`manifest.json`](custom_components/purpleair/manifest.json) pins the distribution published to PyPI as `ptr727-aiopurpleair==1.0.3.dev0` (a prerelease, pinned on `develop` to validate against the library's grouped-endpoint API ahead of its stable release; the pin moves to the stable version before this integration is released), maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library. It adds:
-
-- 30 exception subclasses covering the documented API error codes, wired into `ERROR_CODE_MAP` so callers can `except InvalidDataReadKeyError`, `except PaymentRequiredError`, etc. instead of pattern-matching on `str(err)`.
-- A `GET /v1/organization` endpoint exposed on `API` as `api.organizations`, with a `GetOrganizationResponse` Pydantic model carrying `remaining_points`, `consumption_rate`, `organization_id`, `organization_name`, `api_version`, and `timestamp_utc`.
-- 100 % test coverage for both additions, no breaking changes to the public API.
-
-The library is shipped under a distinct PyPI name (`ptr727-aiopurpleair`) so it doesn't collide with the canonical `aiopurpleair` distribution; the import path stays `aiopurpleair`, so `import aiopurpleair` continues to resolve. Hassfest rejects PEP 508 git-URL requirements ("contains a space"), which is why a published artifact is needed rather than a `git+...@SHA` pin.
-
-These additions were proposed upstream against [bachya/aiopurpleair][bachya-aiopurpleair-link] as [bachya/aiopurpleair#719][bachya-aiopurpleair-pr-link], but that pull request was abandoned. They are now permanently maintained in the independent [`ptr727/aiopurpleair`][aiopurpleair-repo-link] library and published as `ptr727-aiopurpleair`; the [`manifest.json`](custom_components/purpleair/manifest.json) and [`requirements-test.txt`](requirements-test.txt) pins stay on that distribution.
-
-All error codes and semantics in the library are verified against the [official PurpleAir API documentation][purpleair-api-link].
-
-### Upstream Home Assistant PR
-
-An earlier version of this integration was submitted for inclusion in Home Assistant core as [home-assistant/core#140901][ha-core-pr-link] (with accompanying docs at [home-assistant/home-assistant.io#38063][ha-docs-pr-link]). That PR has since been abandoned.
-
-This version has continued to move forward and now **supersedes** the PR in functionality.
-
-The core PR is not kept in lockstep with these changes; the HACS release stream is the maintained path going forward. The #140901 reference is retained for historical attribution (see also [NOTICE](NOTICE)).
-
 ## Migration from the Built-in Integration
 
 ### Upgrade: Built-in -> Custom
 
 1. Install this custom integration via [HACS][hacs-xyz-link] or by copying `custom_components/purpleair/` into your Home Assistant config directory.
-1. Restart Home Assistant. The installation has no effect until HA restarts - integrations are loaded once at startup.
-1. On startup, HA's loader prefers the custom integration over the built-in one (they share the `purpleair` domain). Your existing PurpleAir config entry stays in place in `.storage/core.config_entries` and is migrated to the subentry layout. Entity IDs, devices, and long-term statistics are preserved. **You do not need to remove the built-in integration first - it is part of core, not a separate installation.**
-1. You will see this warning in the log:
+2. Restart Home Assistant. The installation has no effect until HA restarts - integrations are loaded once at startup.
+3. On startup, HA's loader prefers the custom integration over the built-in one (they share the `purpleair` domain). Your existing PurpleAir config entry stays in place in `.storage/core.config_entries` and is migrated to the subentry layout. Entity IDs, devices, and long-term statistics are preserved. **You do not need to remove the built-in integration first - it is part of core, not a separate installation.**
+4. You will see this warning in the log:
 
     ```text
     We found a custom integration purpleair which has not been tested by Home Assistant
@@ -274,26 +277,14 @@ In **Settings -> Devices & Services -> PurpleAir**, click ⋮ next to the sensor
 
 The Read Key can also be added at sensor-add time for new sensors - see [3. Add Sensors](#3-add-sensors).
 
-### Downgrade: Custom -> Built-in
+## Questions or Issues
 
-**Downgrading requires manual work.** This custom integration uses config-entry schema **version 2** (one subentry per sensor). The built-in integration in Home Assistant core is still on schema **version 1**. If you simply delete `custom_components/purpleair/` and restart, the built-in cannot read v2 entries and the integration will fail to set up with `Config entry for purpleair is from a future version`.
-
-Two recovery options:
-
-- **Wait for the built-in integration to support schema v2.** Once the built-in adopts the same subentry layout, it can read existing v2 entries and the downgrade works automatically.
-- **Rebuild the entry manually.** In Home Assistant go to **Settings -> Devices & Services -> PurpleAir -> ... -> Delete**, then remove `custom_components/purpleair/`, restart, and re-add the built-in integration from scratch. Long-term-statistics history tied to the migrated entity IDs is lost.
-
-There is no in-place downgrade until the built-in integration adopts schema v2. Plan accordingly before installing.
-
-## Credits
-
-- **API library:** [aiopurpleair][aiopurpleair-pypi-link], authored by [@bachya][bachya-link].
-- **License:** Apache 2.0 - see [LICENSE](LICENSE) and [NOTICE](NOTICE).
-- **Credits:** Original PurpleAir integration author [@bachya][bachya-link]; subentry redesign reviewed and supported by [@joostlek][joostlek-link].
-
-## Issues and Discussions
-
-Bug reports and feature requests are welcome on the [issue tracker][issues-link]. For questions, troubleshooting help, or ideas you're not sure are bugs, use [GitHub Discussions][discussions-link].
+- **General questions**:
+  - Use the [Discussions][discussions-link] forum for general questions.
+- **Bug reports**:
+  - Ask in the [Discussions][discussions-link] forum if you are not sure if it is a bug.
+  - Check the existing [Issues][issues-link] tracker for known problems.
+  - If the issue is unique and a bug, file it in [Issues][issues-link], and include all pertinent steps to reproduce the issue.
 
 ## Contributing
 
@@ -302,295 +293,57 @@ Bug reports and feature requests are welcome on the [issue tracker][issues-link]
   - CI runs on every branch push (there is no `pull_request` trigger); a fork PR's pushes don't run the base-repo check, so a maintainer lands the change on an in-repo branch before merge.
   - Dependabot and the HA-version-bump bot target `develop` and auto-merge once the required check passes.
   - See [`WORKFLOW.md`](WORKFLOW.md) and [`AGENTS.md`](AGENTS.md) for the full release flow and HA-version-bump process.
-- **Code style**: [ruff](https://docs.astral.sh/ruff/) (config in [.ruff.toml](.ruff.toml)), `mypy --strict`, and `pyright`; see [CODESTYLE.md](CODESTYLE.md). Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
-- **Reporting bugs**: file issues on the [issue tracker][issues-link] with your Home Assistant and integration versions, reproduction steps, and relevant logs or diagnostics.
+- **Code style**:
+  - [ruff][ruff-link] (config in [`.ruff.toml`](.ruff.toml)), `mypy --strict`, and `pyright`; see [`CODESTYLE.md`](CODESTYLE.md) and [`.editorconfig`](.editorconfig). Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
+- **Development**:
+  - See [`DEVELOPMENT.md`](DEVELOPMENT.md) for the devcontainer and local development setup.
+- **Repository setup**:
+  - See [`repo-config/README.md`](repo-config/README.md) for repository configuration details.
 
-## Development
+## Credits
 
-The repo includes a VS Code devcontainer and helper scripts:
+This integration is an independent implementation based on the [`home-assistant/core` PurpleAir component][ha-core-components-link].\
+It was created to be maintained independently after the upstream PR [home-assistant/core#140901][ha-core-pr-link] - reducing API token usage and adding support for private sensors - was abandoned.
 
-```sh
-scripts/setup     # install dev requirements
-scripts/develop   # boot Home Assistant against ./config with this integration loaded
-scripts/fix       # apply ruff auto-fixes (format + check --fix)
-scripts/lint      # verify-only: ruff format --check + ruff check + mypy --strict (mirrors CI)
-pytest            # run the test suite (after pip install -r requirements-test.txt)
-```
+The original Apache 2.0 copyright is retained alongside the current maintainer's in [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
 
-`scripts/lint` is the CI gate - it fails non-zero on any ruff, format, or `mypy --strict` violation so "green locally" matches "green on GitHub". When it fails on an auto-fixable issue, run `scripts/fix` and re-run lint.
+## License
 
-If you also run tests in the `aiopurpleair/` workspace folder, use a separate virtual environment for that repo - it is managed with [uv](https://docs.astral.sh/uv/) and has its own lock:
+Licensed under the [Apache 2.0 License][license-link] and [NOTICE](./NOTICE)\
+[![License][license-shield]][license-link]
 
-```sh
-cd aiopurpleair
-uv sync --all-groups
-uv run pytest
-```
-
-`scripts/setup` clones the `aiopurpleair/` folder (from [`ptr727/aiopurpleair`][aiopurpleair-repo-link], gitignored) and pip-installs it **editable** into the integration's dev environment, so local library edits flow into both `scripts/develop` and pytest without round-tripping through PyPI. It does not run the library's own `uv sync` unless you opt in with `RUN_AIOPURPLEAIR_SETUP=1`.
-
-Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/tasks.json) - open **Command Palette -> Tasks: Run Task**, or use the shortcuts below:
-
-| Script | VS Code task | Shortcut |
-| --- | --- | --- |
-| `scripts/setup` | **Setup: Install dev requirements** | Tasks: Run Task |
-| `scripts/develop` | **Develop: Run Home Assistant** | Tasks: Run Task |
-| `scripts/fix` | **Fix: ruff format + check --fix** | Tasks: Run Task |
-| `scripts/lint` | **Lint: ruff + mypy (verify)** | `Ctrl+Shift+B` (default build task) |
-| `pytest` | **Test: pytest** | Tasks: Run Test Task (default test) |
-
-Additional useful tasks in the same file:
-
-- **Test: pytest + branch coverage** - run CI-style branch coverage locally.
-
-### Devcontainer Setup
-
-The [`.devcontainer.json`](.devcontainer.json) bind-mounts host paths into the container so existing host credentials (the public half of your SSH signing key, plus GitHub CLI auth where the token is file-backed) work inside it without re-setup. The `gh` part is conditional. `gh auth login` always writes the per-host config (username, git protocol, etc.) to `~/.config/gh/hosts.yml`, but it stores the **token** in a credential store by default when one is available - Keychain on macOS, libsecret/Secret Service on Linux desktops - and only writes the token to the file when no store is found or you passed `--insecure-storage`. So on credential-store hosts, `~/.config/gh/hosts.yml` exists but has no `oauth_token` line; the bind-mount therefore carries no token, and container `gh` is unauthenticated until you opt into one of the trade-offs documented below.
-
-| Host path | Mounted at | Purpose |
-| --- | --- | --- |
-| `~/.ssh/id_ed25519.pub` | `/home/vscode/.ssh/id_ed25519.pub` (read-only) | Public half of your SSH commit-signing key |
-| `~/.config/git/allowed_signers` | `/home/vscode/.config/git/allowed_signers` (read-only) | Git config allowed signers |
-| `~/.config/gh` | `/home/vscode/.config/gh` | GitHub CLI config and auth tokens - bind-mounted read-write so `gh auth login` / token refresh inside the container persists back to the host |
-
-**All three paths must exist on the host before you reopen the folder in the devcontainer, otherwise the container build will fail with a bind-mount error.**
-
-If you do not sign commits or use `gh` and don't want to set this up, delete the `"mounts"` block from [`.devcontainer.json`](.devcontainer.json) locally before opening, or simply don't use the devcontainer.
-
-`.devcontainer.json` also runs an `onCreateCommand` that fixes `~/.ssh` ownership inside the container (Docker creates the bind-mount parent dir as `root:root 755`, which prevents writing `known_hosts`). `onCreateCommand` only runs at container *creation*, so contributors with an already-built container who pull a branch that introduces or changes that command must rebuild the container (VS Code typically prompts) or run the equivalent `chown`/`chmod` manually. Fresh-checkout contributors are unaffected.
-
-The host-side setup below covers Linux, WSL, and macOS as a single common set of instructions plus a small per-OS deltas section. WSL hosts have a one-time prerequisite for Docker Desktop integration; enabling systemd is recommended but not strictly required - the Linux/WSL Deltas section documents a `~/.bashrc` fallback for shells where `systemctl --user` isn't available.
-
-#### WSL Host Prep
-
-Apply this configuration if you are running Linux distros from WSL on Windows.
-
-Enable `Use the WSL 2 based engine` in Docker Desktop under Settings / General.\
-Enable `Enable integration with my default WSL distro` and `Enable integration with additional distros` in Docker Desktop under Settings / Resources / WSL integration.
-
-Recommended (but not strictly required - see the Linux/WSL Deltas `~/.bashrc` fallback below if you prefer not to enable systemd): edit `/etc/wsl.conf` and enable `systemd`, run from a WSL distro terminal:
-
-```ini
-[boot]
-systemd = true
-```
-
-Then restart WSL from a Windows PowerShell terminal:
-
-```shell
-wsl --shutdown
-```
-
-#### Host Setup
-
-Run on the host that will run the devcontainer.
-
-```shell
-# Configure git identity
-git config --global user.name "[Your Name]"
-git config --global user.email "[Your Email]"
-
-# Create ~/.ssh/config file
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-touch ~/.ssh/config && chmod 600 ~/.ssh/config
-
-# Generate a SSH signing key pair
-ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
-
-# Create allowed_signers file
-SIGNER_LINE="$(git config --get user.email) namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)"
-mkdir -p ~/.config/git
-touch ~/.config/git/allowed_signers
-grep -qxF "$SIGNER_LINE" ~/.config/git/allowed_signers || echo "$SIGNER_LINE" >> ~/.config/git/allowed_signers
-
-# Use SSH for git signing
-git config --global gpg.format ssh
-git config --global user.signingkey '~/.ssh/id_ed25519.pub'
-git config --global gpg.ssh.allowedSignersFile '~/.config/git/allowed_signers'
-git config --global commit.gpgsign true
-
-# Login to GitHub
-gh auth login
-
-# Register SSH key with GitHub
-gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
-gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) auth"
-gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname) signing" --type signing
-```
-
-Edit `~/.ssh/config` so the agent caches the key on first use:
-
-```ini
-Host *
-    AddKeysToAgent yes
-    IdentityFile ~/.ssh/id_ed25519
-```
-
-##### Linux/WSL Deltas
-
-Enable the user-level `ssh-agent` service so it's available across shells:
-
-```shell
-systemctl --user enable --now ssh-agent.socket
-```
-
-If `systemctl --user` isn't available in your shell (some minimal WSL distros), add this fallback to `~/.bashrc`:
-
-```shell
-# Reuse a shared ssh-agent if systemd's isn't available in this shell
-SSH_AGENT_ENV="$HOME/.ssh/agent.env"
-if [ -z "$SSH_AUTH_SOCK" ]; then
-    if [ -r "$SSH_AGENT_ENV" ]; then
-        . "$SSH_AGENT_ENV" >/dev/null
-    fi
-    if ! ssh-add -l >/dev/null 2>&1; then
-        ssh-agent -s > "$SSH_AGENT_ENV"
-        chmod 600 "$SSH_AGENT_ENV"
-        . "$SSH_AGENT_ENV" >/dev/null
-        ssh-add ~/.ssh/id_ed25519 >/dev/null 2>&1
-    fi
-fi
-```
-
-##### macOS Deltas
-
-macOS uses launchd (not systemd) for `ssh-agent` and integrates SSH with the system Keychain. The `systemctl` line and the `~/.bashrc` agent fallback do not apply, and the SSH steps differ.
-
-Use this `~/.ssh/config` instead of the common one - `UseKeychain yes` caches the passphrase in Keychain:
-
-```ini
-Host *
-    AddKeysToAgent yes
-    UseKeychain yes
-    IdentityFile ~/.ssh/id_ed25519
-```
-
-Load the key into the agent once so the passphrase persists across reboots:
-
-```shell
-ssh-add --apple-use-keychain ~/.ssh/id_ed25519
-```
-
-##### `gh` Credential-Store Hosts
-
-`gh auth login` uses a credential store by default when one is available - Keychain on macOS, libsecret/Secret Service on Linux desktops with the relevant daemon running. `--insecure-storage` is the opt-out that forces file storage. When the credential store is used, the token never lands in `~/.config/gh/hosts.yml`, and the devcontainer bind-mount therefore carries no `oauth_token`. (On Linux servers, WSL distros without a desktop session, and any host where you ran `gh auth login --insecure-storage`, the token IS in `hosts.yml` and container `gh` is pre-authenticated - skip this section.)
-
-If your host's `gh` is in a credential store, container `gh` is unauthenticated until you pick one of these trade-offs:
-
-- **Skip container `gh` entirely.** Run all `gh` invocations from the host (where the token stays in the credential store). Inside the container, `gh` will fail until you authenticate it. Pick this if you want the host's GitHub token to live only in the credential store.
-- **Authenticate `gh` once inside the devcontainer.** No credential store in the container, so `gh auth login` writes the token to `~/.config/gh/hosts.yml` - the bind-mount target - meaning the token now also exists on your host as a plaintext bearer token (mode 600). This is materially weaker than the credential-store entry: anyone or anything with read access to that file gets immediate GitHub auth, with no passphrase or unlock step. Your credential-store token is unchanged, and the host's `gh` will still prefer the credential-store one.
-
-```shell
-# Inside the devcontainer (one-time, only if you chose the second option).
-# Default scopes cover PR/issue work - `gh pr view`, `gh issue view`,
-# `gh api repos/.../pulls/N/comments`, `gh run list`, etc.
-gh auth login
-
-# Optional: only if you also want to manage SSH keys with `gh ssh-key add`
-# from the container, extend the token's scopes (note: `gh auth refresh`,
-# not `gh auth login -s`, which would re-do the whole login flow).
-# Most contributors don't need this; default scopes are fine.
-gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key
-```
-
-#### Verify Host Setup
-
-Open a new terminal and verify configuration:
-
-```shell
-# Test paths
-ls -la ~/.ssh
-ls -la ~/.config/git
-ls -la ~/.config/gh
-
-# Show git config
-git config --list --show-origin
-
-# Test github SSH login
-gh ssh-key list
-ssh -T git@github.com
-
-# SSH socket and key should be available via the agent
-echo $SSH_AUTH_SOCK
-ssh-add -l
-
-# Confirm an ssh-agent process is running (any platform / any setup path)
-ps aux | grep ssh-agent | grep -v grep
-
-# Linux/WSL only, and only if you used the systemd path (skip if you used
-# the ~/.bashrc fallback - that path doesn't register a systemd service):
-systemctl --user status ssh-agent.socket
-```
-
-On credential-store hosts that haven't been authenticated inside the container yet, container `gh` will be unauthenticated - that's expected at this point. The in-container verify section below covers the post-container-auth check.
-
-#### Open in Devcontainer
-
-Connect to the host from VS Code, direct, over SSH, or over WSL, and clone the repo to the local filesystem.\
-Open the directory, and then open the workspace in a devcontainer, **do not clone into a volume** as `${localEnv:HOME}` will not resolve and the container will fail to open.
-
-Open a terminal in VS Code from the devcontainer, and test the configuration:
-
-```shell
-# Test paths
-ls -la ~/.ssh
-ls -la ~/.config/git
-ls -la ~/.config/gh
-
-# Show git config
-git config --list --show-origin
-
-# SSH socket and keys should be available via ssh-agent
-echo $SSH_AUTH_SOCK
-ssh-add -l
-
-# Test GitHub SSH connectivity (does not need `gh`)
-ssh -T git@github.com
-
-# Test gh - only if container `gh` is authenticated. It is when the
-# host stored the token in `~/.config/gh/hosts.yml` (Linux servers,
-# minimal WSL, or any host where you ran `gh auth login
-# --insecure-storage`); it isn't when the host's `gh` is using a
-# credential store (Keychain on macOS, libsecret/Secret Service on
-# Linux desktops - both the default when the store is available)
-# unless you ran `gh auth login` once inside the container. Skip in
-# the unauthenticated case - `gh auth status` will fail by design.
-# `gh auth status` works with default scopes; `gh ssh-key list`
-# requires the `admin:public_key` scope, only granted when you extend
-# the token via `gh auth refresh -h github.com -s admin:public_key,admin:ssh_signing_key`.
-gh auth status
-```
+<!-- Shields links -->
 
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
-[aiopurpleair-pypi-link]: https://pypi.org/project/aiopurpleair/
-[aiopurpleair-repo-link]: https://github.com/ptr727/aiopurpleair
-[airnow-aqi-link]: https://www.airnow.gov/aqi/aqi-basics/
-[bachya-aiopurpleair-link]: https://github.com/bachya/aiopurpleair
-[bachya-aiopurpleair-pr-link]: https://github.com/bachya/aiopurpleair/pull/719
-[bachya-link]: https://github.com/bachya
 [buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-pull-request.yml?logo=github&label=Build%20Status
 [commits-link]: https://github.com/ptr727/homeassistant-purpleair/commits/main
 [coverage-link]: https://app.codecov.io/gh/ptr727/homeassistant-purpleair
 [coverage-shield]: https://img.shields.io/codecov/c/github/ptr727/homeassistant-purpleair?logo=codecov&label=Coverage
 [discussions-link]: https://github.com/ptr727/homeassistant-purpleair/discussions
-[epa-pm25-link]: https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=353088&Lab=CEMM
-[free-points-link]: https://community.purpleair.com/t/api-points-for-sensor-owners/7525
-[ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
-[ha-custom-integration-link]: https://developers.home-assistant.io/docs/creating_integration_file_structure/
-[ha-docs-pr-link]: https://github.com/home-assistant/home-assistant.io/pull/38063
 [hacs-link]: https://github.com/hacs/integration
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
-[hacs-xyz-link]: https://hacs.xyz/
 [haversion-link]: https://www.home-assistant.io/blog/categories/release-notes/
 [haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.4.0%2B-41BDF5?logo=homeassistant
 [issues-link]: https://github.com/ptr727/homeassistant-purpleair/issues
-[joostlek-link]: https://github.com/joostlek
 [lastbuild-shield]: https://byob.yarr.is/ptr727/homeassistant-purpleair/lastbuild
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
 [license-link]: ./LICENSE
 [license-shield]: https://img.shields.io/github/license/ptr727/homeassistant-purpleair?label=License
-[migration-link]: #migration-from-the-built-in-integration
 [prereleaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?include_prereleases&label=GitHub%20Pre-Release&logo=github&color=orange
+[qualityscale-link]: ./custom_components/purpleair/quality_scale.yaml
+[qualityscale-shield]: https://img.shields.io/badge/Quality_Scale-Platinum-9C27B0?logo=homeassistant
+[releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
+[releaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?logo=github&label=GitHub%20Release
+
+<!-- Other links -->
+
+[airnow-aqi-link]: https://www.airnow.gov/aqi/aqi-basics/
+[epa-pm25-link]: https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=353088&Lab=CEMM
+[free-points-link]: https://community.purpleair.com/t/api-points-for-sensor-owners/7525
+[ha-core-components-link]: https://github.com/home-assistant/core/tree/dev/homeassistant/components/purpleair
+[ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
+[hacs-xyz-link]: https://hacs.xyz/
+[migration-link]: #migration-from-the-built-in-integration
 [purpleair-api-link]: https://api.purpleair.com/
 [purpleair-api-pm25-link]: https://api.purpleair.com/#api-sensors-get-sensor-data
 [purpleair-api-pricing-link]: https://community.purpleair.com/t/api-pricing/4523
@@ -598,8 +351,5 @@ gh auth status
 [purpleair-keys-link]: https://develop.purpleair.com/dashboards/keys
 [purpleair-link]: https://www.purpleair.com/
 [purpleair-projects-link]: https://develop.purpleair.com/dashboards/projects
-[qualityscale-link]: ./custom_components/purpleair/quality_scale.yaml
 [qualityscale-rules-link]: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/
-[qualityscale-shield]: https://img.shields.io/badge/Quality_Scale-Platinum-9C27B0?logo=homeassistant
-[releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
-[releaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?logo=github&label=GitHub%20Release
+[ruff-link]: https://docs.astral.sh/ruff/

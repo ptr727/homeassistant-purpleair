@@ -1,10 +1,10 @@
-# PurpleAir for Home Assistant - Release History
+# PurpleAir Integration for Home Assistant
 
-Curated highlights of what's shipped. The canonical per-version release ledger (with auto-generated PR/commit detail and downloadable artifacts) is the [GitHub Releases][releases-link] page; this file just summarizes the headline features that landed in each milestone.
+Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality sensors.
 
 ## Release History
 
-- **Version 0.1**:
+- **Version 1.0**:
   - Requires Home Assistant 2026.4.0 or newer.
   - New services use the PurpleAir organization name as their service title (e.g. *Acme Corp* instead of *PurpleAir* / *PurpleAir (1)*) so multi-key installs stay legible at a glance. Falls back to the numbered default when the organization lookup is unavailable.
   - Private sensor support via per-sensor read keys (free API points when querying your own sensors).
@@ -23,4 +23,4 @@ Curated highlights of what's shipped. The canonical per-version release ledger (
   - Clear config-flow errors - WRITE API keys, disabled keys, and wrong per-sensor read keys each surface a targeted error on the right field.
   - Platinum-tier quality-scale compliance.
 
-[releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
+[purpleair-link]: https://www.purpleair.com/
