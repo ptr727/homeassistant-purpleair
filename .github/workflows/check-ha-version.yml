@@ -196,7 +196,11 @@ jobs:
                   {"ha": res_b[1], "pytest-hacc": res_b[0]} if res_b[0] else None
               )
 
-          with open(path, "w") as f:
+          # newline="\r\n" forces CRLF on the Linux runner so the rewrite honors
+          # the repo's CRLF-by-default policy (.editorconfig + `* -text` in
+          # .gitattributes); the default text mode would emit LF and flip the
+          # file's line endings every bump.
+          with open(path, "w", newline="\r\n") as f:
               # ensure_ascii=False writes the $comment field (and any other
               # text) as written, not \u-escaped. The current $comment is plain
               # ASCII, but should any non-ASCII character ever be added, the
