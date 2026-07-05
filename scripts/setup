@@ -24,14 +24,16 @@ cd "$(dirname "$0")/.."
 # install the pinned dependencies into it. requirements*.txt stay the single
 # source of truth - CI installs the same files via pip (the HA-version matrix
 # needs pip), so only the local dev environment uses uv.
-# If uv is not already available, bootstrap a pinned version from PyPI via pip
-# (deterministic, fetched over TLS from the index) rather than piping the "latest"
-# install script into sh. An existing uv on PATH is used as-is - uv is backward
-# compatible, so we do not force-reinstall or downgrade a newer one.
+# If uv is not already available, install a pinned version with Astral's official
+# installer, which fetches a verified release into an isolated ~/.local/bin - not
+# system site-packages (so no PEP 668 externally-managed-environment issues), and
+# pinned (not "latest") for determinism. An existing uv on PATH is used as-is; uv
+# is backward compatible, so we do not force-reinstall or downgrade a newer one.
 UV_VERSION=0.11.17
 if ! command -v uv >/dev/null 2>&1; then
-    echo "Installing uv ${UV_VERSION} via pip"
-    python3 -m pip install "uv==${UV_VERSION}"
+    echo "Installing uv ${UV_VERSION}"
+    curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
+    export PATH="${HOME}/.local/bin:${PATH}"
 fi
 
 uv venv
