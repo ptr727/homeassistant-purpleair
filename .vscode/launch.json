@@ -7,7 +7,7 @@
             "request": "launch",
             "python": "${workspaceFolder}/.venv/bin/python",
             "module": "homeassistant",
-            "args": ["--config", "${workspaceFolder}/config", "--debug", "--skip-pip-packages", "ptr727-aiopurpleair"],
+            "args": ["--config", "${workspaceFolder}/config", "--debug", "--skip-pip"],
             "env": { "PYTHONPATH": "${workspaceFolder}/custom_components:${env:PYTHONPATH}" },
             "console": "integratedTerminal",
             "justMyCode": false,

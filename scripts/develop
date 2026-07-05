@@ -25,7 +25,11 @@ scripts/init-config
 export PYTHONPATH="${PYTHONPATH:-}:${PWD}/custom_components"
 
 # Start Home Assistant.
-# --skip-pip-packages ptr727-aiopurpleair preserves the editable install from
-# scripts/setup; otherwise HA's package check would reinstall the pinned
-# ptr727-aiopurpleair==<version> from PyPI on every launch, clobbering ./aiopurpleair.
-hass --config "${PWD}/config" --debug --skip-pip-packages ptr727-aiopurpleair
+# --skip-pip disables HA's runtime pip installs entirely. This preserves the
+# editable ptr727-aiopurpleair install from scripts/setup (HA would otherwise
+# reinstall the pinned version from PyPI, clobbering ./aiopurpleair), and stops
+# HA from shelling out to pip for base-platform deps at launch -- those pip
+# child processes make the VS Code debugger report "Server[N] disconnected".
+# The frontend and the library are pre-installed by scripts/setup, so nothing
+# the PurpleAir dev loop needs is missing.
+hass --config "${PWD}/config" --debug --skip-pip
