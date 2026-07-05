@@ -2,7 +2,7 @@
 
 ## Development
 
-Development runs inside the VS Code **devcontainer** (or a Linux/WSL2 host - Home Assistant Core doesn't run on Windows natively). Open the repo in the devcontainer; `scripts/setup` runs automatically and installs everything into a uv-managed `.venv`.
+Development runs inside the VS Code **devcontainer** (or a Linux/WSL2 host - Home Assistant Core doesn't run on Windows natively). Open the repo in the devcontainer; `scripts/setup` runs automatically on container creation and installs everything into a uv-managed `.venv`.
 
 ### Dev loop
 

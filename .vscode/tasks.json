@@ -26,7 +26,7 @@
             "label": "HA: ensure config",
             "type": "shell",
             "command": "bash",
-            "args": ["-c", "source .venv/bin/activate && mkdir -p config && hass --config config --script ensure_config"],
+            "args": ["-c", "source .venv/bin/activate && { [ -d config ] || { mkdir -p config && hass --config config --script ensure_config; }; }"],
             "problemMatcher": [],
             "presentation": {
                 "reveal": "silent",
