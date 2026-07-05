@@ -34,8 +34,13 @@ if ! command -v uv >/dev/null 2>&1; then
     exit 1
 fi
 
-# Pin the interpreter to the supported Python (uv fetches it if absent).
-uv venv --python 3.14
+# Create the venv only when a usable one isn't already present: the .venv volume
+# mounts an empty dir on first container create, and a rebuilt container may
+# already have a valid venv. --clear keeps it non-interactive (uv otherwise
+# prompts "replace existing venv?", which would hang the postCreate run).
+if [[ ! -x .venv/bin/python ]]; then
+    uv venv --python 3.14 --clear
+fi
 # shellcheck source=/dev/null
 source .venv/bin/activate
 uv pip install --requirement requirements.txt
