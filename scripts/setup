@@ -36,9 +36,13 @@ fi
 
 # Create the venv only when a usable one isn't already present: the .venv volume
 # mounts an empty dir on first container create, and a rebuilt container may
-# already have a valid venv. --clear keeps it non-interactive (uv otherwise
-# prompts "replace existing venv?", which would hang the postCreate run).
-if [[ ! -x .venv/bin/python ]]; then
+# already have a valid venv. Recreate it when absent OR built against a
+# different Python minor -- the named volume persists across rebuilds, so a venv
+# from an older base image would otherwise be reused silently. --clear keeps it
+# non-interactive (uv otherwise prompts "replace existing venv?", which would
+# hang the postCreate run).
+if [[ ! -x .venv/bin/python ]] \
+    || ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info[:2] != (3, 14))' 2>/dev/null; then
     uv venv --python 3.14 --clear
 fi
 # shellcheck source=/dev/null

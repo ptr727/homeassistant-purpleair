@@ -215,10 +215,16 @@ jobs:
               def repin(pin_path, pattern, replacement):
                   with open(pin_path, newline="") as fh:
                       text = fh.read()
-                  new = re.sub(pattern, replacement, text, count=1)
-                  if new != text:
-                      with open(pin_path, "w", newline="") as fh:
-                          fh.write(new)
+                  new, n = re.subn(pattern, replacement, text, count=1)
+                  if n == 0:
+                      # Fail loudly rather than open a PR whose body claims a
+                      # dev-pin bump that never happened (e.g. requirements*.txt
+                      # was reformatted and the pin line no longer matches).
+                      raise SystemExit(
+                          f"repin: no line matching {pattern!r} found in {pin_path}"
+                      )
+                  with open(pin_path, "w", newline="") as fh:
+                      fh.write(new)
 
               repin(
                   "requirements.txt",
