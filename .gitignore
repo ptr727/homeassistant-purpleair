@@ -14,9 +14,9 @@ coverage.json
 .claude
 .codex
 
-# Home Assistant configuration
+# Home Assistant configuration - generated locally by scripts/init-config
+# (minimal, no default_config); never commit a config so the seed always runs.
 config/*
-!config/configuration.yaml
 
 # aiopurpleair editable checkout (cloned by scripts/setup)
 aiopurpleair/

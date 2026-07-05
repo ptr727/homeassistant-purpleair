@@ -145,6 +145,10 @@ jobs:
       # of order, leaving develop with stale stable + null beta until
       # the second merged. Bundling makes the matrix update atomic -
       # either the whole thing lands or nothing does.
+      #
+      # A `latest-stable` bump also repins requirements*.txt (the dev/CI
+      # bootstrap versions) in the same PR, so the devcontainer tracks
+      # latest-stable without a separate manual bump.
 
       - name: Apply matrix changes and build PR metadata step
         id: apply
@@ -158,6 +162,7 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           import os
+          import re
 
           path = ".github/ha-test-versions.json"
           with open(path) as f:
@@ -191,7 +196,11 @@ jobs:
                   {"ha": res_b[1], "pytest-hacc": res_b[0]} if res_b[0] else None
               )
 
-          with open(path, "w") as f:
+          # newline="\r\n" forces CRLF on the Linux runner so the rewrite honors
+          # the repo's CRLF-by-default policy (.editorconfig + `* -text` in
+          # .gitattributes); the default text mode would emit LF and flip the
+          # file's line endings every bump.
+          with open(path, "w", newline="\r\n") as f:
               # ensure_ascii=False writes the $comment field (and any other
               # text) as written, not \u-escaped. The current $comment is plain
               # ASCII, but should any non-ASCII character ever be added, the
@@ -200,6 +209,37 @@ jobs:
               # every run. This keeps the file byte-for-byte stable.
               json.dump(data, f, indent=2, ensure_ascii=False)
               f.write("\n")
+
+          # Keep the dev/CI bootstrap pins in requirements*.txt in lockstep with
+          # the latest-stable slot so the devcontainer (scripts/setup + F5)
+          # develops against the same HA the matrix tracks. Only the stable slot
+          # drives these pins; beta never does. newline="" preserves the repo's
+          # CRLF line endings byte-for-byte.
+          if stable_changed:
+              def repin(pin_path, pattern, replacement):
+                  with open(pin_path, newline="") as fh:
+                      text = fh.read()
+                  new, n = re.subn(pattern, replacement, text, count=1)
+                  if n == 0:
+                      # Fail loudly rather than open a PR whose body claims a
+                      # dev-pin bump that never happened (e.g. requirements*.txt
+                      # was reformatted and the pin line no longer matches).
+                      raise SystemExit(
+                          f"repin: no line matching {pattern!r} found in {pin_path}"
+                      )
+                  with open(pin_path, "w", newline="") as fh:
+                      fh.write(new)
+
+              repin(
+                  "requirements.txt",
+                  r"(?m)^homeassistant==[^\r\n]*",
+                  f"homeassistant=={res_s[1]}",
+              )
+              repin(
+                  "requirements-test.txt",
+                  r"(?m)^pytest-homeassistant-custom-component==[^\r\n]*",
+                  f"pytest-homeassistant-custom-component=={res_s[0]}",
+              )
 
           # Title - single line, summarizes every change.
           parts = []
@@ -224,6 +264,9 @@ jobs:
                   f"- pytest-hacc: `{cur_s[0]}` -> `{res_s[0]}`",
                   f"- HA release notes: https://github.com/home-assistant/core/releases/tag/{res_s[1]}",
                   f"- pytest-hacc release: https://pypi.org/project/pytest-homeassistant-custom-component/{res_s[0]}/",
+                  "- dev/CI pins in `requirements.txt` (homeassistant) and"
+                  " `requirements-test.txt` (pytest-hacc) repinned to match, so the"
+                  " devcontainer develops against `latest-stable`.",
               ]
           if beta_changed:
               body += ["", "### `latest-beta`", ""]
