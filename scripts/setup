@@ -66,10 +66,11 @@ fi
 # overwriting the editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/aiopurpleair.git
-# Track develop, not main: the integration pins the ptr727-aiopurpleair prerelease
-# (see manifest.json / requirements-test.txt), which carries the grouped api.keys
-# endpoints; main (stable) still exposes the flat api.async_check_api_key(). Switch
-# this to main once the integration pins a stable release that includes api.keys.
+# Clone develop: the editable checkout is the latest library source for local
+# development, deliberately ahead of the pinned release in manifest.json /
+# requirements-test.txt. The checkout ships a placeholder _version.py (CI
+# overwrites it at build time), so it reports 0.0.0, not the pin - the version
+# assertion below skips that placeholder case rather than comparing it to the pin.
 AIOPURPLEAIR_BRANCH=develop
 USE_EDITABLE_AIOPURPLEAIR=true
 
@@ -123,12 +124,18 @@ if "==" in req:
     pkg_name, expected = req.split("==", 1)
     pkg_name = pkg_name.strip()
     installed = version(pkg_name)
-    if Version(installed) != Version(expected):
+    if Version(installed) == Version("0.0.0"):
+        # The editable dev checkout ships a placeholder _version.py (CI overwrites
+        # it via NBGV at build time), so it always reports 0.0.0 - never the pin.
+        # The checkout is intentionally the latest source; skip the drift check.
+        print(f"{pkg_name} editable checkout reports placeholder {installed}; skipping version assertion.")
+    elif Version(installed) != Version(expected):
         raise RuntimeError(
             f"{pkg_name} editable install reports {installed}; manifest.json expects {expected}. "
             f"Sync the library checkout's pyproject.toml version, or update manifest.json + requirements-test.txt."
         )
-    print(f"{pkg_name} editable install verified at version {installed}")
+    else:
+        print(f"{pkg_name} editable install verified at version {installed}")
 else:
     pkg_name = req.split("@", 1)[0].strip()
     print(f"{pkg_name} pinned at git ref ({req}); skipping version assertion.")
