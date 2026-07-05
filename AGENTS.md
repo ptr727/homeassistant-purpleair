@@ -256,7 +256,7 @@ docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest script
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) bind-mounts the host SSH signing key's *public half* (`~/.ssh/id_ed25519.pub`), `~/.config/git/allowed_signers`, and `~/.config/gh` so commits inside the container are SSH-signed (signing happens via the forwarded `ssh-agent` socket - the private key never enters the container) and, *when the host's `gh` token is file-backed*, `gh` is pre-authenticated. `gh auth login` uses a credential store by default when one is available - Keychain on macOS, libsecret/Secret Service on Linux desktops - and `--insecure-storage` is the opt-out that forces file storage. On credential-store hosts, `~/.config/gh/hosts.yml` carries no `oauth_token`, so container `gh` is unauthenticated until you opt into one of the trade-offs documented in [README.md](README.md#devcontainer-setup).
+[.devcontainer.json](.devcontainer.json) provisions the toolchain (Python 3.14, uv, Node, linters), runs `scripts/setup`, and forwards port 8123 for the HA web UI. Commits are SSH-signed via the host's forwarded `ssh-agent` (the private key never enters the container) - see [Git and Commit Rules](#git-and-commit-rules) for the signing requirement. `gh` is pre-authenticated only when the host token is file-backed; on credential-store hosts container `gh` may be unauthenticated and its calls fail until you run `gh auth login` inside it. Host prerequisites are in [DEVELOPMENT.md](DEVELOPMENT.md#devcontainer-and-host-prerequisites).
 
 ## Linters available in the devcontainer
 
@@ -271,18 +271,11 @@ The devcontainer ships these CLIs out of the box. Use them locally before pushin
 | `ruff`              | Python lint + format (CI-required)                                                     | `scripts/fix` (auto-fix) / `scripts/lint` |
 | `mypy --strict`     | Python type checking (CI-required)                                                     | `scripts/lint`                            |
 
-Installation:
-
-- `shellcheck`, `ffmpeg`, `libturbojpeg0`, `libpcap-dev` - `apt-packages` feature in [.devcontainer.json](.devcontainer.json).
-- Node.js LTS - `node:2` feature in [.devcontainer.json](.devcontainer.json), needed for `markdownlint-cli2`.
-- `markdownlint-cli2` - pinned `npm install -g` step in [scripts/setup](scripts/setup) (mirrors how `actionlint` and HACS are installed). Pin lives in `MARKDOWNLINT_VERSION` at the top of that block.
-- `actionlint` - SHA256-pinned tarball download in [scripts/setup](scripts/setup).
-- `pylint` is configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml); the disable list is annotated with why each rule is silenced.
-- The matching VS Code extensions (`arahata.linter-actionlint`, `timonwong.shellcheck`, `davidanson.vscode-markdownlint`, `ms-python.python`) are recommended in [the workspace file][workspace-link], so opening a file gets inline diagnostics.
+Installation: all are provisioned by the devcontainer (features + [scripts/setup](scripts/setup)); the matching VS Code extensions are recommended in [the workspace file][workspace-link] for inline diagnostics.
 
 ## Tooling pointers
 
-- **Issue tracker / PRs**: prefer `gh` CLI - `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount when the host's `gh` token is file-backed; on credential-store hosts (macOS Keychain, Linux libsecret) the contributor chose either to authenticate `gh` once inside the container or to skip container `gh` entirely - see [README.md](README.md#devcontainer-setup) for which.
+- **Issue tracker / PRs**: prefer the `gh` CLI - `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` mount when the host token is file-backed; if container `gh` isn't authenticated (credential-store hosts), its calls fail until you run `gh auth login` inside the container.
 - **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 - that's why `minimum` is pinned there).
 - **Shared client library**: the `aiopurpleair` client this integration depends on is maintained at [`ptr727/aiopurpleair`](https://github.com/ptr727/aiopurpleair) (published as `ptr727-aiopurpleair`); client-side changes (new endpoints, error codes) belong there, not in this repo. The upstream [home-assistant/core#140901][ha-core-pr-link] PR has been abandoned and is retained for historical attribution only - don't mirror changes to it.
 
