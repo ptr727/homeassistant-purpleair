@@ -12,11 +12,9 @@ fi
 # shellcheck source=/dev/null
 source .venv/bin/activate
 
-# Create config dir if not present
-if [[ ! -d "${PWD}/config" ]]; then
-    mkdir -p "${PWD}/config"
-    hass --config "${PWD}/config" --script ensure_config
-fi
+# Seed a minimal HA config if none exists (default_config pulls in heavy
+# optional components not needed for integration dev; see scripts/init-config).
+scripts/init-config
 
 # Set the path to custom_components
 ## This lets us have the structure we want <root>/custom_components/purpleair

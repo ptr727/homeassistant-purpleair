@@ -31,6 +31,8 @@ Each script is wired as a VS Code task in [.vscode/tasks.json](.vscode/tasks.jso
 - **Run:** `scripts/develop` (or the **Develop: Run Home Assistant** task) boots HA against `./config` with the integration loaded. Open the forwarded port **8123** for the web UI.
 - **Debug:** press **F5** (**Home Assistant (debug)** in [.vscode/launch.json](.vscode/launch.json)) to run HA under the debugger - breakpoints in `custom_components/purpleair/` hit, `PYTHONPATH` and the editable `ptr727-aiopurpleair` are preserved, and `./config` is created on first run.
 
+On first run HA is seeded with a **minimal config** ([`scripts/init-config`](scripts/init-config)) - `default_config` is intentionally omitted, since its camera/stream/bluetooth/cloud dependencies (`turbojpeg`, `av`, ...) aren't installed in the devcontainer and aren't needed to develop one integration. Once HA is up, add the integration from **Settings -> Devices & Services -> Add Integration -> PurpleAir**.
+
 ## Host prerequisites
 
 [`.devcontainer.json`](.devcontainer.json) provisions Python 3.14, uv, Node, and the linters (via features), runs `scripts/setup`, and forwards port 8123. Commits are **SSH-signed** using your host's `ssh-agent` (VS Code forwards the socket into the container) plus the bind-mounted public signing key and `allowed_signers`; `gh` uses the mounted host config.
