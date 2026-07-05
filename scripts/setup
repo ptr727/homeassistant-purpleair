@@ -20,8 +20,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-python3 -m pip install --requirement requirements.txt
-python3 -m pip install --requirement requirements-test.txt
+# The dev toolchain is uv-managed. Ensure uv is present, create the .venv, and
+# install the pinned dependencies into it. requirements*.txt stay the single
+# source of truth - CI installs the same files via pip (the HA-version matrix
+# needs pip), so only the local dev environment uses uv.
+if ! command -v uv >/dev/null 2>&1; then
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="${HOME}/.local/bin:${PATH}"
+fi
+
+uv venv
+# shellcheck source=/dev/null
+source .venv/bin/activate
+uv pip install --requirement requirements.txt
+uv pip install --requirement requirements-test.txt
 
 # --- markdownlint-cli2 ----------------------------------------------------
 # Pinned npm-installed binary so `markdownlint-cli2 README.md AGENTS.md ...`
@@ -92,7 +105,7 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
     # For this workspace we only need aresponses available for aiopurpleair
     # tests; install it directly if missing.
     if ! python3 -c 'import aresponses' >/dev/null 2>&1; then
-        python3 -m pip install "aresponses>=2.1.6,<4.0.0"
+        uv pip install "aresponses>=2.1.6,<4.0.0"
     fi
 
     # Optional escape hatch for contributors who explicitly want to run the
@@ -108,7 +121,7 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
         fi
     fi
 
-    python3 -m pip install --editable "${AIOPURPLEAIR_DIR}"
+    uv pip install --editable "${AIOPURPLEAIR_DIR}"
 
     python3 <<'PYEOF'
 import json, pathlib

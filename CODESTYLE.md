@@ -40,7 +40,7 @@ These apply repo-wide, in every directory:
 
 *This section is the style guide for the Python code this repo ships.*
 
-This repo ships a **Home Assistant custom integration** (`custom_components/purpleair/`), not an installable package or wheel. There is no `uv`, no `uv.lock`, no build backend, and no `src/` layout - deal in the actual integration tree and the `scripts/*` dev loop described below.
+This repo ships a **Home Assistant custom integration** (`custom_components/purpleair/`), not an installable package or wheel. The dev environment is a `uv`-managed `.venv` (`scripts/setup` runs `uv venv` + `uv pip install` from `requirements*.txt`), but there is no `uv.lock`, no build backend, and no `src/` layout - deal in the actual integration tree and the `scripts/*` dev loop described below.
 
 ### Toolchain
 
@@ -61,7 +61,7 @@ Development targets **Linux only** - native Linux, WSL2, or the devcontainer. Ho
 The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 
 ```sh
-scripts/setup       # pip install requirements.txt + requirements-test.txt (and editable aiopurpleair)
+scripts/setup       # uv venv + uv pip install requirements*.txt (and editable aiopurpleair)
 scripts/fix         # ruff format . && ruff check . --fix   (apply auto-fixes)
 scripts/lint        # verify-only: ruff format --check, ruff check, mypy --strict, pyright
 pytest              # run tests (install requirements-test.txt first)
