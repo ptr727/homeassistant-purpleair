@@ -99,7 +99,23 @@ if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then
         USE_EDITABLE_AIOPURPLEAIR=false
     fi
 else
-    echo "${AIOPURPLEAIR_DIR} already exists, skipping clone."
+    # Verify the existing checkout is the right repo before reusing it. A stale or
+    # wrong clone (e.g. the old aiopurpleair-ptr727 distribution) would shadow the
+    # pinned ptr727-aiopurpleair via the editable install below.
+    existing_remote="$(git -C "${AIOPURPLEAIR_DIR}" remote get-url origin 2>/dev/null || true)"
+    if [[ "${existing_remote}" == *"ptr727/aiopurpleair"* ]]; then
+        echo "Updating existing ${AIOPURPLEAIR_DIR} checkout to ${AIOPURPLEAIR_BRANCH}"
+        if ! (git -C "${AIOPURPLEAIR_DIR}" fetch --quiet origin "${AIOPURPLEAIR_BRANCH}" \
+                && git -C "${AIOPURPLEAIR_DIR}" checkout --quiet "${AIOPURPLEAIR_BRANCH}" \
+                && git -C "${AIOPURPLEAIR_DIR}" merge --quiet --ff-only "origin/${AIOPURPLEAIR_BRANCH}"); then
+            echo "Warning: could not update ${AIOPURPLEAIR_DIR}; using the existing checkout as-is." >&2
+        fi
+    else
+        echo "ERROR: ${AIOPURPLEAIR_DIR} exists but its origin is '${existing_remote:-<none>}', not ptr727/aiopurpleair." >&2
+        echo "       That is a stale/wrong checkout that would shadow the pinned ptr727-aiopurpleair." >&2
+        echo "       Remove it and re-run scripts/setup:  rm -rf ${AIOPURPLEAIR_DIR}" >&2
+        exit 1
+    fi
 fi
 
 if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]; then
