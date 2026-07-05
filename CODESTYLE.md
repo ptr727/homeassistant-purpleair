@@ -64,7 +64,7 @@ The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 scripts/setup       # uv venv + uv pip install requirements*.txt (and editable aiopurpleair)
 scripts/fix         # ruff format . && ruff check . --fix   (apply auto-fixes)
 scripts/lint        # verify-only: ruff format --check, ruff check, mypy --strict, pyright
-pytest              # run tests (install requirements-test.txt first)
+pytest              # run tests (after scripts/setup, in the uv .venv)
 scripts/develop     # launch Home Assistant against ./config with the integration loaded
 ```
 
