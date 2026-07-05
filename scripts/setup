@@ -46,6 +46,24 @@ source .venv/bin/activate
 uv pip install --requirement requirements.txt
 uv pip install --requirement requirements-test.txt
 
+# Pre-install the frontend package HA expects. HA installs it at runtime
+# otherwise, which races the frontend component's setup and drops HA into
+# recovery mode on first launch. Pin to the version HA's own manifest declares.
+frontend_req="$(python - <<'PY'
+import json, pathlib
+try:
+    import homeassistant.components.frontend as f
+    m = json.loads((pathlib.Path(f.__file__).parent / "manifest.json").read_text())
+    print(next((r for r in m.get("requirements", []) if r.startswith("home-assistant-frontend")), ""))
+except Exception:
+    pass
+PY
+)"
+if [[ -n "${frontend_req}" ]]; then
+    echo "Pre-installing ${frontend_req}"
+    uv pip install "${frontend_req}"
+fi
+
 # --- markdownlint-cli2 ----------------------------------------------------
 # Pinned npm-installed binary so `markdownlint-cli2 README.md AGENTS.md ...`
 # CLI runs match the davidanson.vscode-markdownlint extension's output.
