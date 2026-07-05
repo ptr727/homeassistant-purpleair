@@ -2,7 +2,7 @@
 # Install dev requirements for this repo:
 #   1. Python base + test requirements (requirements.txt, requirements-test.txt).
 #   2. Editable checkout of aiopurpleair at ./aiopurpleair (gitignored),
-#      replacing the pinned PyPI install with your local fork for in-container dev.
+#      replacing the pinned PyPI install with your local checkout for in-container dev.
 #   3. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
@@ -28,8 +28,8 @@ python3 -m pip install --requirement requirements-test.txt
 # CLI runs match the davidanson.vscode-markdownlint extension's output.
 # Node.js is supplied by the `ghcr.io/devcontainers/features/node:2`
 # devcontainer feature; if it's missing (e.g. running scripts/setup outside
-# the devcontainer) we just skip — markdown linting is IDE-driven and not
-# part of the CI gate.
+# the devcontainer) we just skip this local install — markdown is also linted
+# in CI (the Docs lint job), so this only mirrors the IDE extension locally.
 MARKDOWNLINT_VERSION=0.22.1
 
 if command -v npm >/dev/null 2>&1; then
@@ -49,24 +49,29 @@ if command -v npm >/dev/null 2>&1; then
         echo "Installed: ${installed_markdownlint}"
     fi
 else
-    echo "npm not available; skipping markdownlint-cli2 install (IDE-only tool)." >&2
+    echo "npm not available; skipping markdownlint-cli2 install. It is a CI-gated check - run it via its Docker image or in the devcontainer." >&2
 fi
 
 # --- aiopurpleair checkout ------------------------------------------------
-# Local editable install of the aiopurpleair fork inside the repo root (gitignored).
+# Local editable install of the aiopurpleair library inside the repo root (gitignored).
 # Edits to the library flow through to both `scripts/develop` (HA runtime) and
 # pytest without round-tripping through PyPI.
 #
 # Lives inside the repo (not /workspaces/) because /workspaces is root-owned in
 # devcontainers and `vscode` can't create siblings there.
 #
-# The version check below trips loudly if your fork's pyproject.toml version
-# diverges from the manifest.json pin -- otherwise HA's package check would silently
-# reinstall aiopurpleair==<pinned> from PyPI at integration load, overwriting the
-# editable install.
+# The version check below trips loudly if the library checkout's pyproject.toml
+# version diverges from the manifest.json pin -- otherwise HA's package check would
+# silently reinstall ptr727-aiopurpleair==<pinned> from PyPI at integration load,
+# overwriting the editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
-AIOPURPLEAIR_REPO=https://github.com/ptr727/bachya-aiopurpleair.git
-AIOPURPLEAIR_BRANCH=feat/organization-endpoint-and-error-codes
+AIOPURPLEAIR_REPO=https://github.com/ptr727/aiopurpleair.git
+# Clone develop: the editable checkout is the latest library source for local
+# development, deliberately ahead of the pinned release in manifest.json /
+# requirements-test.txt. The checkout ships a placeholder _version.py (CI
+# overwrites it at build time), so it reports 0.0.0, not the pin - the version
+# assertion below skips that placeholder case rather than comparing it to the pin.
+AIOPURPLEAIR_BRANCH=develop
 USE_EDITABLE_AIOPURPLEAIR=true
 
 if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then
@@ -80,10 +85,9 @@ else
 fi
 
 if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]; then
-    # Do not auto-run aiopurpleair's Poetry bootstrap in this environment.
-    # Its lock file may target a different Python minor (for example older
-    # frozenlist/multidict builds that fail on 3.14), and this repo's setup
-    # should stay deterministic for Home Assistant development.
+    # Do not auto-run aiopurpleair's own uv bootstrap in this environment; this
+    # repo's setup installs the library editable (below) into the HA dev
+    # environment and should stay deterministic for Home Assistant development.
     #
     # For this workspace we only need aresponses available for aiopurpleair
     # tests; install it directly if missing.
@@ -92,15 +96,15 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
     fi
 
     # Optional escape hatch for contributors who explicitly want to run the
-    # library's own setup flow in its own repo context.
+    # library's own uv setup flow in its own repo context.
     if [[ "${RUN_AIOPURPLEAIR_SETUP:-0}" = "1" ]] || [[ "${RUN_AIOPURPLEAIR_SETUP:-}" =~ ^([Tt]rue|TRUE|yes|YES)$ ]]; then
-        if [[ -x "${AIOPURPLEAIR_DIR}/script/setup" ]]; then
-            echo "RUN_AIOPURPLEAIR_SETUP enabled; running ${AIOPURPLEAIR_DIR}/script/setup"
-            if ! (cd "${AIOPURPLEAIR_DIR}" && ./script/setup); then
-                echo "Warning: aiopurpleair setup failed; continuing with editable install." >&2
+        if command -v uv >/dev/null 2>&1; then
+            echo "RUN_AIOPURPLEAIR_SETUP enabled; running 'uv sync --all-groups' in ${AIOPURPLEAIR_DIR}"
+            if ! (cd "${AIOPURPLEAIR_DIR}" && uv sync --all-groups); then
+                echo "Warning: aiopurpleair uv sync failed; continuing with editable install." >&2
             fi
         else
-            echo "Warning: aiopurpleair setup script not found; skipping optional aiopurpleair setup." >&2
+            echo "Warning: uv not found; skipping optional aiopurpleair setup." >&2
         fi
     fi
 
@@ -111,7 +115,7 @@ import json, pathlib
 from importlib.metadata import version
 from packaging.version import Version
 manifest = json.loads(pathlib.Path("custom_components/purpleair/manifest.json").read_text())
-req = next(r for r in manifest["requirements"] if r.startswith("aiopurpleair"))
+req = next(r for r in manifest["requirements"] if r.startswith("ptr727-aiopurpleair"))
 # Accept either a `==X.Y.Z` PyPI pin or a `@ git+…@SHA` git ref. With a git ref
 # the version assertion is skipped — the SHA is the source of truth and pip's
 # importlib.metadata still reports the version baked into the editable
@@ -120,12 +124,18 @@ if "==" in req:
     pkg_name, expected = req.split("==", 1)
     pkg_name = pkg_name.strip()
     installed = version(pkg_name)
-    if Version(installed) != Version(expected):
+    if Version(installed) == Version("0.0.0"):
+        # The editable dev checkout ships a placeholder _version.py (CI overwrites
+        # it via NBGV at build time), so it always reports 0.0.0 - never the pin.
+        # The checkout is intentionally the latest source; skip the drift check.
+        print(f"{pkg_name} editable checkout reports placeholder {installed}; skipping version assertion.")
+    elif Version(installed) != Version(expected):
         raise RuntimeError(
             f"{pkg_name} editable install reports {installed}; manifest.json expects {expected}. "
-            f"Sync the fork's pyproject.toml version, or update manifest.json + requirements-test.txt."
+            f"Sync the library checkout's pyproject.toml version, or update manifest.json + requirements-test.txt."
         )
-    print(f"{pkg_name} editable install verified at version {installed}")
+    else:
+        print(f"{pkg_name} editable install verified at version {installed}")
 else:
     pkg_name = req.split("@", 1)[0].strip()
     print(f"{pkg_name} pinned at git ref ({req}); skipping version assertion.")

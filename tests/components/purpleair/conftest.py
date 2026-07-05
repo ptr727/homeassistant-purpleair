@@ -148,7 +148,7 @@ def api_fixture(
         return get_sensors_response.model_copy(update={"data": filtered})
 
     return Mock(
-        async_check_api_key=AsyncMock(return_value=get_keys_response),
+        keys=Mock(async_check_api_key=AsyncMock(return_value=get_keys_response)),
         get_map_url=Mock(return_value="http://example.com"),
         sensors=Mock(
             async_get_nearby_sensors=AsyncMock(

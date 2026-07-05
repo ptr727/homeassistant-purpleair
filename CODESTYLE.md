@@ -56,6 +56,8 @@ Two type checkers run, and **both are gates**. `mypy --strict --follow-imports=s
 
 ### Local Development Loop
 
+Development targets **Linux only** - native Linux, WSL2, or the devcontainer. Home Assistant Core doesn't run on Windows natively, so there is no Windows-native dev path (these `scripts/*` are bash); see [AGENTS.md](AGENTS.md#supported-development-platforms).
+
 The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 
 ```sh
@@ -150,7 +152,7 @@ tests/
 
 ### Versioning
 
-The integration's shipped version lives in `custom_components/purpleair/manifest.json`. The checked-in value is the placeholder `"version": "0.0.0"`; at build time NBGV computes the real version from `version.json` (major.minor floor `0.2` plus git height) and **stamps `manifest.json` on the runner only** - no commit, no `_version.py`, no `hatch-vcs`. See [WORKFLOW.md](./WORKFLOW.md) for the full version model. Don't hand-edit the placeholder.
+The integration's shipped version lives in `custom_components/purpleair/manifest.json`. The checked-in value is the placeholder `"version": "0.0.0"`; at build time NBGV computes the real version from `version.json` (major.minor floor `1.0` plus git height, adjusted by `versionHeightOffset`) and **stamps `manifest.json` on the runner only** - no commit, no `_version.py`, no `hatch-vcs`. See [WORKFLOW.md](./WORKFLOW.md) for the full version model. Don't hand-edit the placeholder.
 
 ### Linter Cleanliness
 

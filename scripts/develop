@@ -19,7 +19,7 @@ fi
 export PYTHONPATH="${PYTHONPATH:-}:${PWD}/custom_components"
 
 # Start Home Assistant.
-# --skip-pip-packages aiopurpleair preserves the editable install from
+# --skip-pip-packages ptr727-aiopurpleair preserves the editable install from
 # scripts/setup; otherwise HA's package check would reinstall the pinned
-# aiopurpleair==<version> from PyPI on every launch, clobbering ./aiopurpleair.
-hass --config "${PWD}/config" --debug --skip-pip-packages aiopurpleair
+# ptr727-aiopurpleair==<version> from PyPI on every launch, clobbering ./aiopurpleair.
+hass --config "${PWD}/config" --debug --skip-pip-packages ptr727-aiopurpleair

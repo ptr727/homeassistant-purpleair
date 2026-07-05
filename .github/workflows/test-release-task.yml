@@ -94,6 +94,37 @@ jobs:
         # and enabled rules are configured in pyrightconfig.json.
         run: python3 -m pyright
 
+  # Documentation, workflow, and shell linting - the editor's non-Python checks enforced in CI from the same
+  # shared config (.markdownlint-cli2.jsonc, cspell.json). README.md and HISTORY.md must be markdown- and
+  # spelling-clean; all workflows and shell scripts must lint clean.
+  docs:
+    name: Docs lint job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository step
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Lint markdown step
+        uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # v23.2.0
+        with:
+          globs: "**/*.md"
+
+      # Spell-check the user-facing docs; the word list + exclusions live in cspell.json (shared with the editor).
+      - name: Spell check step
+        uses: streetsidesoftware/cspell-action@de2a73e963e7443969755b648a1008f77033c5b2 # v8.4.0
+        with:
+          files: |
+            README.md
+            HISTORY.md
+          incremental_files_only: false
+
+      - name: Lint workflows step
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+
+      # shellcheck is preinstalled on ubuntu-latest runners; actionlint above covers embedded workflow shell.
+      - name: Lint shell scripts step
+        run: shellcheck scripts/*
+
   read-versions:
     name: Read HA test matrix job
     # The matrix is sourced from .github/ha-test-versions.json so that

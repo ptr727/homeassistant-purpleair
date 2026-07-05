@@ -59,9 +59,10 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   `<config>/custom_components/<domain>/`. The build asserts this layout and fails on a regression.
 - **Transfer artifact** - a workflow artifact handing a file between jobs of one run (here, `purpleair-zip`
   passed from the build job to the release job). The durable copy lives on the GitHub release.
-- **Shipped version** - NBGV's `SemVer2`, computed from `version.json` (`0.2` floor) plus git height. It is
+- **Shipped version** - NBGV's `SemVer2`, computed from `version.json` (`1.0` floor plus a `versionHeightOffset`
+  of `-1`, so the first release of a floor series is `.0`) plus git height. It is
   stamped into `manifest.json` at build time and used as the release tag. Independent of the integration's
-  own dependency pins (`aiopurpleair-ptr727`) and the HA test-matrix versions.
+  own dependency pins (`ptr727-aiopurpleair`) and the HA test-matrix versions.
 - **GitHub App token** - a short-lived installation token from `actions/create-github-app-token`, minted
   from the App credentials (`CODEGEN_APP_CLIENT_ID` / `CODEGEN_APP_PRIVATE_KEY`). The merge-bot and the
   tracker use it, not `GITHUB_TOKEN`: a `GITHUB_TOKEN` push does not trigger downstream workflows, and that
@@ -151,7 +152,7 @@ classifying from `github.ref` on a real-branch-tip checkout, and emits `SemVer2`
 (`build-release-task` calls `get-version-task` once and reads its outputs in both the build and release
 jobs). `main` (the public ref, `publicReleaseRefSpec = ^refs/heads/main$`) builds a clean `X.Y.Z`; every
 other branch a prerelease `X.Y.Z-g<sha>`. *Keeps the stamped `manifest.json` version and the release tag in
-agreement.* NBGV needs only `version.json` (floor `0.2`) and git height, so it works although the repo
+agreement.* NBGV needs only `version.json` (floor `1.0`, `versionHeightOffset -1`) and git height, so it works although the repo
 builds no .NET assembly. The `Prerelease` flag is derived by testing `SemVer2` for any `-` segment (not from
 NBGV's `PrereleaseVersion`, which carries only an explicit `-tag` from `version.json`), so a dispatch from
 the wrong branch stays honest about its prerelease status.
@@ -417,8 +418,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D3.2 `main` = stable, others = prerelease.** Output: `main` -> `X.Y.Z` (`Prerelease=false`), any other
   branch -> `X.Y.Z-g<sha>` (`Prerelease=true`). `publicReleaseRefSpec` is `^refs/heads/main$`; the GitHub
   release `prerelease` boolean is the derived `Prerelease`.
-- **D3.3 Version floor + git height.** Output: `version.json` sets the major.minor floor (`0.2`), NBGV
-  appends the git height as the patch, never bumped on a cadence. The NBGV version is stamped into
+- **D3.3 Version floor + git height.** Output: `version.json` sets the major.minor floor (`1.0`), NBGV
+  appends the git height (adjusted by `versionHeightOffset`, currently `-1`) as the patch, never bumped on a cadence. The NBGV version is stamped into
   `manifest.json` and drives the release tag; it is independent of the integration's `requirements` pins and
   the HA test-matrix versions. *(Who raises the floor and when is a human-process rule in `AGENTS.md`.)*
 
@@ -556,7 +557,7 @@ assert the fact behind each applicable guarantee with a `file:line` citation:
   build; the aggregator `needs: test-release` and blocks on non-success.
 - **D2:** the publisher `gate` asserts the dispatch ref in `main`/`develop`; `Prerelease` is derived from
   `SemVer2`'s `-`.
-- **D3:** `publicReleaseRefSpec` is `^refs/heads/main$`; `version.json` floor is `0.2`; `manifest.json` is
+- **D3:** `publicReleaseRefSpec` is `^refs/heads/main$`; `version.json` floor is `1.0`; `manifest.json` is
   stamped with the threaded `SemVer2`.
 - **D4:** `publish-release` triggers are `workflow_dispatch` + `schedule` only (no `push`, no
   `PUBLISH_ON_MERGE`); `create-release` is gated `github.event_name == 'workflow_dispatch'` and

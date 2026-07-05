@@ -139,6 +139,13 @@ mutation($threadId: ID!) {
 
 Issue-level Copilot comments (those in `issues/<N>/comments`) have no resolution action - GitHub provides no API or UI to resolve them. Reply if the finding warrants it; no resolution step is needed or possible.
 
+**Editing the PR description or title: use the REST API, not `gh pr edit`.** `gh pr edit --body`/`--title` issues a GraphQL mutation that touches the deprecated **Projects (classic)** `projectCards` field and **fails before applying the change** - and it fails *silently* (the change never lands). A stale description (e.g. a dependency version the pins no longer match) is a real, recurring Copilot finding, so verify the edit took. Update via REST instead:
+
+```sh
+gh api -X PATCH repos/ptr727/homeassistant-purpleair/pulls/<N> -F body=@body.md
+gh api -X PATCH repos/ptr727/homeassistant-purpleair/pulls/<N> -f title='...'
+```
+
 Reply-body conventions:
 
 - Accepted bug/style fix: include fixing commit SHA and a one-line summary.
