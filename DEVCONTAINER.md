@@ -1,6 +1,6 @@
 # Devcontainer Development
 
-This integration is developed in the VS Code **devcontainer** - Home Assistant Core doesn't run on Windows natively, so development is Linux / WSL2 / devcontainer only. Open the repo in the devcontainer; `scripts/setup` runs automatically on container creation and installs everything into a uv-managed `.venv`.
+Home Assistant Core doesn't run on Windows natively, so development is **Linux only** - a native Linux/WSL2 host, or the VS Code **devcontainer** this guide covers. Open the repo in the devcontainer; `scripts/setup` runs automatically on container creation and installs everything into a uv-managed `.venv`.
 
 ## Dev loop
 
