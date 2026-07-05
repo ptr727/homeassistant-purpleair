@@ -20,6 +20,9 @@
     },
     "updateRemoteUserUID": true,
     "remoteUser": "vscode",
+    "containerEnv": {
+        "UV_LINK_MODE": "copy"
+    },
     "features": {
         "ghcr.io/devcontainers/features/python:1": {
             "version": "3.14"
