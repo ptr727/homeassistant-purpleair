@@ -24,19 +24,18 @@ cd "$(dirname "$0")/.."
 # install the pinned dependencies into it. requirements*.txt stay the single
 # source of truth - CI installs the same files via pip (the HA-version matrix
 # needs pip), so only the local dev environment uses uv.
-# If uv is not already available, install a pinned version with Astral's official
-# installer, which fetches a verified release into an isolated ~/.local/bin - not
-# system site-packages (so no PEP 668 externally-managed-environment issues), and
-# pinned (not "latest") for determinism. An existing uv on PATH is used as-is; uv
-# is backward compatible, so we do not force-reinstall or downgrade a newer one.
-UV_VERSION=0.11.17
+# uv provisions the dev environment. In the devcontainer it is installed by the
+# ghcr.io/devcontainers-extra/features/uv feature; on a bare host install it once
+# (https://docs.astral.sh/uv/). We require it rather than fetching a remote install
+# script here - no curl|sh, no pip-into-system.
 if ! command -v uv >/dev/null 2>&1; then
-    echo "Installing uv ${UV_VERSION}"
-    curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
-    export PATH="${HOME}/.local/bin:${PATH}"
+    echo "uv not found. In the devcontainer it comes from the uv feature; on a" >&2
+    echo "host, install it (https://docs.astral.sh/uv/) and re-run scripts/setup." >&2
+    exit 1
 fi
 
-uv venv
+# Pin the interpreter to the supported Python (uv fetches it if absent).
+uv venv --python 3.14
 # shellcheck source=/dev/null
 source .venv/bin/activate
 uv pip install --requirement requirements.txt
