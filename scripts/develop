@@ -4,6 +4,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Activate the uv-managed .venv (created by scripts/setup) so `hass` resolves.
+if [[ ! -f .venv/bin/activate ]]; then
+    echo "No .venv found - run scripts/setup first." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source .venv/bin/activate
+
 # Create config dir if not present
 if [[ ! -d "${PWD}/config" ]]; then
     mkdir -p "${PWD}/config"

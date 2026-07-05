@@ -9,7 +9,7 @@ scripts/setup     # install dev requirements
 scripts/develop   # boot Home Assistant against ./config with this integration loaded
 scripts/fix       # apply ruff auto-fixes (format + check --fix)
 scripts/lint      # verify-only: ruff format --check + ruff check + mypy --strict + pyright (mirrors CI)
-pytest            # run the test suite (after pip install -r requirements-test.txt)
+pytest            # run the test suite (after scripts/setup; runs in the uv .venv)
 ```
 
 `scripts/lint` is the CI gate - it fails non-zero on any ruff, format, `mypy --strict`, or `pyright` violation so "green locally" matches "green on GitHub". When it fails on an auto-fixable issue, run `scripts/fix` and re-run lint.
@@ -22,7 +22,7 @@ uv sync --all-groups
 uv run pytest
 ```
 
-`scripts/setup` clones the `aiopurpleair/` folder (from [`ptr727/aiopurpleair`][aiopurpleair-repo-link], gitignored) and pip-installs it **editable** into the integration's dev environment, so local library edits flow into both `scripts/develop` and pytest without round-tripping through PyPI. It does not run the library's own `uv sync` unless you opt in with `RUN_AIOPURPLEAIR_SETUP=1`.
+`scripts/setup` clones the `aiopurpleair/` folder (from [`ptr727/aiopurpleair`][aiopurpleair-repo-link], gitignored) and installs it **editable** (via `uv pip install`) into the integration's dev environment, so local library edits flow into both `scripts/develop` and pytest without round-tripping through PyPI. It does not run the library's own `uv sync` unless you opt in with `RUN_AIOPURPLEAIR_SETUP=1`.
 
 Each script is also wired up as a VS Code task in [.vscode/tasks.json](.vscode/tasks.json) - open **Command Palette -> Tasks: Run Task**, or use the shortcuts below:
 

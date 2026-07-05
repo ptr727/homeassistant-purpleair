@@ -40,13 +40,13 @@ These apply repo-wide, in every directory:
 
 *This section is the style guide for the Python code this repo ships.*
 
-This repo ships a **Home Assistant custom integration** (`custom_components/purpleair/`), not an installable package or wheel. There is no `uv`, no `uv.lock`, no build backend, and no `src/` layout - deal in the actual integration tree and the `scripts/*` dev loop described below.
+This repo ships a **Home Assistant custom integration** (`custom_components/purpleair/`), not an installable package or wheel. The dev environment is a `uv`-managed `.venv` (`scripts/setup` runs `uv venv` + `uv pip install` from `requirements*.txt`), but there is no `uv.lock`, no build backend, and no `src/` layout - deal in the actual integration tree and the `scripts/*` dev loop described below.
 
 ### Toolchain
 
 | Tool | Role | Config |
 |---|---|---|
-| [pip](https://pip.pypa.io/) | dependency install | `requirements.txt`, `requirements-test.txt` |
+| [uv](https://docs.astral.sh/uv/) | dependency install into the dev `.venv` (CI uses pip) | `requirements.txt`, `requirements-test.txt` |
 | [ruff](https://docs.astral.sh/ruff/) | lint + format + import sort | `.ruff.toml` (repo root) |
 | [mypy](https://mypy-lang.org/) | strict type gate | CLI flags in `scripts/lint` (`--strict --follow-imports=silent`) |
 | [pyright](https://microsoft.github.io/pyright/) | type checker | `pyrightconfig.json` |
@@ -61,10 +61,10 @@ Development targets **Linux only** - native Linux, WSL2, or the devcontainer. Ho
 The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 
 ```sh
-scripts/setup       # pip install requirements.txt + requirements-test.txt (and editable aiopurpleair)
+scripts/setup       # uv venv + uv pip install requirements*.txt (and editable aiopurpleair)
 scripts/fix         # ruff format . && ruff check . --fix   (apply auto-fixes)
 scripts/lint        # verify-only: ruff format --check, ruff check, mypy --strict, pyright
-pytest              # run tests (install requirements-test.txt first)
+pytest              # run tests (after scripts/setup, in the uv .venv)
 scripts/develop     # launch Home Assistant against ./config with the integration loaded
 ```
 
