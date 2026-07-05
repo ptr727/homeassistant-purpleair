@@ -6,6 +6,10 @@ Notes for AI coding agents working in this repo. Keep responses concise; prefer 
 
 A HACS-installable Home Assistant **custom integration** for PurpleAir air-quality sensors. Code lives in [custom_components/purpleair/](custom_components/purpleair/). Python 3.14 only, `mypy --strict`, ruff, [platinum quality scale][qs].
 
+## Supported development platforms
+
+Development is supported on **Linux only** - native Linux, WSL2, or the [devcontainer](#devcontainer). Home Assistant Core has POSIX-only dependencies and does not run on Windows natively, so a Windows-native environment cannot boot the integration (`scripts/develop`) and cannot reliably run the HA test harness (`pytest`); Windows contributors use WSL2 or the devcontainer. This is a deliberate scope decision, not an oversight: the `scripts/*` dev loop and the `scripts/lint` gate assume a POSIX shell, and every rule in this guide is written for that environment. There is no "I couldn't run `scripts/lint` because I'm on Windows" exception - a supported dev environment always has bash.
+
 ## Branches and merging
 
 - Pipeline is `feature -> develop -> main`. Both `develop` and `main` are protected; everything lands via PR.
@@ -53,9 +57,9 @@ Use **US English spelling** in code comments, identifiers, commit messages, PR d
 
 **Headings** are title case with lowercase short bind words: a, an, the, and, but, or, of, in, on, at, to, by, for, from. Verbs (including *is/are/was*) and other content words are capitalized. Hyphenated compounds capitalize the second part unless it's a short preposition - *Built-in*, *EPA-Corrected*, *24-Hour*. Keep headings short; long qualifiers belong in the first sentence under the heading rather than in the heading itself.
 
-**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized) for shields, external URLs, and any URL referenced more than once - see [README.md](README.md) for the canonical layout. Single-use relative links to local repo files (e.g. `[.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)`) are fine inline; that's the established convention in this file and [CONTRIBUTING.md](CONTRIBUTING.md). Write one logical paragraph per line - line-length isn't enforced (MD013 is disabled in `.markdownlint-cli2.jsonc`) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim; use a trailing `\` for a deliberate hard line break, not trailing whitespace.
+**Markdown style** uses reference-style links with definitions at the bottom of the file (alphabetized) for shields, external URLs, and any URL referenced more than once - see [README.md](README.md) for the canonical layout. Single-use relative links to local repo files (e.g. `[.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)`) are fine inline; that's the established convention in this file. Write one logical paragraph per line - line-length isn't enforced (MD013 is disabled in `.markdownlint-cli2.jsonc`) and hard-wrapping mid-sentence makes diffs noisier than necessary. Code blocks, tables, and intentional `\` line breaks stay verbatim; use a trailing `\` for a deliberate hard line break, not trailing whitespace.
 
-**Cross-reference scoping**: the fact that an upstream Home Assistant core PR exists is intentionally confined to the **Upstream Home Assistant PR** section in [README.md](README.md). Don't introduce or re-introduce mentions of it in other sections (Migration, lead block-quote, etc.) - describe the limitation in terms of what would resolve it ("until the built-in integration adopts schema v2") rather than the current upstream effort. The maintainer may abandon the PR, and scattered references would all need updating.
+**Cross-reference scoping**: the fact that an upstream Home Assistant core PR exists (now abandoned) is intentionally confined to the **Credits** section in [README.md](README.md). Don't introduce or re-introduce mentions of it in other sections (Migration, lead block-quote, etc.) - describe the limitation in terms of what would resolve it ("until the built-in integration adopts schema v2") rather than the abandoned PR. The mention is kept only for historical attribution, and scattered references would all need updating.
 
 **Quantitative claims** in [README.md](README.md) (percentages, counts, timings) must be verified against current code or a reproducible measurement before being added or carried forward. When a claim depends on a source-side constant (`STATIC_DEVICE_FIELDS`, `UPDATE_INTERVAL`, the default-enabled entity set, etc.), put a one-line marker in the source comment that the README depends on this value, so a future refactor knows to update both.
 
@@ -63,7 +67,7 @@ Use **US English spelling** in code comments, identifiers, commit messages, PR d
 
 The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) from [version.json](version.json) and git history - nothing in the working tree carries the actual version number.
 
-- [version.json](version.json) holds the base `major.minor` (currently `0.2`) and the `publicReleaseRefSpec` regex matching `^refs/heads/main$`. NBGV adds the commit height as the patch component, and on non-public refs (anything not matching `publicReleaseRefSpec`) appends a `-g{sha}` prerelease segment. So `main` produces clean SemVer like `0.2.5`; `develop` produces prereleases like `0.2.5-g1a2b3c4`.
+- [version.json](version.json) holds the base `major.minor` (currently `1.0`) and the `publicReleaseRefSpec` regex matching `^refs/heads/main$`. NBGV adds the commit height, adjusted by `versionHeightOffset` (currently `-1`, so the first release of a floor series is `.0`), as the patch component, and on non-public refs (anything not matching `publicReleaseRefSpec`) appends a `-g{sha}` prerelease segment. So `main` produces clean SemVer like `1.0.5`; `develop` produces prereleases like `1.0.5-g1a2b3c4`.
 - Bump `version.json`'s base `version` field manually only when cutting a new minor or major series (e.g. `0.1` -> `0.2`). NBGV handles patch (height) automatically.
 - The `version` field in [custom_components/purpleair/manifest.json](custom_components/purpleair/manifest.json) is a `0.0.0` placeholder. Do not edit it. [build-release-task.yml](.github/workflows/build-release-task.yml) overwrites it with the NBGV-computed version on the runner before zipping the released artifact, so the published HACS zip carries the real version while git stays clean.
 - [hacs.json](hacs.json) has no `version` field; HACS reads the integration version from the manifest stamped at build time.
@@ -84,8 +88,8 @@ The version is derived by [Nerdbank.GitVersioning](https://github.com/dotnet/Ner
 
 [publish-release.yml](.github/workflows/publish-release.yml) is **dispatch-only**: merges never publish. HACS is a pull model, so the maintainer ships on demand, not on every merge. It triggers two ways:
 
-- **`workflow_dispatch` on `main`** - manual **stable** release. After merging `develop -> main`, a maintainer runs `gh workflow run publish-release.yml --ref main`. The `gate` job accepts a dispatch only from `main` or `develop`. The `test-release` suite (the same one that gates PR merges) runs first; `create-release` only proceeds on `test-release.result == 'success'`. NBGV computes a clean version like `0.2.6` (no `-g{sha}` because `main` matches `publicReleaseRefSpec`), stamps it into `manifest.json`, builds `purpleair.zip`, and produces a non-prerelease GitHub Release.
-- **`workflow_dispatch` on `develop`** - manual **prerelease**, for when a beta-tester build is wanted. `gh workflow run publish-release.yml --ref develop`. NBGV computes a version like `0.2.5-g1a2b3c4` (develop does not match `publicReleaseRefSpec`), and softprops marks the GitHub Release as a prerelease. Same artifact and same uniqueness guarantee as a stable release, but maintainer-initiated rather than automatic on push.
+- **`workflow_dispatch` on `main`** - manual **stable** release. After merging `develop -> main`, a maintainer runs `gh workflow run publish-release.yml --ref main`. The `gate` job accepts a dispatch only from `main` or `develop`. The `test-release` suite (the same one that gates PR merges) runs first; `create-release` only proceeds on `test-release.result == 'success'`. NBGV computes a clean version like `1.0.6` (no `-g{sha}` because `main` matches `publicReleaseRefSpec`), stamps it into `manifest.json`, builds `purpleair.zip`, and produces a non-prerelease GitHub Release.
+- **`workflow_dispatch` on `develop`** - manual **prerelease**, for when a beta-tester build is wanted. `gh workflow run publish-release.yml --ref develop`. NBGV computes a version like `1.0.5-g1a2b3c4` (develop does not match `publicReleaseRefSpec`), and softprops marks the GitHub Release as a prerelease. Same artifact and same uniqueness guarantee as a stable release, but maintainer-initiated rather than automatic on push.
 
 **Merges never publish.** [publish-release.yml](.github/workflows/publish-release.yml) has no `push` trigger - feature merges, Dependabot bumps, HA-matrix bumps, and `develop -> main` promotions all land without cutting a release. HACS auto-pulls new GitHub Releases, so an automatic release would force-update every user; the maintainer wants both branches *ready* to cut a release on demand, not shipping one on every merge.
 
@@ -174,7 +178,7 @@ If a reviewer argues for relaxing any of these, escalate to the maintainer rathe
 - Run `scripts/fix` to auto-fix (ruff format + ruff check --fix); `scripts/lint` to verify (matches CI: ruff format --check + ruff check + mypy --strict + pyright).
 - **Always run `scripts/lint` before pushing or opening a PR** - running ruff in isolation does NOT cover `mypy --strict` or `pyright`, both of which are CI gates. Skipping them locally means catching trivial type errors only after a CI round-trip (e.g. an inline `lambda` without annotations passed into a typed `dict.get(default=...)` will fail mypy strict but pass ruff; a `Final[str] = "x"` constant used as a TypedDict key will pass mypy but fail pyright). One command, no exceptions.
 - **Pyright config** lives in [pyrightconfig.json](pyrightconfig.json): basic mode + `reportUnnecessaryComparison` and `reportIncompatibleVariableOverride` escalated to errors. Pyright is the engine behind VS Code's Pylance, so running it from CI keeps the in-editor and CI signals aligned. When pyright complains about HA framework typing warts (e.g. `DataUpdateCoordinator.data` typed as the generic `_DataT` but `None` until first refresh; `Entity.*` declared as `cached_property` while `CoordinatorEntity` re-declares them as plain `@property`), prefer a narrow `# pyright: ignore[<rule>]` with a why-comment over disabling the rule. For high-volume false positives in a single test file, a per-file `# pyright: <rule>=false` directive at the top with a rationale comment is acceptable - see [tests/components/purpleair/test_config_flow.py](tests/components/purpleair/test_config_flow.py).
-- Tests: `pytest -ra` after `pip install -r requirements-test.txt`.
+- Tests: `pytest -ra` in the uv-managed `.venv` (run `scripts/setup` first).
 - **Inline `#` comments**: keep tight and local. One line is preferred, but multi-line is allowed when needed to document non-obvious implementation constraints, local trade-offs, or coupling that future edits could easily break. Keep this rationale next to the affected block so reviewers and maintainers see it at edit-time. Don't explain *what* the code does; well-named identifiers handle that. Don't reference the current task ("added for X", "used by Y"); that belongs in PR descriptions. Keep comments self-contained and current-state: don't name sibling repos or cite rule IDs ("per WORKFLOW.md D9.1") inline - cross-repo context and rule provenance live in the docs, not in comments.
 - **Docstrings (`"""..."""`)**: follow PEP 257 and focus primarily on behavior contracts (what callers/tests can rely on), public semantics, and edge-case expectations. A short one-liner is fine for trivial functions and tests with self-documenting names. For non-trivial behavior - non-obvious test scenarios, contracts a test pins, edge cases callers must know about, design trade-offs that are load-bearing for future maintainers - write a one-line summary, blank line, then a details paragraph. Multi-paragraph docstrings are fine when the behavior contract earns it (see [`PurpleAirSensorEntityDescription.hardware_gate`](custom_components/purpleair/sensor.py)). Use inline comments for implementation-local rationale; don't force local mechanics into docstrings when locality is clearer. Design notes belong **in the code**: docstrings or inline comments live next to the code they describe and stay in sync with it. They do NOT belong in [HISTORY.md](HISTORY.md) - that file is end-user release notes (what changed, what to expect after upgrade), not a design log.
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** - just delete.
@@ -190,8 +194,8 @@ If a reviewer argues for relaxing any of these, escalate to the maintainer rathe
 
 **Before committing, the VS Code Problems pane should be quiet for the files you touched.** That means:
 
-- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, `pyright` (basic mode + extra rules; see [pyrightconfig.json](pyrightconfig.json)), hassfest TRANSLATIONS/REQUIREMENTS validation. Run `scripts/lint`.
-- **IDE-driven**: `pylint` (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)), `markdownlint` (configured via [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc), used by the `davidanson.vscode-markdownlint` extension), `actionlint`, `shellcheck`.
+- **CI-gated**: `ruff format`, `ruff check`, `mypy --strict`, `pyright` (basic mode + extra rules; see [pyrightconfig.json](pyrightconfig.json)), hassfest TRANSLATIONS/REQUIREMENTS validation (run `scripts/lint`); plus the **Docs lint job** - `markdownlint` (all `*.md`, config in [.markdownlint-cli2.jsonc](.markdownlint-cli2.jsonc)), `cspell` on `README.md` + `HISTORY.md` (word list in [cspell.json](cspell.json)), `actionlint`, and `shellcheck` on `scripts/*`.
+- **IDE-driven**: `pylint` only (configured via `[tool.pylint."MESSAGES CONTROL"]` in [pyproject.toml](pyproject.toml)); it is not part of the CI gate.
 
 **For Python linters**, false positives are common - HA's `dataclass(kw_only=True)` confuses pylint's argument resolution, pytest fixtures look like unused arguments, etc. Prefer to **disable recurring false positives project-wide in the linter's config file** (with a comment explaining why), rather than scattering inline suppressions. Avoid unjustified `# noqa` or `# pylint: disable=...` annotations; if an inline suppression is truly needed, keep it narrow and explain why.
 
@@ -202,10 +206,19 @@ Verifying locally:
 ```sh
 scripts/lint                                              # CI gate
 pylint custom_components/ tests/                          # 10/10 expected
-markdownlint-cli2 README.md AGENTS.md HISTORY.md \
-    CONTRIBUTING.md                                       # 0 errors expected
+markdownlint-cli2 README.md AGENTS.md HISTORY.md         # 0 errors expected
+cspell --config cspell.json README.md HISTORY.md         # 0 issues expected
 actionlint .github/workflows/*.yml                        # silent expected
 shellcheck scripts/*                                      # silent expected
+```
+
+**Run the lint CLIs; don't skip a check or defer it to CI just because a tool isn't installed.** `cspell` and `markdownlint-cli2` are Node tools and `actionlint`/`shellcheck` may be absent outside the devcontainer. When a CLI isn't on `PATH`, run the same tool via its official Docker image (CI runs these through GitHub Actions, but the images run the identical binaries) instead of leaving the check unrun:
+
+```sh
+docker run --rm -v "$PWD:/workdir" -w /workdir ghcr.io/streetsidesoftware/cspell:latest --no-progress --config cspell.json README.md HISTORY.md
+docker run --rm -v "$PWD:/workdir" -w /workdir davidanson/markdownlint-cli2:latest '**/*.md'
+docker run --rm -v "$PWD:/workdir" -w /workdir rhysd/actionlint:latest -color
+docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest scripts/*
 ```
 
 ## Workflow YAML conventions
@@ -247,13 +260,13 @@ shellcheck scripts/*                                      # silent expected
 
 ## Linters available in the devcontainer
 
-The devcontainer ships these CLIs out of the box. Use them locally before pushing - CI runs `ruff` + `mypy --strict` + `pytest`, but actionlint/shellcheck/markdownlint are not yet wired into CI, so local runs are the only gate.
+The devcontainer ships these CLIs out of the box. Use them locally before pushing - CI runs `ruff` + `mypy --strict` + `pyright` + `pytest`, plus a **Docs lint job** that runs `markdownlint`, `cspell` (README + HISTORY), `actionlint`, and `shellcheck`. Only `pylint` is IDE-only.
 
 | Tool                | What it lints                                                                          | Quick command                             |
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `actionlint`        | GitHub Actions workflow YAML (also runs shellcheck on `run:` blocks)                   | `actionlint .github/workflows/*.yml`      |
 | `shellcheck`        | Standalone shell scripts (e.g. anything under [scripts/](scripts/))                    | `shellcheck scripts/*`                    |
-| `markdownlint-cli2` | Markdown (`CONTRIBUTING.md`, `README.md`, `AGENTS.md`, etc.) - same engine as VS Code  | `markdownlint-cli2 '**/*.md'`             |
+| `markdownlint-cli2` | Markdown (`README.md`, `AGENTS.md`, `HISTORY.md`, etc.) - same engine as VS Code       | `markdownlint-cli2 '**/*.md'`             |
 | `pylint`            | Python (IDE-driven; not CI-gated)                                                      | `pylint custom_components/ tests/`        |
 | `ruff`              | Python lint + format (CI-required)                                                     | `scripts/fix` (auto-fix) / `scripts/lint` |
 | `mypy --strict`     | Python type checking (CI-required)                                                     | `scripts/lint`                            |
@@ -271,7 +284,7 @@ Installation:
 
 - **Issue tracker / PRs**: prefer `gh` CLI - `gh pr view`, `gh pr list`, `gh api repos/.../pulls/N/comments`. Pre-authenticated via the `~/.config/gh` bind mount when the host's `gh` token is file-backed; on credential-store hosts (macOS Keychain, Linux libsecret) the contributor chose either to authenticate `gh` once inside the container or to skip container `gh` entirely - see [README.md](README.md#devcontainer-setup) for which.
 - **HA core API reference**: when adding/modifying entity behavior, check upstream conventions in `home-assistant/core` (e.g., entity registry semantics changed in 2026.4 - that's why `minimum` is pinned there).
-- **Upstream PR for shared work**: [home-assistant/core#140901][ha-core-pr-link] tracks the upstream version of this integration; mirror functional changes there when relevant.
+- **Shared client library**: the `aiopurpleair` client this integration depends on is maintained at [`ptr727/aiopurpleair`](https://github.com/ptr727/aiopurpleair) (published as `ptr727-aiopurpleair`); client-side changes (new endpoints, error codes) belong there, not in this repo. The upstream [home-assistant/core#140901][ha-core-pr-link] PR has been abandoned and is retained for historical attribution only - don't mirror changes to it.
 
 ## Template Adaptations
 

@@ -151,7 +151,7 @@ async def test_reconfigure(
 
     # Bad API key
     with patch.object(
-        api, "async_check_api_key", AsyncMock(side_effect=InvalidApiKeyError)
+        api.keys, "async_check_api_key", AsyncMock(side_effect=InvalidApiKeyError)
     ):
         result = await hass.config_entries.flow.async_configure(
             result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
@@ -187,7 +187,7 @@ async def test_reauth(
 
     # Bad API key — surfaces as a form error, not an abort.
     with patch.object(
-        api, "async_check_api_key", AsyncMock(side_effect=InvalidApiKeyError)
+        api.keys, "async_check_api_key", AsyncMock(side_effect=InvalidApiKeyError)
     ):
         result = await hass.config_entries.flow.async_configure(
             result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
@@ -332,7 +332,7 @@ async def test_user_init_typed_check_key_errors(
     the except-clause branches in `_async_validate_api_key` for the cases
     where the call itself fails with a typed exception.
     """
-    api.async_check_api_key = AsyncMock(side_effect=exc)
+    api.keys.async_check_api_key = AsyncMock(side_effect=exc)
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
@@ -362,7 +362,7 @@ async def test_user_init_rejects_bad_key_type(
     expected_error_key: str,
 ) -> None:
     """A non-READ api_key_type must be rejected with a targeted error."""
-    api.async_check_api_key = AsyncMock(
+    api.keys.async_check_api_key = AsyncMock(
         return_value=GetKeysResponse.model_validate(
             {
                 "api_version": "V1.0.11-0.0.41",
@@ -496,7 +496,7 @@ async def test_user_init_errors(
     assert result[CONF_STEP_ID] == CONF_API_KEY
 
     # API key
-    with patch.object(api, "async_check_api_key", check_api_key_mock):
+    with patch.object(api.keys, "async_check_api_key", check_api_key_mock):
         result = await hass.config_entries.flow.async_configure(
             result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
         )

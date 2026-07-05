@@ -165,7 +165,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             session=aiohttp_client.async_get_clientsession(self.hass),
         )
         try:
-            keys_response: GetKeysResponse = await api.async_check_api_key()
+            keys_response: GetKeysResponse = await api.keys.async_check_api_key()
         except ApiKeyTypeMismatchError:
             self._errors[CONF_API_KEY] = CONF_WRONG_KEY_TYPE
             return False

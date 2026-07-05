@@ -4,6 +4,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Activate the uv-managed .venv (created by scripts/setup) so `hass` resolves.
+if [[ ! -f .venv/bin/activate ]]; then
+    echo "No .venv found - run scripts/setup first." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source .venv/bin/activate
+
 # Create config dir if not present
 if [[ ! -d "${PWD}/config" ]]; then
     mkdir -p "${PWD}/config"
@@ -19,7 +27,7 @@ fi
 export PYTHONPATH="${PYTHONPATH:-}:${PWD}/custom_components"
 
 # Start Home Assistant.
-# --skip-pip-packages aiopurpleair preserves the editable install from
+# --skip-pip-packages ptr727-aiopurpleair preserves the editable install from
 # scripts/setup; otherwise HA's package check would reinstall the pinned
-# aiopurpleair==<version> from PyPI on every launch, clobbering ./aiopurpleair.
-hass --config "${PWD}/config" --debug --skip-pip-packages aiopurpleair
+# ptr727-aiopurpleair==<version> from PyPI on every launch, clobbering ./aiopurpleair.
+hass --config "${PWD}/config" --debug --skip-pip-packages ptr727-aiopurpleair

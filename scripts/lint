@@ -7,6 +7,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Activate the uv-managed .venv (created by scripts/setup) so ruff/mypy/pyright
+# resolve no matter how this runs - terminal, VS Code task, or CI mirror.
+if [[ ! -f .venv/bin/activate ]]; then
+    echo "No .venv found - run scripts/setup first." >&2
+    exit 1
+fi
+# shellcheck source=/dev/null
+source .venv/bin/activate
+
 ruff format . --check
 ruff check .
 # Platinum quality-scale rule "strict-typing" requires a clean mypy --strict run.
