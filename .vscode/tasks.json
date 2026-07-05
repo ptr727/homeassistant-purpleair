@@ -23,6 +23,16 @@
             }
         },
         {
+            "label": "HA: ensure config",
+            "type": "shell",
+            "command": "scripts/init-config",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
             "label": "Fix: ruff format + check --fix",
             "type": "shell",
             "command": "scripts/fix",

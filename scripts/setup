@@ -34,12 +34,39 @@ if ! command -v uv >/dev/null 2>&1; then
     exit 1
 fi
 
-# Pin the interpreter to the supported Python (uv fetches it if absent).
-uv venv --python 3.14
+# Create the venv only when a usable one isn't already present: the .venv volume
+# mounts an empty dir on first container create, and a rebuilt container may
+# already have a valid venv. Recreate it when absent OR built against a
+# different Python minor -- the named volume persists across rebuilds, so a venv
+# from an older base image would otherwise be reused silently. --clear keeps it
+# non-interactive (uv otherwise prompts "replace existing venv?", which would
+# hang the postCreate run).
+if [[ ! -x .venv/bin/python ]] \
+    || ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info[:2] != (3, 14))' 2>/dev/null; then
+    uv venv --python 3.14 --clear
+fi
 # shellcheck source=/dev/null
 source .venv/bin/activate
 uv pip install --requirement requirements.txt
 uv pip install --requirement requirements-test.txt
+
+# Pre-install the frontend package HA expects. HA installs it at runtime
+# otherwise, which races the frontend component's setup and drops HA into
+# recovery mode on first launch. Pin to the version HA's own manifest declares.
+frontend_req="$(python - <<'PY'
+import json, pathlib
+try:
+    import homeassistant.components.frontend as f
+    m = json.loads((pathlib.Path(f.__file__).parent / "manifest.json").read_text())
+    print(next((r for r in m.get("requirements", []) if r.startswith("home-assistant-frontend")), ""))
+except Exception:
+    pass
+PY
+)"
+if [[ -n "${frontend_req}" ]]; then
+    echo "Pre-installing ${frontend_req}"
+    uv pip install "${frontend_req}"
+fi
 
 # --- markdownlint-cli2 ----------------------------------------------------
 # Pinned npm-installed binary so `markdownlint-cli2 README.md AGENTS.md ...`
@@ -99,7 +126,23 @@ if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then
         USE_EDITABLE_AIOPURPLEAIR=false
     fi
 else
-    echo "${AIOPURPLEAIR_DIR} already exists, skipping clone."
+    # Verify the existing checkout is the right repo before reusing it. A stale or
+    # wrong clone (e.g. the old aiopurpleair-ptr727 distribution) would shadow the
+    # pinned ptr727-aiopurpleair via the editable install below.
+    existing_remote="$(git -C "${AIOPURPLEAIR_DIR}" remote get-url origin 2>/dev/null || true)"
+    if [[ "${existing_remote}" == *"ptr727/aiopurpleair"* ]]; then
+        echo "Updating existing ${AIOPURPLEAIR_DIR} checkout to ${AIOPURPLEAIR_BRANCH}"
+        if ! (git -C "${AIOPURPLEAIR_DIR}" fetch --quiet origin "${AIOPURPLEAIR_BRANCH}" \
+                && git -C "${AIOPURPLEAIR_DIR}" checkout --quiet "${AIOPURPLEAIR_BRANCH}" \
+                && git -C "${AIOPURPLEAIR_DIR}" merge --quiet --ff-only "origin/${AIOPURPLEAIR_BRANCH}"); then
+            echo "Warning: could not update ${AIOPURPLEAIR_DIR}; using the existing checkout as-is." >&2
+        fi
+    else
+        echo "ERROR: ${AIOPURPLEAIR_DIR} exists but its origin is '${existing_remote:-<none>}', not ptr727/aiopurpleair." >&2
+        echo "       That is a stale/wrong checkout that would shadow the pinned ptr727-aiopurpleair." >&2
+        echo "       Remove it and re-run scripts/setup:  rm -rf ${AIOPURPLEAIR_DIR}" >&2
+        exit 1
+    fi
 fi
 
 if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]; then

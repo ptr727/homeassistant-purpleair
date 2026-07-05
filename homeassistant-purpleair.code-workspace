@@ -17,7 +17,6 @@
         "files.trimTrailingWhitespace": true,
         // Interpreter: the uv-managed .venv that scripts/setup creates (uv venv +
         // uv pip install). The Python extension auto-detects .venv.
-        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
         "python.terminal.activateEnvironment": true,
         "python.languageServer": "Pylance",
         // Pylance reads pyrightconfig.json (typeCheckingMode + rules); don't override it here.
@@ -54,18 +53,15 @@
     "extensions": {
         "recommendations": [
             "anthropic.claude-code",
-            "arahata.linter-actionlint",
             "charliermarsh.ruff",
             "davidanson.vscode-markdownlint",
             "editorconfig.editorconfig",
+            "github.vscode-github-actions",
             "github.vscode-pull-request-github",
-            "ms-azuretools.vscode-docker",
             "ms-python.mypy-type-checker",
             "ms-python.python",
             "ms-python.vscode-pylance",
             "ms-vscode-remote.remote-containers",
-            "openai.chatgpt",
-            "redhat.vscode-xml",
             "redhat.vscode-yaml",
             "ryanluker.vscode-coverage-gutters",
             "streetsidesoftware.code-spell-checker",

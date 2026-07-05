@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Seed a minimal Home Assistant config for integration development.
+#
+# default_config is intentionally omitted: it loads the full HA stack (camera,
+# stream, bluetooth, cloud, ...) whose heavy optional dependencies (turbojpeg,
+# av, ...) are not installed in the devcontainer and are not needed to develop a
+# single integration. Add PurpleAir from the UI once HA is up:
+# Settings -> Devices & Services -> Add Integration -> PurpleAir (custom).
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [[ ! -f config/configuration.yaml ]]; then
+    mkdir -p config
+    cat > config/configuration.yaml <<'YAML'
+# Minimal config for developing the PurpleAir integration in the devcontainer.
+# default_config is omitted on purpose (see scripts/init-config). Add the
+# integration from the UI: Settings -> Devices & Services -> Add Integration.
+frontend:
+config:
+logger:
+  default: info
+  logs:
+    custom_components.purpleair: debug
+YAML
+    echo "Seeded minimal config/configuration.yaml"
+fi
