@@ -1,10 +1,8 @@
-# PurpleAir Integration for Home Assistant
+# Devcontainer Development
 
-## Development
+This integration is developed in the VS Code **devcontainer** - Home Assistant Core doesn't run on Windows natively, so development is Linux / WSL2 / devcontainer only. Open the repo in the devcontainer; `scripts/setup` runs automatically on container creation and installs everything into a uv-managed `.venv`.
 
-Development runs inside the VS Code **devcontainer** (or a Linux/WSL2 host - Home Assistant Core doesn't run on Windows natively). Open the repo in the devcontainer; `scripts/setup` runs automatically on container creation and installs everything into a uv-managed `.venv`.
-
-### Dev loop
+## Dev loop
 
 ```sh
 scripts/setup     # provision the uv .venv: HA + test deps + editable aiopurpleair
@@ -28,12 +26,12 @@ Each script is wired as a VS Code task in [.vscode/tasks.json](.vscode/tasks.jso
 | `scripts/lint` | **Lint: ruff + mypy + pyright (verify)** | `Ctrl+Shift+B` (default build task) |
 | `pytest` | **Test: pytest** | Tasks: Run Test Task (default) |
 
-### Run and debug Home Assistant
+## Run and debug Home Assistant
 
 - **Run:** `scripts/develop` (or the **Develop: Run Home Assistant** task) boots HA against `./config` with the integration loaded. Open the forwarded port **8123** for the web UI.
 - **Debug:** press **F5** (**Home Assistant (debug)** in [.vscode/launch.json](.vscode/launch.json)) to run HA under the debugger - breakpoints in `custom_components/purpleair/` hit, `PYTHONPATH` and the editable `ptr727-aiopurpleair` are preserved, and `./config` is created on first run.
 
-### Devcontainer and host prerequisites
+## Host prerequisites
 
 [`.devcontainer.json`](.devcontainer.json) provisions Python 3.14, uv, Node, and the linters (via features), runs `scripts/setup`, and forwards port 8123. Commits are **SSH-signed** using your host's `ssh-agent` (VS Code forwards the socket into the container) plus the bind-mounted public signing key and `allowed_signers`; `gh` uses the mounted host config.
 

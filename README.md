@@ -296,7 +296,7 @@ The Read Key can also be added at sensor-add time for new sensors - see [3. Add 
 - **Code style**:
   - [ruff][ruff-link] (config in [`.ruff.toml`](.ruff.toml)), `mypy --strict`, and `pyright`; see [`CODESTYLE.md`](CODESTYLE.md) and [`.editorconfig`](.editorconfig). Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
 - **Development**:
-  - See [`DEVELOPMENT.md`](DEVELOPMENT.md) for the devcontainer and local development setup.
+  - See [`DEVCONTAINER.md`](DEVCONTAINER.md) for devcontainer development setup.
 - **Repository setup**:
   - See [`repo-config/README.md`](repo-config/README.md) for repository configuration details.
 

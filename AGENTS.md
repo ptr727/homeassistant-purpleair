@@ -256,7 +256,7 @@ docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest script
 
 ## Devcontainer
 
-[.devcontainer.json](.devcontainer.json) provisions the toolchain (Python 3.14, uv, Node, linters), runs `scripts/setup`, and forwards port 8123 for the HA web UI. Commits are SSH-signed via the host's forwarded `ssh-agent` (the private key never enters the container) - see [Git and Commit Rules](#git-and-commit-rules) for the signing requirement. `gh` is pre-authenticated only when the host token is file-backed; on credential-store hosts container `gh` may be unauthenticated and its calls fail until you run `gh auth login` inside it. Host prerequisites are in [DEVELOPMENT.md](DEVELOPMENT.md#devcontainer-and-host-prerequisites).
+[.devcontainer.json](.devcontainer.json) provisions the toolchain (Python 3.14, uv, Node, linters), runs `scripts/setup`, and forwards port 8123 for the HA web UI. Commits are SSH-signed via the host's forwarded `ssh-agent` (the private key never enters the container) - see [Git and Commit Rules](#git-and-commit-rules) for the signing requirement. `gh` is pre-authenticated only when the host token is file-backed; on credential-store hosts container `gh` may be unauthenticated and its calls fail until you run `gh auth login` inside it. Host prerequisites are in [DEVCONTAINER.md](DEVCONTAINER.md#host-prerequisites).
 
 ## Linters available in the devcontainer
 
