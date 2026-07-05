@@ -24,10 +24,12 @@ cd "$(dirname "$0")/.."
 # install the pinned dependencies into it. requirements*.txt stay the single
 # source of truth - CI installs the same files via pip (the HA-version matrix
 # needs pip), so only the local dev environment uses uv.
+# uv is pinned and installed from PyPI (deterministic + hash-verified), matching
+# the SHA-pinned approach used for go2rtc/HACS below - not a curl|sh of "latest".
+UV_VERSION=0.11.17
 if ! command -v uv >/dev/null 2>&1; then
-    echo "Installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="${HOME}/.local/bin:${PATH}"
+    echo "Installing uv ${UV_VERSION} via pip"
+    python3 -m pip install "uv==${UV_VERSION}"
 fi
 
 uv venv

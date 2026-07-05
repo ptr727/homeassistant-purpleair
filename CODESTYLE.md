@@ -46,7 +46,7 @@ This repo ships a **Home Assistant custom integration** (`custom_components/purp
 
 | Tool | Role | Config |
 |---|---|---|
-| [pip](https://pip.pypa.io/) | dependency install | `requirements.txt`, `requirements-test.txt` |
+| [uv](https://docs.astral.sh/uv/) | dependency install into the dev `.venv` (CI uses pip) | `requirements.txt`, `requirements-test.txt` |
 | [ruff](https://docs.astral.sh/ruff/) | lint + format + import sort | `.ruff.toml` (repo root) |
 | [mypy](https://mypy-lang.org/) | strict type gate | CLI flags in `scripts/lint` (`--strict --follow-imports=silent`) |
 | [pyright](https://microsoft.github.io/pyright/) | type checker | `pyrightconfig.json` |
