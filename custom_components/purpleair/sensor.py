@@ -43,7 +43,7 @@ from .entity import MANUFACTURER, PurpleAirEntity
 # entity, so there is no per-entity request to serialise. A non-zero value
 # would throttle entity state updates without touching API traffic, which is
 # exactly the wrong trade-off here. Required by the `parallel-updates` rule of
-# the Silver quality scale — see
+# the Silver quality scale - see
 # https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/parallel-updates/
 PARALLEL_UPDATES = 0
 
@@ -104,13 +104,13 @@ def _pm25_epa_correction(sensor: SensorModel) -> float | None:
         return 0.524 * pm - 0.0862 * rh + 5.75
     if pm < 50:
         # Blend coefficient: 0 at PM=30, 1 at PM=50.
-        # Form: t = PM/20 − 3/2 → t=0 at 30, t=1 at 50.
+        # Form: t = PM/20 − 3/2 -> t=0 at 30, t=1 at 50.
         t = pm / 20 - 3 / 2
         return (0.786 * t + 0.524 * (1 - t)) * pm - 0.0862 * rh + 5.75
     if pm < 210:
         return 0.786 * pm - 0.0862 * rh + 5.75
     if pm < 260:
-        # Blend coefficient: t = PM/50 − 21/5 → t=0 at 210, t=1 at 260.
+        # Blend coefficient: t = PM/50 − 21/5 -> t=0 at 210, t=1 at 260.
         t = pm / 50 - 21 / 5
         return (
             (0.69 * t + 0.786 * (1 - t)) * pm
@@ -122,7 +122,7 @@ def _pm25_epa_correction(sensor: SensorModel) -> float | None:
     return 2.966 + 0.69 * pm + 8.84e-4 * pm * pm
 
 
-# US EPA AQI breakpoints for PM2.5 24-hour average (µg/m³) → AQI value.
+# US EPA AQI breakpoints for PM2.5 24-hour average (µg/m³) -> AQI value.
 # Current NAAQS (effective 2024-05-06): the "Good/Moderate" threshold was
 # lowered from 12.0 to 9.0 µg/m³ to reflect the revised annual standard of
 # 9 µg/m³ and stricter protective recommendations. Higher breakpoints were
@@ -228,8 +228,8 @@ class PurpleAirSensorEntityDescription(SensorEntityDescription):
     Today's only ``hardware_gate``-bearing entry (``voc``) is also
     ``entity_registry_enabled_default=False``, so the gate transitively
     suppresses its field request with no API-points cost. (Other
-    enabled-by-default descriptions in this file — ``confidence``,
-    ``channel_state``, ``last_seen``, the organization diagnostics — do
+    enabled-by-default descriptions in this file - ``confidence``,
+    ``channel_state``, ``last_seen``, the organization diagnostics - do
     not set ``hardware_gate`` and are unaffected.) An
     ``enabled_default=True`` gated entry would also need either (a)
     explicit per-sensor predicate evaluation in the coordinator, or (b)
@@ -570,7 +570,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up PurpleAir sensors based on a config entry."""
     sensors_data = entry.runtime_data.sensors.data.data
-    # Bypass the gate for entities already present in the registry — preserves upgrade state.
+    # Bypass the gate for entities already present in the registry - preserves upgrade state.
     registry = er.async_get(hass)
     existing_unique_ids = {
         entity.unique_id
@@ -603,7 +603,7 @@ async def async_setup_entry(
 
 # `available` and `extra_state_attributes` are defined as `@property` on
 # `CoordinatorEntity`/`PurpleAirEntity` and as `@cached_property` on HA's
-# `Entity`/`SensorEntity` — combining the two parents trips pyright's
+# `Entity`/`SensorEntity` - combining the two parents trips pyright's
 # variable-override invariance check despite both bases agreeing on the
 # return type.
 class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -636,7 +636,7 @@ class PurpleAirSensorEntity(PurpleAirEntity, SensorEntity):  # pyright: ignore[r
         return self.entity_description.value_fn(sensor)
 
 
-# Same `available` parent-class mismatch as `PurpleAirSensorEntity` — see the
+# Same `available` parent-class mismatch as `PurpleAirSensorEntity` - see the
 # block comment there.
 class PurpleAirOrganizationSensorEntity(  # pyright: ignore[reportIncompatibleVariableOverride]
     CoordinatorEntity[PurpleAirOrganizationCoordinator], SensorEntity

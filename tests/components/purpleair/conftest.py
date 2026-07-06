@@ -122,9 +122,9 @@ def api_fixture(
     sensors you asked for, and within each sensor only the fields you
     requested. Without the field filter, gated entries like ``voc`` would
     appear populated in tests where production would have skipped the
-    field — masking regressions in ``_compute_requested_fields``.
+    field - masking regressions in ``_compute_requested_fields``.
     """
-    # Map wire field name (alias) → SensorModel attribute name.
+    # Map wire field name (alias) -> SensorModel attribute name.
     wire_to_attr = {
         (info.alias or name): name for name, info in SensorModel.model_fields.items()
     }
@@ -174,7 +174,7 @@ def config_entry_fixture(
     """Define a config entry fixture."""
     entry = MockConfigEntry(
         domain=DOMAIN,
-        # Fixed entry_id for deterministic snapshots — production entry_ids are
+        # Fixed entry_id for deterministic snapshots - production entry_ids are
         # randomly generated. The new account-level diagnostic entities use it
         # in their unique_id (account-level identifiers can't legitimately
         # reuse a per-sensor index).

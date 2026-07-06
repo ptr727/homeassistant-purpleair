@@ -5,7 +5,7 @@
 # HA's `ConfigFlowResult` and `SubentryFlowResult` make almost every key
 # (`type`, `step_id`, `errors`, `reason`, `data`, `data_schema`, ...)
 # non-required, but every flow assertion in this file reads them back
-# unconditionally — pyright's check for non-required-key access would fire
+# unconditionally - pyright's check for non-required-key access would fire
 # on essentially every line. Scope the suppression to this file rather than
 # annotating each access individually.
 
@@ -179,13 +179,13 @@ async def test_reauth(
     mock_aiopurpleair,
     api,
 ) -> None:
-    """Reauth must keep the same API key — the unique ID is derived from it."""
+    """Reauth must keep the same API key - the unique ID is derived from it."""
     result = await config_entry.start_reauth_flow(hass)
     await hass.async_block_till_done()
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_STEP_ID] == CONF_REAUTH_CONFIRM
 
-    # Bad API key — surfaces as a form error, not an abort.
+    # Bad API key - surfaces as a form error, not an abort.
     with patch.object(
         api.keys, "async_check_api_key", AsyncMock(side_effect=InvalidApiKeyError)
     ):
@@ -196,7 +196,7 @@ async def test_reauth(
     assert result[CONF_TYPE] is FlowResultType.FORM
     assert result[CONF_ERRORS] == {CONF_API_KEY: CONF_INVALID_API_KEY}
 
-    # Same key re-validated — reauth succeeds.
+    # Same key re-validated - reauth succeeds.
     result = await hass.config_entries.flow.async_configure(
         result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
     )
@@ -231,7 +231,7 @@ async def test_user_init_falls_back_when_org_lookup_raises_unexpected(
 ) -> None:
     """A generic Exception in the org lookup falls back to the default title.
 
-    Covers the broad-Exception branch in `_async_fetch_organization_name` —
+    Covers the broad-Exception branch in `_async_fetch_organization_name` -
     we never want a malformed response or a non-PurpleAirError network
     failure to abort the whole config flow.
     """
@@ -288,7 +288,7 @@ async def test_user_init_numbered_fallback_when_org_lookup_fails_with_existing_e
     mock_aiopurpleair,
     api,
 ) -> None:
-    """Second-key add with an existing entry and failed org lookup → "PurpleAir (1)".
+    """Second-key add with an existing entry and failed org lookup -> "PurpleAir (1)".
 
     Ensures the `len(config_list) > 0` numbered-suffix branch in
     `_async_get_title` is reachable: an existing entry is already loaded
@@ -328,7 +328,7 @@ async def test_user_init_typed_check_key_errors(
     """`async_check_api_key` raising a typed error must surface a targeted form error.
 
     Distinct from `test_user_init_rejects_bad_key_type` (which exercises the
-    post-check `api_key_type` switch on a 200 OK response) — this test pins
+    post-check `api_key_type` switch on a 200 OK response) - this test pins
     the except-clause branches in `_async_validate_api_key` for the cases
     where the call itself fails with a typed exception.
     """
@@ -425,7 +425,7 @@ async def test_reauth_rejects_different_key(
     mock_aiopurpleair,
     api,
 ) -> None:
-    """A reauth with a different API key must abort — identity would change."""
+    """A reauth with a different API key must abort - identity would change."""
     result = await config_entry.start_reauth_flow(hass)
     await hass.async_block_till_done()
 
