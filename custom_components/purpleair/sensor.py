@@ -40,7 +40,7 @@ from .entity import MANUFACTURER, PurpleAirEntity
 
 # PARALLEL_UPDATES = 0 is the Home Assistant convention for coordinator-backed
 # read-only platforms: the coordinator fans out a single API response to every
-# entity, so there is no per-entity request to serialise. A non-zero value
+# entity, so there is no per-entity request to serialize. A non-zero value
 # would throttle entity state updates without touching API traffic, which is
 # exactly the wrong trade-off here. Required by the `parallel-updates` rule of
 # the Silver quality scale - see
