@@ -226,6 +226,7 @@ docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest script
 - Pin actions to a SHA with a trailing `# vX.Y.Z` comment, e.g. `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`. Dependabot bumps these.
 - Step names end in `step`, job names end in `job`.
 - Top-level workflows have a `concurrency:` block keyed on `${{ github.workflow }}-${{ github.ref }}`.
+- Workflow YAML (`.github/workflows/*.{yml,yaml}`) is stored LF - Dependabot and Actions rewrite it that way, so `.editorconfig` pins it LF while other files stay CRLF; CI's `editorconfig-checker` enforces this.
 - Shell scripts start with `set -euo pipefail`.
 - After editing any workflow, validate with `actionlint .github/workflows/*.yml` (preinstalled in the devcontainer; see "Linters available in the devcontainer" below).
 
@@ -260,7 +261,7 @@ docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest script
 
 ## Linters available in the devcontainer
 
-The devcontainer ships these CLIs out of the box. Use them locally before pushing - CI runs `ruff` + `mypy --strict` + `pyright` + `pytest`, plus a **Docs lint job** that runs `markdownlint`, `cspell` (README + HISTORY), `actionlint`, and `shellcheck`. Only `pylint` is IDE-only.
+The devcontainer ships these CLIs out of the box. Use them locally before pushing - CI runs `ruff` + `mypy --strict` + `pyright` + `pytest`, plus a **Docs lint job** that runs `markdownlint`, `cspell` (README + HISTORY), `actionlint`, `shellcheck`, and `editorconfig-checker` (line-ending validation). Only `pylint` is IDE-only.
 
 | Tool                | What it lints                                                                          | Quick command                             |
 | ------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------- |
