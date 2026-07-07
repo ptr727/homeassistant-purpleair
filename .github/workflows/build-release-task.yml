@@ -139,3 +139,23 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: ./Publish/purpleair.zip
+
+      # Surgical cleanup at the point of consumption: purpleair-zip now has a durable copy on the release, so
+      # delete it by exact name to free the account storage quota, leaving any other artifacts. Best-effort - the
+      # release is already published, so a listing/delete hiccup must never red the job; the retention-days: 1
+      # backstop reaps anything missed. Needs the caller to grant `actions: write`.
+      - name: Delete consumed release artifact step
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! ids=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/${{ github.run_id }}/artifacts" --paginate \
+            --jq '.artifacts[] | select(.name == "purpleair-zip") | .id'); then
+            echo "::warning::Could not list run artifacts; retention-days backstop will reap them."
+            ids=""
+          fi
+          for id in $ids; do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" \
+              || echo "::warning::Failed to delete artifact $id; retention-days backstop will reap it."
+          done
