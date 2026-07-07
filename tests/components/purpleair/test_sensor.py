@@ -182,7 +182,7 @@ async def test_voc_entity_created_for_voc_hardware(
     setup_config_entry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """BME68X hardware → VOC entity is created and value flows through.
+    """BME68X hardware -> VOC entity is created and value flows through.
 
     Asserting state, not just registration, guards against a regression where
     the entity exists in the registry but ``value_fn`` returns ``None``.
@@ -210,7 +210,7 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
     setup_config_entry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """BME280 hardware → VOC entity is not created.
+    """BME280 hardware -> VOC entity is not created.
 
     Look-up is by ``unique_id`` rather than ``entity_id``: VOC's
     ``translation_key`` slugifies the entity_id, so a literal entity_id
@@ -222,7 +222,7 @@ async def test_voc_entity_skipped_for_no_voc_hardware(
         )
         is None
     )
-    # Sibling check — guards against a setup-failure regression.
+    # Sibling check - guards against a setup-failure regression.
     assert (
         entity_registry.async_get_entity_id(
             "sensor", DOMAIN, f"{TEST_SENSOR_INDEX2}-temperature"
@@ -292,7 +292,7 @@ async def test_voc_entity_gating_per_subentry_in_mixed_hardware_entry(
 ) -> None:
     """Mixed-hardware entry: per-subentry VOC gate uses each sensor's own hardware.
 
-    Two subentries on one entry (123456 BME68X, 567890 BME280) — guards
+    Two subentries on one entry (123456 BME68X, 567890 BME280) - guards
     against a regression that hoists hardware out of the per-subentry loop
     and applies one sensor's value to the whole entry.
     """
@@ -358,7 +358,7 @@ async def test_voc_entity_can_be_enabled_after_upgrade_on_no_voc_hardware(
     )
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
-    # Initially disabled → no state.
+    # Initially disabled -> no state.
     assert hass.states.get(pre_seeded.entity_id) is None
     # User clears disabled_by; reload picks up the now-enabled entity.
     entity_registry.async_update_entity(pre_seeded.entity_id, disabled_by=None)
@@ -376,7 +376,7 @@ async def test_voc_entity_skipped_when_hardware_unknown(
     entity_registry: er.EntityRegistry,
     mock_aiopurpleair,
 ) -> None:
-    """``hardware=None`` → gate fails closed, VOC entity not created.
+    """``hardware=None`` -> gate fails closed, VOC entity not created.
 
     Failing closed for ``entity_registry_enabled_default=False`` gated
     entities is preferable: a transient miss self-heals on next setup,
@@ -503,7 +503,7 @@ def test_pm25_epa_correction_missing_inputs() -> None:
         (225.4, 300),  # Top of Very Unhealthy
         (225.5, 301),  # Bottom of Hazardous
         (500.4, 500),  # Top of Hazardous
-        (750.0, 500),  # Beyond the scale — cap at 500
+        (750.0, 500),  # Beyond the scale - cap at 500
     ],
 )
 def test_pm25_aqi_breakpoints(pm: float | None, expected: int | None) -> None:
@@ -561,9 +561,9 @@ async def test_availability_guards(
     mutate_field,
     log_needle,
 ) -> None:
-    """Low confidence, no-PM channel_state, or stale last_seen → unavailable.
+    """Low confidence, no-PM channel_state, or stale last_seen -> unavailable.
 
-    Setting up with good data first means each case triggers a healthy→
+    Setting up with good data first means each case triggers a healthy->
     unhealthy transition, which exercises the _unhealthy_reason branches.
     """
     # Good initial state.
@@ -681,7 +681,7 @@ async def test_last_seen_renders_as_tz_aware_timestamp(
     here instead of surfacing as a broken HA entity.
 
     The construction goes through `SensorModel.model_validate` with `last_seen`
-    as an int so the upstream `validate_timestamp` validator runs — without
+    as an int so the upstream `validate_timestamp` validator runs - without
     that, the test would bypass the bug entirely.
     """
     from datetime import UTC  # noqa: PLC0415
@@ -711,7 +711,7 @@ async def test_last_seen_renders_as_tz_aware_timestamp(
             },
             # Set data_timestamp_utc near the new last_seen so the staleness
             # gate doesn't fire (default fixture timestamp is 2022). Must be
-            # tz-aware to match last_seen_utc — the staleness gate subtracts
+            # tz-aware to match last_seen_utc - the staleness gate subtracts
             # the two and Python rejects naive/aware mixing.
             "data_timestamp_utc": datetime(2025, 11, 3, 4, 5, 0, tzinfo=UTC),
         }
@@ -725,7 +725,7 @@ async def test_last_seen_renders_as_tz_aware_timestamp(
     state = hass.states.get("sensor.test_sensor_last_seen")
     assert state is not None
     assert state.state != STATE_UNAVAILABLE, (
-        "Last seen entity unavailable — likely a tz-naive datetime "
+        "Last seen entity unavailable - likely a tz-naive datetime "
         "regression in aiopurpleair. Expected a tz-aware ISO timestamp."
     )
     # HA renders TIMESTAMP-class state as ISO 8601 with a tz suffix
@@ -751,7 +751,7 @@ async def test_sensor_unavailable_when_missing_from_response(
     Also verifies the log-when-unavailable rule: exactly one INFO log on the
     transition to unavailable, and one on the transition back.
     """
-    # Initial setup succeeds — the sensor is known.
+    # Initial setup succeeds - the sensor is known.
     assert hass.states.get("sensor.test_sensor_temperature") is not None
 
     # Next refresh returns a response without this sensor.
@@ -792,7 +792,7 @@ async def test_sensor_unavailable_when_missing_from_response(
     await hass.async_block_till_done()
     assert not any("is unavailable" in record.message for record in caplog.records)
 
-    # Back online — log once again on recovery.
+    # Back online - log once again on recovery.
     api.sensors.async_get_sensors = AsyncMock(return_value=get_sensors_response)
     caplog.clear()
     freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
@@ -899,7 +899,7 @@ async def test_organization_entities_disambiguate_across_entries(
 
     The org device's `name=f"{entry.title} organization"` is what flows into
     `_attr_has_entity_name=True` to disambiguate ``sensor.<title>_organization_*``
-    across entries. This test pins that contract — removing the device would
+    across entries. This test pins that contract - removing the device would
     collapse both accounts' org sensors into the same friendly name with
     `_2`-suffixed entity_ids.
     """
