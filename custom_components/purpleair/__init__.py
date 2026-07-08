@@ -61,7 +61,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PurpleAirConfigEntry) ->
     await sensors_coordinator.async_config_entry_first_refresh()
     # Best-effort: the organization endpoint backs only diagnostic-only
     # sensors and the low-points repair issue. A failure here must not abort
-    # config-entry setup — `async_config_entry_first_refresh` raises
+    # config-entry setup - `async_config_entry_first_refresh` raises
     # ConfigEntryNotReady on transient failures, so use `async_refresh`
     # instead, which records the failure on the coordinator and lets the
     # next 24 h cycle retry. Auth errors still propagate via the coordinator's
@@ -299,10 +299,10 @@ def _async_reconcile_entity_defaults(hass: HomeAssistant) -> None:
     registration; existing registry entries keep their original `disabled_by`
     state. When the integration later raises an entity from disabled-by-default
     to enabled-by-default, users on pre-existing installs would still see it
-    disabled — and with no in-product hint that they should re-enable it.
+    disabled - and with no in-product hint that they should re-enable it.
 
     This pass runs once per HA startup (cheap registry scan), and only ever
-    *enables* — entries with `disabled_by=USER` (user explicitly disabled) and
+    *enables* - entries with `disabled_by=USER` (user explicitly disabled) and
     `disabled_by=None` (already enabled) are left untouched. The asymmetry is
     deliberate: silently disabling a user's enabled entity would be invasive,
     while re-enabling something the integration originally disabled and now

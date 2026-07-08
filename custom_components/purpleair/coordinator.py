@@ -137,7 +137,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
 
     For a default 6-entity single-sensor install this reduces per-day
     field-fetches from ~4,608 (hard-coded 16-field list) to ~2,886 (10
-    per 5-min refresh + one daily 16-field catch-up) — roughly 37 % fewer
+    per 5-min refresh + one daily 16-field catch-up) - roughly 37 % fewer
     points consumed per day.
     """
 
@@ -233,7 +233,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         after a new subentry was added) fall back to the default-enabled,
         non-hardware-gated description set so the very first response
         contains usable sensor values. Without that fallback the new
-        sensor would be valueless for a full update interval — only
+        sensor would be valueless for a full update interval - only
         AVAILABILITY_FIELDS would be requested because org-level entities
         already in the registry contribute no per-sensor fields.
         """
@@ -253,7 +253,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
         # Walk the registry once to collect (a) which sensor_indices already
         # have per-sensor entities and (b) the api_fields of every enabled
         # per-sensor entity. Org-level entries use entry_id-prefixed unique
-        # IDs and drop out at the int() parse — entry_id is whatever string
+        # IDs and drop out at the int() parse - entry_id is whatever string
         # HA picks (random in production, fixed in tests), but never a bare
         # integer that could collide with a sensor_index. Stale per-sensor
         # entities whose description key no longer exists (renamed/removed
@@ -327,7 +327,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
             for subentry in self.config_entry.subentries.values()
         ]
         if not index_list:
-            # No sensors configured — don't hit the API.
+            # No sensors configured - don't hit the API.
             return _empty_response()
 
         read_keys: list[str] = [
@@ -373,7 +373,7 @@ class PurpleAirDataUpdateCoordinator(DataUpdateCoordinator[GetSensorsResponse]):
                 translation_placeholders={"error": str(err)},
             ) from err
 
-        # Successful sensor refresh → API is accepting requests, so the
+        # Successful sensor refresh -> API is accepting requests, so the
         # out-of-points ERROR cannot be true. Clear it here so the user
         # sees the issue disappear within the 5-minute sensors cycle
         # rather than waiting up to 24 h for the next org refresh.
@@ -425,7 +425,7 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
                 translation_key="invalid_api_key",
             ) from err
         except PaymentRequiredError as err:
-            # The API confirms we're out of points — surface the dedicated
+            # The API confirms we're out of points - surface the dedicated
             # out-of-points ERROR issue. Don't touch the low-points warning
             # here; we don't have a current balance reading to evaluate.
             _async_raise_out_of_points_issue(self.hass, self.config_entry.entry_id)
@@ -452,7 +452,7 @@ class PurpleAirOrganizationCoordinator(DataUpdateCoordinator[GetOrganizationResp
         out-of-points ERROR issue is always cleared here. Only the
         low-points WARNING is balance-dependent.
         """
-        # Successful read → API is accepting requests → out-of-points cannot
+        # Successful read -> API is accepting requests -> out-of-points cannot
         # be true right now. Clear it unconditionally.
         ir.async_delete_issue(
             self.hass, DOMAIN, _out_of_points_issue_id(self.config_entry.entry_id)

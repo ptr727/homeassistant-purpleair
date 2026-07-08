@@ -172,7 +172,7 @@ async def test_migrate_entry_matches_core_v1_schema(hass: HomeAssistant) -> None
     and ``config_flow.py`` on the ``dev`` branch:
       - entry.data: {"api_key": <string>}
       - entry.options: {"sensor_indices": [<int>, ...], "show_on_map": <bool>}
-      - entry.version: 1 (unspecified in manifest → HA default)
+      - entry.version: 1 (unspecified in manifest -> HA default)
     The literal string keys below are deliberate; do NOT substitute the local
     constants. If core renames the options key, this test must fail.
     """
@@ -391,11 +391,11 @@ async def test_async_migrate_integration_drops_legacy_device_link(
     and no subentry, recorded as `(entry, None)` in the device registry. v2
     binds the device to a real subentry instead. The migration must add the
     new (parent_entry, subentry) association *and* drop the legacy
-    (parent_entry, None) one — otherwise the device carries a stale "linked to
+    (parent_entry, None) one - otherwise the device carries a stale "linked to
     the entry without any subentry" association forever.
 
     This guard exercises the parent-entry branch of async_migrate_integration
-    (the case where the migrating entry is itself the chosen parent — i.e. a
+    (the case where the migrating entry is itself the chosen parent - i.e. a
     single v1 entry with no API-key siblings).
     """
     parent = MockConfigEntry(
@@ -429,7 +429,7 @@ async def test_async_migrate_integration_drops_legacy_device_link(
     assert len(survivor.subentries) == 1
     sub = next(iter(survivor.subentries.values()))
 
-    # Device is still bound to the parent entry, but ONLY via the new subentry —
+    # Device is still bound to the parent entry, but ONLY via the new subentry -
     # the legacy `None` association has been removed.
     refreshed = device_registry.async_get(device.id)
     assert refreshed is not None

@@ -117,7 +117,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         if org_name:
             return org_name
         title: str = TITLE
-        # Count every existing entry, not just loaded ones — a disabled or
+        # Count every existing entry, not just loaded ones - a disabled or
         # ignored prior entry still occupies the default ``PurpleAir`` title,
         # so the new entry needs a numbered suffix to avoid colliding with it.
         # Mirrors the include_disabled/include_ignore pattern in
@@ -133,7 +133,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         """Best-effort fetch of the account's organization name for the entry title.
 
         Costs one API call (~1 point) and is only invoked from the initial
-        ``async_step_api_key`` path — reauth/reconfigure don't pay this
+        ``async_step_api_key`` path - reauth/reconfigure don't pay this
         cost because they don't change the existing entry title. Any
         failure here returns ``None`` so the caller falls back to the
         default ``PurpleAir (n)`` naming.
@@ -147,7 +147,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         except PurpleAirError as err:
             LOGGER.debug("Skipping organization name lookup: %s", err)
             return None
-        except Exception:  # noqa: BLE001 — best-effort lookup; never block the flow.
+        except Exception:  # noqa: BLE001 - best-effort lookup; never block the flow.
             LOGGER.exception("Unexpected error fetching organization name")
             return None
         if not response or not response.organization_name:
@@ -184,7 +184,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
-        except Exception:  # noqa: BLE001 — surface any unexpected error to the user as a generic form error rather than crashing the flow.
+        except Exception:  # noqa: BLE001 - surface any unexpected error to the user as a generic form error rather than crashing the flow.
             LOGGER.exception("Unexpected error checking API key")
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
@@ -204,7 +204,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
 
-        # Reject duplicates across any other entry — reauth/reconfigure pass the
+        # Reject duplicates across any other entry - reauth/reconfigure pass the
         # current entry so changing _its_ key to the same value is allowed.
         api_key = str(self._flow_data[CONF_API_KEY])
         for config_entry in self.hass.config_entries.async_entries(DOMAIN):
@@ -438,7 +438,7 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
-        except Exception:  # noqa: BLE001 — surface any unexpected error to the user as a generic form error rather than crashing the flow.
+        except Exception:  # noqa: BLE001 - surface any unexpected error to the user as a generic form error rather than crashing the flow.
             LOGGER.exception("Unexpected error validating location")
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
@@ -456,7 +456,7 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
         """Validate sensor.
 
         ``exclude_subentry_id`` skips a subentry from the duplicate-index
-        check — used by the reconfigure path so a subentry's existing
+        check - used by the reconfigure path so a subentry's existing
         sensor index doesn't flag itself as already configured.
         """
         self._errors = {}
@@ -494,7 +494,7 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
             LOGGER.error("PurpleAirError: %s", err)
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
-        except Exception:  # noqa: BLE001 — surface any unexpected error to the user as a generic form error rather than crashing the flow.
+        except Exception:  # noqa: BLE001 - surface any unexpected error to the user as a generic form error rather than crashing the flow.
             LOGGER.exception("Unexpected error validating sensor")
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
@@ -702,7 +702,7 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
 
     @property
     def reconfigure_schema(self) -> vol.Schema:
-        """Reconfigure schema — Read Key only.
+        """Reconfigure schema - Read Key only.
 
         Index stays fixed because changing it would break the subentry's
         unique_id (str(sensor_index)) and detach existing entity history.

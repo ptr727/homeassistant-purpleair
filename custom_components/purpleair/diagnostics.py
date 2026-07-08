@@ -40,7 +40,7 @@ async def async_get_config_entry_diagnostics(
     sensors_coordinator = entry.runtime_data.sensors
     organization_coordinator = entry.runtime_data.organization
     # HA's DataUpdateCoordinator stubs type `.data` as the generic _DataT,
-    # but at runtime it is None until the first refresh succeeds — diagnostics
+    # but at runtime it is None until the first refresh succeeds - diagnostics
     # can be requested before that.
     sensors_data_dump: dict[str, Any] | None = (
         sensors_coordinator.data.model_dump()
