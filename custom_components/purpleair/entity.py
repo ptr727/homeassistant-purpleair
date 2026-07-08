@@ -24,7 +24,7 @@ MANUFACTURER: Final[str] = "PurpleAir, Inc."
 #   data_time_stamp. 10 min gives comfortable headroom for a missed upload.
 # - confidence: 0-100; below 50 means the two PMS channels disagree too much to
 #   trust the averaged value. Only meaningful when both channels (PM-A *and*
-#   PM-B) are reporting — single-channel sensors (PA-I or one channel
+#   PM-B) are reporting - single-channel sensors (PA-I or one channel
 #   downgraded) report low confidence by definition because there's no second
 #   channel to cross-check against, and gating on it would mark working
 #   indoor/PA-I sensors permanently unavailable.
@@ -74,7 +74,7 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
         """Handle updated data from the coordinator.
 
         The availability predicate here must match the ``available`` property
-        exactly — otherwise we can end up logging a "back online" transition
+        exactly - otherwise we can end up logging a "back online" transition
         without having previously logged the "unavailable" side (or vice
         versa) when a coordinator-level failure coincides with healthy
         stale-cached sensor data.

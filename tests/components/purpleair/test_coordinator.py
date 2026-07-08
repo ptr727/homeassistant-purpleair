@@ -103,7 +103,7 @@ async def test_coordinator_handles_mixed_public_and_private_sensors(
         TEST_SENSOR_INDEX1,
         TEST_SENSOR_INDEX2,
     }
-    # Only the private sensor's read_key is forwarded — the public sensor
+    # Only the private sensor's read_key is forwarded - the public sensor
     # contributes nothing to read_keys.
     assert call.kwargs["read_keys"] == [TEST_SENSOR_READ_KEY]
 
@@ -337,7 +337,7 @@ async def test_derived_sensors_dont_cost_points_while_disabled(
 
     - pm2.5 and humidity ARE in the request, but that is because the
       baseline pm2.5_mass_concentration and humidity entities are also
-      enabled by default — not because the EPA entity demands them.
+      enabled by default - not because the EPA entity demands them.
     - pm2.5_24hour must NOT be in the request, since nothing else needs it.
     """
     fields = api.sensors.async_get_sensors.await_args.args[0]
@@ -379,7 +379,7 @@ async def test_epa_sensor_pulls_both_fields_when_baselines_disabled(
 
     With the default pm2.5 and humidity entities disabled, enabling the EPA
     entity must still cause pm2.5 and humidity to be requested. This is the
-    self-sufficiency contract for derived sensors — they carry their own
+    self-sufficiency contract for derived sensors - they carry their own
     api_fields so users can enable a single derived entity without having
     to keep the baselines on for the points-cost side-effect.
     """
@@ -528,7 +528,7 @@ async def test_static_refresh_when_new_subentry_is_cache_miss(
     # _should_fetch_static must detect the cache miss.
     assert coordinator._should_fetch_static() is True
 
-    # Call _async_update_data directly — bypasses the debouncer that would
+    # Call _async_update_data directly - bypasses the debouncer that would
     # otherwise suppress rapid refreshes in the test.
     api.sensors.async_get_sensors.reset_mock()
     await coordinator._async_update_data()
@@ -550,7 +550,7 @@ async def test_first_refresh_after_subentry_add_includes_default_fields(
     """A subentry with no per-sensor entities yet must still get its default fields.
 
     Reproduces the user-visible bug where the first refresh after adding a new
-    sensor subentry only requested AVAILABILITY_FIELDS — the registry still
+    sensor subentry only requested AVAILABILITY_FIELDS - the registry still
     contained organization-level entities so the "no entities" fallback was
     skipped, but the new subentry's per-sensor entities hadn't been registered
     yet (platform setup runs after first_refresh during reload). The fix
@@ -560,7 +560,7 @@ async def test_first_refresh_after_subentry_add_includes_default_fields(
     coordinator = config_entry.runtime_data.sensors
 
     # Add a second subentry. We deliberately do not run platform setup, so the
-    # entity registry has no per-sensor entries for TEST_SENSOR_INDEX2 yet —
+    # entity registry has no per-sensor entries for TEST_SENSOR_INDEX2 yet -
     # mirroring the moment between async_reload and async_forward_entry_setups.
     new_subentry = ConfigSubentry(
         data=MappingProxyType({CONF_SENSOR_INDEX: TEST_SENSOR_INDEX2}),
@@ -577,7 +577,7 @@ async def test_first_refresh_after_subentry_add_includes_default_fields(
     # for the just-added sensor would all be None on the first refresh.
     for required in ("temperature", "humidity", "pm2.5"):
         assert required in fields, (
-            f"{required} missing — new subentry would be valueless until next refresh"
+            f"{required} missing - new subentry would be valueless until next refresh"
         )
 
 
@@ -646,7 +646,7 @@ async def test_registry_event_for_foreign_entity_does_not_refresh(
 
     api.sensors.async_get_sensors.reset_mock()
 
-    # Toggle the foreign entity's disabled_by — this fires the registry event.
+    # Toggle the foreign entity's disabled_by - this fires the registry event.
     entity_registry.async_update_entity(
         foreign_entity_id, disabled_by=er.RegistryEntryDisabler.USER
     )
@@ -825,7 +825,7 @@ async def test_organization_payment_required_creates_out_of_points_issue(
     """A PaymentRequiredError on the org refresh raises the out-of-points ERROR.
 
     Distinct from the WARNING-level low-points issue (which has numeric
-    placeholders). out-of-points has no numerics — we don't have a balance
+    placeholders). out-of-points has no numerics - we don't have a balance
     reading when the API rejects the request.
     """
     out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"
@@ -942,7 +942,7 @@ async def test_sensors_recovery_clears_out_of_points_issue(
     assert issue_registry.async_get_issue(DOMAIN, out_of_points_id) is not None
 
     # Next sensors refresh succeeds (the default `api` fixture returns a
-    # healthy GetSensorsResponse) — the issue should clear immediately.
+    # healthy GetSensorsResponse) - the issue should clear immediately.
     freezer.tick(UPDATE_INTERVAL + timedelta(seconds=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
@@ -960,7 +960,7 @@ async def test_organization_recovery_clears_out_of_points_issue(
     """A successful org refresh always clears the out-of-points issue.
 
     Even if the new balance is below the warning threshold (low_points),
-    the API just accepted the request — by definition we're no longer
+    the API just accepted the request - by definition we're no longer
     "out of points", so the ERROR-level issue must clear.
     """
     out_of_points_id = f"{ISSUE_OUT_OF_API_POINTS}_{config_entry.entry_id}"

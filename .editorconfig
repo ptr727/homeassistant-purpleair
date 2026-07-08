@@ -24,6 +24,11 @@ trim_trailing_whitespace = false
 [*.{yml,yaml}]
 indent_size = 2
 
+# Workflow YAML is LF: Dependabot and Actions rewrite it with LF, so declaring LF keeps it consistent instead of
+# mixed. git still leaves endings alone (`* -text`); this and CI (editorconfig-checker) enforce it. Other YAML is CRLF.
+[.github/workflows/*.{yml,yaml}]
+end_of_line = lf
+
 # Shell scripts must stay LF - a CRLF shebang breaks execution on Linux. Covers
 # both *.sh and the extensionless executables in scripts/ (develop, fix, lint, setup).
 [*.sh]
