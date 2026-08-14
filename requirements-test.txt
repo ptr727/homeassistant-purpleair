@@ -1,5 +1,5 @@
 -r requirements.txt
-ptr727-aiopurpleair==1.0.47
+ptr727-aiopurpleair==1.0.51
 pytest-cov>=7,<8
 pytest-homeassistant-custom-component==0.13.348
 mypy>=2.3.0
