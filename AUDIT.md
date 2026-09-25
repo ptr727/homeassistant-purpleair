@@ -39,7 +39,7 @@ Evaluate each applicable check at two tiers: **letter** (the exact file, section
 
 ## 4. Validate Settings, Rulesets, and Secrets
 
-Settings, labels, and the ruleset payloads are the hub's, applied by its `repo-config/configure.sh` against its own payloads. Run the command from a hub checkout at `main`, passing this repository and its model as arguments:
+Settings, labels, and the ruleset payloads are the hub's, applied by its `repo-config/configure.sh` against its own payloads. This repository still holds a retired local `repo-config/` copy awaiting removal, and it is not the audit, per [`OPERATIONS.md`][operations] "Configuration Layout". Run the command from a hub checkout at `main`, passing this repository and its model as arguments:
 
 ```shell
 # cwd is a hub checkout of github.com/ptr727/ProjectTemplate, at main

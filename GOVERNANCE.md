@@ -279,5 +279,6 @@ Every repo's GitHub repository details (the About panel) follow a fixed conventi
 - [`.github/ha-test-versions.json`](./.github/ha-test-versions.json): the Home Assistant test matrix, per [`OPERATIONS.md`](./OPERATIONS.md) "HA Test Matrix".
 - [`.github/workflows/`](./.github/workflows/): the PR gate, the shared test and build tasks, the HA-version bump bot, the merge bot, and the dispatch-only publisher. [`WORKFLOW.md`](./WORKFLOW.md) is the contract they implement.
 - [`hacs.json`](./hacs.json): the HACS metadata, including the minimum supported Home Assistant version.
+- [`repo-config/`](./repo-config/): a retired local copy of the hub's settings and ruleset tooling, awaiting removal. The hub's copy is the authority, per [`OPERATIONS.md`](./OPERATIONS.md) "Configuration Layout".
 
 After editing a doc, run the linters (see "Running the Linters Locally (Known-Working Invocations)", a hub-only section read in a hub checkout rather than carried into every fleet repo, and [`OPERATIONS.md`](./OPERATIONS.md) "Local Verification") before commit. The Comments, Character Set, and Line Endings rules above are the frequent regressions, so hold them exactly.
