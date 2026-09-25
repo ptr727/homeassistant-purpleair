@@ -160,7 +160,7 @@ the wrong branch stays honest about its prerelease status.
 ### Validate at entry, then build the zip
 
 `build-release-task` versions once, then in the `build` job stamps `manifest.json` with the NBGV `SemVer2`
-(the checked-in placeholder is `0.0.0`; the rewrite is on the runner only, no commit), zips
+(the checked-in placeholder is the all-zero placeholder version; the rewrite is on the runner only, no commit), zips
 `custom_components/purpleair/` **at the archive root**, and **asserts the layout** (`manifest.json` +
 `__init__.py` present at root, no `purpleair/` wrapper) before uploading - failing the build on a HACS
 double-nesting regression rather than shipping a broken install. The `release` job runs only when
