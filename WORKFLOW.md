@@ -421,7 +421,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D3.3 Version floor + git height.** Output: `version.json` sets the major.minor floor (`1.0`), NBGV
   appends the git height (adjusted by `versionHeightOffset`, currently `-1`) as the patch, never bumped on a cadence. The NBGV version is stamped into
   `manifest.json` and drives the release tag; it is independent of the integration's `requirements` pins and
-  the HA test-matrix versions. *(Who raises the floor and when is a human-process rule in `AGENTS.md`.)*
+  the HA test-matrix versions. *(Who raises the floor and when is a human-process rule in `OPERATIONS.md`.)*
 
 ### D4 - Release / publish
 
