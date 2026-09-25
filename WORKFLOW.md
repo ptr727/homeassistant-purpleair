@@ -609,7 +609,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 ### 5D. Configuration audit
 
-> The local `repo-config/` copy is retired and awaiting removal. The hub's `repo-config/configure.sh check` is the audit, per [`AUDIT.md`](./AUDIT.md) section 4, and the local copy described below under-checks secrets.
+> The local `repo-config/` copy is retired and awaiting removal. The hub's `repo-config/configure.sh check` audits settings, rulesets, and labels, and secret names are checked separately by the `gh api` names check and `spec/audit.py`, both per [`AUDIT.md`](./AUDIT.md) section 4.
 
 Run [`repo-config/configure.sh check`](./repo-config/) (section 6). It confirms the listed secrets exist,
 the `main`/`develop` rulesets enforce the required merge method + status check + signed commits + strict-off
