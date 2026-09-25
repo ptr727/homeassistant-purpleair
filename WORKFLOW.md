@@ -609,6 +609,8 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 ### 5D. Configuration audit
 
+> The local `repo-config/` copy is retired and awaiting removal. The hub's `repo-config/configure.sh check` is the audit, per [`AUDIT.md`](./AUDIT.md) section 4, and the local copy described below under-checks secrets.
+
 Run [`repo-config/configure.sh check`](./repo-config/) (section 6). It confirms the listed secrets exist,
 the `main`/`develop` rulesets enforce the required merge method + status check + signed commits + strict-off
 (and, on `develop`, linear history; on `main`, **no** linear-history rule so the promotion merge-commit is
@@ -658,6 +660,6 @@ branch to one); rebase off; auto-delete-on-merge **off** (so `main`/`develop` su
 merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependabot version **and** security
 updates enabled. The GitHub App installed with the scopes above.
 
-**Validation.** This configuration is codified in [`repo-config/`](./repo-config/) and applied/audited by
+**Validation.** The local copy described here is retired, and the hub's `configure.sh` is the audit, per [`AUDIT.md`](./AUDIT.md) section 4. This configuration is codified in [`repo-config/`](./repo-config/) and applied/audited by
 `repo-config/configure.sh`; `check` **is** the 5D audit. Secret values cannot be read back, so the audit
 asserts the names exist; the App installation is a best-effort check.

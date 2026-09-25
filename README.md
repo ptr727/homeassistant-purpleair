@@ -298,7 +298,7 @@ The Read Key can also be added at sensor-add time for new sensors - see [3. Add 
 - **Development**:
   - See [`DEVCONTAINER.md`](DEVCONTAINER.md) for devcontainer development setup.
 - **Repository setup**:
-  - See [`repo-config/README.md`](repo-config/README.md) for repository configuration details.
+  - See [`AUDIT.md`](AUDIT.md) section 4 for repository configuration. The local [`repo-config/`](repo-config/) copy is retired and awaiting removal.
 
 ## Credits
 
