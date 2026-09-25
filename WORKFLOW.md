@@ -421,7 +421,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D3.3 Version floor + git height.** Output: `version.json` sets the major.minor floor (`1.0`), NBGV
   appends the git height (adjusted by `versionHeightOffset`, currently `-1`) as the patch, never bumped on a cadence. The NBGV version is stamped into
   `manifest.json` and drives the release tag; it is independent of the integration's `requirements` pins and
-  the HA test-matrix versions. *(Who raises the floor and when is a human-process rule in `AGENTS.md`.)*
+  the HA test-matrix versions. *(Who raises the floor and when is a human-process rule in `OPERATIONS.md`.)*
 
 ### D4 - Release / publish
 
@@ -609,13 +609,16 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 ### 5D. Configuration audit
 
-Run [`repo-config/configure.sh check`](./repo-config/) (section 6). It confirms the listed secrets exist,
-the `main`/`develop` rulesets enforce the required merge method + status check + signed commits + strict-off
-(and, on `develop`, linear history; on `main`, **no** linear-history rule so the promotion merge-commit is
-allowed), and the repository settings (auto-merge, allowed merge methods, auto-delete-on-merge off) are in
-place, exiting non-zero on drift. Secret *values* cannot be read back, so it asserts the names exist; the
-App installation is a best-effort check. The HACS zip release is dispatch-gated and keyless, so there is no
-external publish policy to verify - a noted manual item.
+From a hub checkout at `main`, run `repo-config/configure.sh check ptr727/homeassistant-purpleair release`
+(section 6), and check secret names as [`AUDIT.md`](./AUDIT.md) section 4 describes, since `configure.sh` does
+not check secrets. Together they confirm the listed secrets exist, the `main`/`develop` rulesets enforce the
+required merge method, status check, signed commits, and strict-off (with linear history on `develop`, and
+**no** linear-history rule on `main` so the promotion merge commit is allowed), and the repository settings
+(auto-merge, allowed merge methods, auto-delete-on-merge off) are in place. `check` exits non-zero on drift.
+Secret *values* cannot be read back, so only the names are asserted. The App installation is not
+checked by either. The HACS zip release is dispatch-gated and keyless, so there is no external publish policy
+to verify, which is a noted manual item. The local [`repo-config/`](./repo-config/) copy is retired and
+awaiting removal, so it is not the audit.
 
 ### Assessment
 
@@ -632,8 +635,9 @@ A misconfiguration surfaces only as a failed run, so the configuration is part o
 
 **Secrets.**
 
-- `CODECOV_TOKEN` - the Codecov upload token the pytest matrix uses (tokenless OIDC uploads are rejected on
-  protected-branch runs). Actions store only (coverage upload is never a Dependabot run).
+- `CODECOV_TOKEN` is the Codecov upload token the pytest matrix uses, since tokenless OIDC uploads are rejected
+  on protected-branch runs. Required in **both** the Actions and Dependabot stores, because the PR gate runs on
+  Dependabot's pushes too and a Dependabot-triggered run reads the Dependabot store.
 - `CODEGEN_APP_CLIENT_ID` / `CODEGEN_APP_PRIVATE_KEY` - the GitHub App credentials the merge-bot and the
   HA-version tracker mint the App token from. Required in **both** the Actions and Dependabot secret stores:
   the tracker reads them from Actions, but the merge-bot reads them from the Dependabot store when it acts on
@@ -658,6 +662,7 @@ branch to one); rebase off; auto-delete-on-merge **off** (so `main`/`develop` su
 merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependabot version **and** security
 updates enabled. The GitHub App installed with the scopes above.
 
-**Validation.** This configuration is codified in [`repo-config/`](./repo-config/) and applied/audited by
-`repo-config/configure.sh`; `check` **is** the 5D audit. Secret values cannot be read back, so the audit
-asserts the names exist; the App installation is a best-effort check.
+**Validation.** This configuration is applied and audited by the hub's `repo-config/configure.sh` against the
+hub's payloads, with secret names checked separately, per [`AUDIT.md`](./AUDIT.md) section 4. The local
+[`repo-config/`](./repo-config/) copy is retired and awaiting removal. Secret values cannot be read back, so
+the audit asserts the names exist. The App installation is not checked.
