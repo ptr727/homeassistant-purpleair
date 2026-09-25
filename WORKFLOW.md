@@ -609,15 +609,16 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 ### 5D. Configuration audit
 
-> The local `repo-config/` copy is retired and awaiting removal. The hub's `repo-config/configure.sh check` audits settings, rulesets, and labels, and secret names are checked separately by the `gh api` names check and `spec/audit.py`, both per [`AUDIT.md`](./AUDIT.md) section 4.
-
-Run [`repo-config/configure.sh check`](./repo-config/) (section 6). It confirms the listed secrets exist,
-the `main`/`develop` rulesets enforce the required merge method + status check + signed commits + strict-off
-(and, on `develop`, linear history; on `main`, **no** linear-history rule so the promotion merge-commit is
-allowed), and the repository settings (auto-merge, allowed merge methods, auto-delete-on-merge off) are in
-place, exiting non-zero on drift. Secret *values* cannot be read back, so it asserts the names exist; the
-App installation is a best-effort check. The HACS zip release is dispatch-gated and keyless, so there is no
-external publish policy to verify - a noted manual item.
+From a hub checkout at `main`, run `repo-config/configure.sh check ptr727/homeassistant-purpleair release`
+(section 6), and check secret names as [`AUDIT.md`](./AUDIT.md) section 4 describes, since `configure.sh` does
+not check secrets. Together they confirm the listed secrets exist, the `main`/`develop` rulesets enforce the
+required merge method, status check, signed commits, and strict-off (with linear history on `develop`, and
+**no** linear-history rule on `main` so the promotion merge commit is allowed), and the repository settings
+(auto-merge, allowed merge methods, auto-delete-on-merge off) are in place. `check` exits non-zero on drift.
+Secret *values* cannot be read back, so only the names are asserted. The App installation is not
+checked by either. The HACS zip release is dispatch-gated and keyless, so there is no external publish policy
+to verify, which is a noted manual item. The local [`repo-config/`](./repo-config/) copy is retired and
+awaiting removal, so it is not the audit.
 
 ### Assessment
 
@@ -660,6 +661,7 @@ branch to one); rebase off; auto-delete-on-merge **off** (so `main`/`develop` su
 merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependabot version **and** security
 updates enabled. The GitHub App installed with the scopes above.
 
-**Validation.** The local copy described here is retired, and the hub's `configure.sh` is the audit, per [`AUDIT.md`](./AUDIT.md) section 4. This configuration is codified in [`repo-config/`](./repo-config/) and applied/audited by
-`repo-config/configure.sh`; `check` **is** the 5D audit. Secret values cannot be read back, so the audit
-asserts the names exist; the App installation is a best-effort check.
+**Validation.** This configuration is applied and audited by the hub's `repo-config/configure.sh` against the
+hub's payloads, with secret names checked separately, per [`AUDIT.md`](./AUDIT.md) section 4. The local
+[`repo-config/`](./repo-config/) copy is retired and awaiting removal. Secret values cannot be read back, so
+the audit asserts the names exist. The App installation is not checked.
