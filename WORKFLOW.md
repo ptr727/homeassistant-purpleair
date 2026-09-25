@@ -119,7 +119,7 @@ Legibility rules. Necessary but not sufficient: a perfectly styled workflow can 
   `(needs.X.result == 'success' || needs.X.result == 'skipped')`, not `!= 'failure'`. A job that must run
   when an upstream `needs:` was *skipped* (the scheduled retest, whose `gate` is dispatch-only) wraps its
   `if:` in `always() &&` so GitHub's skipped-dependency auto-skip does not suppress it.
-- **Line endings.** Workflow YAML and JSON follow [`.editorconfig`](./.editorconfig) (CRLF). Preserve on
+- **Line endings.** Workflow YAML and JSON follow [`.editorconfig`](./.editorconfig) (LF). Preserve on
   every edit.
 
 ## 3. Architecture
@@ -526,7 +526,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D9.2** File/workflow/job/step names follow the suffix rules; a ruleset-bound `context:` name moves only
   in lockstep with `repo-config/`.
 - **D9.3** Bash `run:` blocks start `set -euo pipefail`; multi-line `if:` uses `>-`.
-- **D9.4** Line endings follow `.editorconfig` (CRLF); `.github/ha-test-versions.json` is written with
+- **D9.4** Line endings follow `.editorconfig` (LF); `.github/ha-test-versions.json` is written with
   `ensure_ascii=False` to preserve its non-ASCII `$comment` without a noisy diff.
 - **D9.5 No decorative / dropped workflows.** No date-badge, no codegen, no NuGet/Docker task, no
   `PUBLISH_ON_MERGE` variable, no broad `push` publish trigger. The `check-ha-version` tracker and the
