@@ -133,9 +133,9 @@ jobs:
     # The matrix is sourced from .github/ha-test-versions.json so that
     # check-ha-version.yml can bump it via PR. `minimum` is hand-maintained
     # and must match hacs.json["homeassistant"] (the user-facing minimum);
-    # currently 2026.4.0 because the entity registry's `aliases` field
-    # changed shape in 2026.4 and our snapshot tests can't satisfy both
-    # pre- and post-2026.4 formats. requirements.txt's `homeassistant==X`
+    # currently 2026.8.0, the first release with the per-config-entry
+    # device lookup (`async_get_device_by_identifier`) the integration
+    # uses. requirements.txt's `homeassistant==X`
     # is a dev/CI bootstrap pin tracking `latest-stable` so the devcontainer
     # develops against the release most users run; the pytest step below
     # overrides it per matrix leg with

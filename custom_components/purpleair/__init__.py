@@ -175,8 +175,8 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
             ):
                 continue
 
-            device = device_registry.async_get_device(
-                identifiers={(DOMAIN, str(sensor_index))}
+            device = device_registry.async_get_device_by_identifier(
+                (DOMAIN, str(sensor_index)), entry.entry_id
             )
             subentry = ConfigSubentry(
                 data=MappingProxyType({CONF_SENSOR_INDEX: sensor_index}),

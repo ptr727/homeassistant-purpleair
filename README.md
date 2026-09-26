@@ -323,7 +323,7 @@ Licensed under the [Apache 2.0 License][license-link] and [NOTICE](./NOTICE)\
 [hacs-link]: https://github.com/hacs/integration
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
 [haversion-link]: https://www.home-assistant.io/blog/categories/release-notes/
-[haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.4.0%2B-41BDF5?logo=homeassistant
+[haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.8.0%2B-41BDF5?logo=homeassistant
 [issues-link]: https://github.com/ptr727/homeassistant-purpleair/issues
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
 [license-link]: ./LICENSE

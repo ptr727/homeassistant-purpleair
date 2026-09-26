@@ -77,8 +77,8 @@ async def test_remove_config_entry_device_blocks_active_sensor(
     device_registry: dr.DeviceRegistry,
 ) -> None:
     """Devices for sensors still configured cannot be removed."""
-    device = device_registry.async_get_device(
-        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))}
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, str(TEST_SENSOR_INDEX1)), config_entry.entry_id
     )
     assert device is not None
     assert await async_remove_config_entry_device(hass, config_entry, device) is False

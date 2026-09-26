@@ -122,8 +122,8 @@ async def test_sensor_device_info(
     device_registry: dr.DeviceRegistry,
 ) -> None:
     """Device info is populated from the API response."""
-    device = device_registry.async_get_device(
-        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))}
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, str(TEST_SENSOR_INDEX1)), config_entry.entry_id
     )
     assert device is not None
     assert device.manufacturer == "PurpleAir, Inc."
@@ -929,11 +929,11 @@ async def test_organization_entities_disambiguate_across_entries(
 
     # Each entry has its own org device with a distinct name that flows into
     # the entity friendly_name via _attr_has_entity_name=True.
-    org_device_1 = device_registry.async_get_device(
-        identifiers={(DOMAIN, f"organization-{config_entry.entry_id}")}
+    org_device_1 = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"organization-{config_entry.entry_id}"), config_entry.entry_id
     )
-    org_device_2 = device_registry.async_get_device(
-        identifiers={(DOMAIN, f"organization-{second.entry_id}")}
+    org_device_2 = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"organization-{second.entry_id}"), second.entry_id
     )
     assert org_device_1 is not None
     assert org_device_2 is not None
