@@ -655,14 +655,20 @@ async def test_async_migrate_integration_rehomes_disabled_sibling_entities(
 
 
 @pytest.mark.parametrize(
-    ("sibling_disabled_by", "entity_disabled_by"),
+    ("parent_disabled_by", "sibling_disabled_by", "entity_disabled_by"),
     [
-        (ConfigEntryDisabler.USER, er.RegistryEntryDisabler.CONFIG_ENTRY),
-        (None, er.RegistryEntryDisabler.DEVICE),
+        (None, ConfigEntryDisabler.USER, er.RegistryEntryDisabler.CONFIG_ENTRY),
+        (None, None, er.RegistryEntryDisabler.DEVICE),
+        (
+            ConfigEntryDisabler.USER,
+            ConfigEntryDisabler.USER,
+            er.RegistryEntryDisabler.DEVICE,
+        ),
     ],
 )
 async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     hass: HomeAssistant,
+    parent_disabled_by: ConfigEntryDisabler | None,
     sibling_disabled_by: ConfigEntryDisabler | None,
     entity_disabled_by: er.RegistryEntryDisabler,
 ) -> None:
@@ -682,6 +688,7 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
             CONF_SHOW_ON_MAP: False,
         },
         title="parent",
+        disabled_by=parent_disabled_by,
     )
     sibling = MockConfigEntry(
         domain=DOMAIN,
