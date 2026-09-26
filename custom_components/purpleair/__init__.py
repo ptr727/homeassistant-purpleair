@@ -168,29 +168,54 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
         parent_entry, all_disabled = api_key_entries[api_key]
 
         for sensor_index in sensor_indices:
-            # Skip if this sensor index already exists as a subentry
-            if any(
-                int(subentry.data[CONF_SENSOR_INDEX]) == sensor_index
-                for subentry in parent_entry.subentries.values()
+            identifier = (DOMAIN, str(sensor_index))
+            device = device_registry.async_get_device_by_identifier(
+                identifier, entry.entry_id
+            )
+            existing_subentry = next(
+                (
+                    subentry
+                    for subentry in parent_entry.subentries.values()
+                    if int(subentry.data[CONF_SENSOR_INDEX]) == sensor_index
+                ),
+                None,
+            )
+
+            # Devices are per config entry, so a sibling listing a sensor the
+            # parent already rehomed holds its own device, which may be the
+            # one carrying the entities. Nothing else is left to move.
+            if existing_subentry is not None and (
+                device is None or parent_entry.entry_id == entry.entry_id
             ):
                 continue
 
-            device = device_registry.async_get_device_by_identifier(
-                (DOMAIN, str(sensor_index)), entry.entry_id
-            )
-            subentry = ConfigSubentry(
-                data=MappingProxyType({CONF_SENSOR_INDEX: sensor_index}),
-                subentry_type=CONF_SENSOR,
-                title=(
-                    f"{device.name} ({sensor_index})"
-                    if device and device.name
-                    else f"Sensor {sensor_index}"
-                ),
-                unique_id=str(sensor_index),
+            # The parent's device for an already-rehomed sensor, which the
+            # sibling's entities join since the sibling device is removed
+            # along with the sibling entry
+            target_device = (
+                device_registry.async_get_device_by_identifier(
+                    identifier, parent_entry.entry_id
+                )
+                if existing_subentry is not None
+                else None
             )
 
-            # Create subentry under the chosen parent
-            hass.config_entries.async_add_subentry(parent_entry, subentry)
+            if existing_subentry is not None:
+                subentry = existing_subentry
+            else:
+                subentry = ConfigSubentry(
+                    data=MappingProxyType({CONF_SENSOR_INDEX: sensor_index}),
+                    subentry_type=CONF_SENSOR,
+                    title=(
+                        f"{device.name} ({sensor_index})"
+                        if device and device.name
+                        else f"Sensor {sensor_index}"
+                    ),
+                    unique_id=str(sensor_index),
+                )
+
+                # Create subentry under the chosen parent
+                hass.config_entries.async_add_subentry(parent_entry, subentry)
 
             if device is not None:
                 # Move entities tied to the old device to the new subentry
@@ -212,8 +237,16 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                         entity_entry.entity_id,
                         config_entry_id=parent_entry.entry_id,
                         config_subentry_id=subentry.subentry_id,
+                        device_id=(
+                            target_device.id
+                            if target_device is not None
+                            else entity_entry.device_id
+                        ),
                         disabled_by=entity_disabled_by,
                     )
+
+                if target_device is not None:
+                    continue
 
                 device_disabled_by = device.disabled_by
                 if (
