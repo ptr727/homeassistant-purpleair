@@ -750,6 +750,50 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     assert migrated_entity.disabled_by is er.RegistryEntryDisabler.USER
 
 
+async def test_async_migrate_integration_keeps_enabled_entities_enabled(
+    hass: HomeAssistant,
+) -> None:
+    """An enabled entity moves with its device and stays enabled."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="entry",
+    )
+    entry.add_to_hass(hass)
+
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="TEST_SENSOR_INDEX1",
+    )
+    entity_registry = er.async_get(hass)
+    entity_entry = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX1}-temperature",
+        config_entry=entry,
+        device_id=device.id,
+        original_name="Temp",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    subentries = list(entry.subentries.values())
+    assert len(subentries) == 1
+    migrated_entity = entity_registry.async_get(entity_entry.entity_id)
+    assert migrated_entity is not None
+    assert migrated_entity.config_subentry_id == subentries[0].subentry_id
+    assert migrated_entity.device_id == device.id
+    assert migrated_entity.disabled_by is None
+
+
 async def test_async_migrate_integration_skips_future_parent_alignment(
     hass: HomeAssistant,
 ) -> None:

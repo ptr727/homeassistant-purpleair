@@ -137,6 +137,27 @@ async def test_sensor_device_info(
     assert device.configuration_url == "http://example.com"
 
 
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{CONF_SENSOR_INDEX: 999999, CONF_SENSOR_READ_KEY: None}],
+)
+async def test_sensor_device_info_without_sensor_data(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A sensor missing from the first response still registers its device."""
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "999999"), config_entry.entry_id
+    )
+    assert device is not None
+    assert device.manufacturer == "PurpleAir, Inc."
+    assert device.model is None
+    assert device.sw_version is None
+
+
 async def test_show_on_map_enabled_adds_location_attrs(
     hass: HomeAssistant, config_entry, config_subentry, setup_config_entry
 ) -> None:
