@@ -50,24 +50,27 @@ class PurpleAirEntity(CoordinatorEntity[PurpleAirDataUpdateCoordinator]):
         self._entry = entry
         self._unavailable_logged = False
 
-        self._attr_device_info = DeviceInfo(
-            configuration_url=self.coordinator.async_get_map_url(sensor_index),
-            identifiers={(DOMAIN, str(sensor_index))},
-            manufacturer=MANUFACTURER,
-        )
         self._refresh_device_info()
 
     @callback
     def _refresh_device_info(self) -> None:
         """Pull hw/sw/name off the latest sensor data if available."""
         sensor = self._maybe_sensor_data()
-        if sensor is None:
+        if sensor is None and self._attr_device_info is not None:
             return
-        assert self._attr_device_info is not None
-        self._attr_device_info["hw_version"] = sensor.hardware
-        self._attr_device_info["model"] = sensor.model
-        self._attr_device_info["name"] = sensor.name
-        self._attr_device_info["sw_version"] = sensor.firmware_version
+        # Built as a plain DeviceInfo and assigned whole, since the base
+        # attribute also admits ChildDeviceInfo, which lacks these keys.
+        device_info = DeviceInfo(
+            configuration_url=self.coordinator.async_get_map_url(self._sensor_index),
+            identifiers={(DOMAIN, str(self._sensor_index))},
+            manufacturer=MANUFACTURER,
+        )
+        if sensor is not None:
+            device_info["hw_version"] = sensor.hardware
+            device_info["model"] = sensor.model
+            device_info["name"] = sensor.name
+            device_info["sw_version"] = sensor.firmware_version
+        self._attr_device_info = device_info
 
     @callback
     def _handle_coordinator_update(self) -> None:

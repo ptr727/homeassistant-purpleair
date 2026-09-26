@@ -122,8 +122,8 @@ async def test_sensor_device_info(
     device_registry: dr.DeviceRegistry,
 ) -> None:
     """Device info is populated from the API response."""
-    device = device_registry.async_get_device(
-        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))}
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, str(TEST_SENSOR_INDEX1)), config_entry.entry_id
     )
     assert device is not None
     assert device.manufacturer == "PurpleAir, Inc."
@@ -135,6 +135,27 @@ async def test_sensor_device_info(
     )
     assert device.sw_version == "7.02"
     assert device.configuration_url == "http://example.com"
+
+
+@pytest.mark.parametrize(
+    "config_subentry_data",
+    [{CONF_SENSOR_INDEX: 999999, CONF_SENSOR_READ_KEY: None}],
+)
+async def test_sensor_device_info_without_sensor_data(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A sensor missing from the first response still registers its device."""
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "999999"), config_entry.entry_id
+    )
+    assert device is not None
+    assert device.manufacturer == "PurpleAir, Inc."
+    assert device.model is None
+    assert device.sw_version is None
 
 
 async def test_show_on_map_enabled_adds_location_attrs(
@@ -929,11 +950,11 @@ async def test_organization_entities_disambiguate_across_entries(
 
     # Each entry has its own org device with a distinct name that flows into
     # the entity friendly_name via _attr_has_entity_name=True.
-    org_device_1 = device_registry.async_get_device(
-        identifiers={(DOMAIN, f"organization-{config_entry.entry_id}")}
+    org_device_1 = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"organization-{config_entry.entry_id}"), config_entry.entry_id
     )
-    org_device_2 = device_registry.async_get_device(
-        identifiers={(DOMAIN, f"organization-{second.entry_id}")}
+    org_device_2 = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"organization-{second.entry_id}"), second.entry_id
     )
     assert org_device_1 is not None
     assert org_device_2 is not None
