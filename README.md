@@ -292,13 +292,13 @@ The Read Key can also be added at sensor-add time for new sensors - see [3. Add 
   - Feature branch -> `develop` via **squash merge**; `develop` -> `main` via **merge commit**. Both methods are pinned in the branch rulesets.
   - CI runs on every branch push (there is no `pull_request` trigger); a fork PR's pushes don't run the base-repo check, so a maintainer lands the change on an in-repo branch before merge.
   - Dependabot and the HA-version-bump bot target `develop` and auto-merge once the required check passes.
-  - See [`WORKFLOW.md`](WORKFLOW.md) and [`AGENTS.md`](AGENTS.md) for the full release flow and HA-version-bump process.
+  - See [`WORKFLOW.md`](WORKFLOW.md) and [`OPERATIONS.md`](OPERATIONS.md) for the full release flow and HA-version-bump process.
 - **Code style**:
   - [ruff][ruff-link] (config in [`.ruff.toml`](.ruff.toml)), `mypy --strict`, and `pyright`; see [`CODESTYLE.md`](CODESTYLE.md) and [`.editorconfig`](.editorconfig). Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
 - **Development**:
   - See [`DEVCONTAINER.md`](DEVCONTAINER.md) for devcontainer development setup.
 - **Repository setup**:
-  - See [`repo-config/README.md`](repo-config/README.md) for repository configuration details.
+  - See [`AUDIT.md`](AUDIT.md) section 4 for repository configuration. The local [`repo-config/`](repo-config/) copy is retired and awaiting removal.
 
 ## Credits
 
