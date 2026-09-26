@@ -315,10 +315,8 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(self._flow_data[CONF_API_KEY])
         self._abort_if_unique_id_mismatch(reason=CONF_ALREADY_CONFIGURED)
 
-        return self.async_update_reload_and_abort(
-            reauth_entry,
-            data_updates={CONF_API_KEY: self._flow_data[CONF_API_KEY]},
-            reason=CONF_REAUTH_SUCCESSFUL,
+        return self._async_update_api_key_and_abort(
+            reauth_entry, reason=CONF_REAUTH_SUCCESSFUL
         )
 
     # Keep logic in sync with async_step_api_key()
@@ -345,11 +343,26 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(self._flow_data[CONF_API_KEY])
         self._abort_if_unique_id_configured()
 
-        return self.async_update_reload_and_abort(
-            reconfigure_entry,
-            data_updates={CONF_API_KEY: self._flow_data[CONF_API_KEY]},
-            reason=CONF_RECONFIGURE_SUCCESSFUL,
+        return self._async_update_api_key_and_abort(
+            reconfigure_entry, reason=CONF_RECONFIGURE_SUCCESSFUL
         )
+
+    def _async_update_api_key_and_abort(
+        self, entry: ConfigEntry, reason: str
+    ) -> ConfigFlowResult:
+        """Store the validated API key, reload the entry once, and abort."""
+        # The update listener reloads the entry when its data changes, and
+        # HA 2026.12 drops async_update_reload_and_abort() for entries with a
+        # listener. Reload explicitly when the listener will not: reauth
+        # keeps the same key so nothing changes, and an entry whose setup
+        # failed never registered the listener.
+        changed = self.hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_API_KEY: self._flow_data[CONF_API_KEY]},
+        )
+        if not changed or not entry.update_listeners:
+            self.hass.config_entries.async_schedule_reload(entry.entry_id)
+        return self.async_abort(reason=reason)
 
 
 class PurpleAirOptionsFlow(OptionsFlow):
@@ -766,11 +779,14 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
         if read_key is not None and len(read_key) > 0:
             data[CONF_SENSOR_READ_KEY] = read_key
 
-        # The integration registers update listeners on the parent entry,
-        # which means async_update_reload_and_abort() refuses to reload
-        # ("Cannot update and reload entry with update listeners"). Update
-        # without reloading and schedule the reload separately so the
-        # coordinator picks up the new Read Key on the next setup cycle.
-        result = self.async_update_and_abort(entry, subentry, data=data)
-        self.hass.config_entries.async_schedule_reload(entry.entry_id)
-        return result
+        # The parent entry's update listener reloads it when the subentry
+        # changes, and async_update_reload_and_abort() refuses to reload an
+        # entry with a listener. Reload explicitly when the listener will
+        # not, so the entry reloads exactly once either way: nothing changed,
+        # or the entry's setup failed before it registered the listener.
+        changed = self.hass.config_entries.async_update_subentry(
+            entry, subentry, data=data
+        )
+        if not changed or not entry.update_listeners:
+            self.hass.config_entries.async_schedule_reload(entry.entry_id)
+        return self.async_abort(reason=CONF_RECONFIGURE_SUCCESSFUL)
