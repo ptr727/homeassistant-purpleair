@@ -3,6 +3,10 @@
 
 required-version = ">=0.15.1"
 target-version = "py314"
+# ruff 0.16 also formats Python fences inside Markdown. Markdown here is
+# markdownlint's, and most of it is carried from the fleet template byte for
+# byte, so keep ruff to Python sources.
+extend-exclude = ["*.md"]
 
 [lint]
 select = [
