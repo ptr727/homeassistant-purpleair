@@ -25,7 +25,7 @@ def test_test_pin_satisfies_manifest_minimum() -> None:
     )
     runtime = _requirement(manifest["requirements"])
     assert not runtime.url
-    assert all(spec.operator == ">=" for spec in runtime.specifier)
+    assert [spec.operator for spec in runtime.specifier] == [">="]
 
     test_lines = [
         line.strip()
