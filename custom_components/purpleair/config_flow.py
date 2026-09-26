@@ -353,12 +353,14 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         """Store the validated API key, reload the entry once, and abort."""
         # The update listener reloads the entry when its data changes, and
         # HA 2026.12 drops async_update_reload_and_abort() for entries with a
-        # listener. Reauth always keeps the same key, so reload explicitly
-        # when the update changed nothing and the listener did not fire.
-        if not self.hass.config_entries.async_update_entry(
+        # listener. Reload explicitly when the listener will not: reauth
+        # keeps the same key so nothing changes, and an entry whose setup
+        # failed never registered the listener.
+        changed = self.hass.config_entries.async_update_entry(
             entry,
             data={**entry.data, CONF_API_KEY: self._flow_data[CONF_API_KEY]},
-        ):
+        )
+        if not changed or not entry.update_listeners:
             self.hass.config_entries.async_schedule_reload(entry.entry_id)
         return self.async_abort(reason=reason)
 
@@ -779,10 +781,12 @@ class PurpleAirSubentryFlow(ConfigSubentryFlow):
 
         # The parent entry's update listener reloads it when the subentry
         # changes, and async_update_reload_and_abort() refuses to reload an
-        # entry with a listener. Reload explicitly only when the update
-        # changed nothing, so the entry reloads exactly once either way.
-        if not self.hass.config_entries.async_update_subentry(
+        # entry with a listener. Reload explicitly when the listener will
+        # not, so the entry reloads exactly once either way: nothing changed,
+        # or the entry's setup failed before it registered the listener.
+        changed = self.hass.config_entries.async_update_subentry(
             entry, subentry, data=data
-        ):
+        )
+        if not changed or not entry.update_listeners:
             self.hass.config_entries.async_schedule_reload(entry.entry_id)
         return self.async_abort(reason=CONF_RECONFIGURE_SUCCESSFUL)

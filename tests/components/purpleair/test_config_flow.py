@@ -47,6 +47,7 @@ from custom_components.purpleair.const import (
     DOMAIN,
     TITLE,
 )
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import (
     CONF_API_KEY,
     CONF_BASE,
@@ -176,6 +177,37 @@ async def test_reconfigure(
     # The update listener reloads the changed entry, exactly once.
     mock_reload.assert_awaited_once_with(config_entry.entry_id)
     assert "should use it for scheduling a reload" not in caplog.text
+
+
+async def test_reconfigure_after_failed_setup_reloads(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Reconfigure reloads an entry whose setup failed before the listener."""
+    with patch.object(
+        api.sensors, "async_get_sensors", AsyncMock(side_effect=InvalidApiKeyError)
+    ):
+        assert not await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert not config_entry.update_listeners
+
+    result = await config_entry.start_reconfigure_flow(hass)
+    await hass.async_block_till_done()
+    with patch.object(
+        hass.config_entries, "async_reload", AsyncMock(return_value=True)
+    ) as mock_reload:
+        result = await hass.config_entries.flow.async_configure(
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
+    assert config_entry.data[CONF_API_KEY] == TEST_NEW_API_KEY
+    mock_reload.assert_awaited_once_with(config_entry.entry_id)
 
 
 async def test_reauth(
@@ -1001,6 +1033,39 @@ async def test_reconfigure_subentry_add_read_key(
     assert updated.data[CONF_SENSOR_READ_KEY] == TEST_SENSOR_READ_KEY
     assert updated.unique_id == str(TEST_SENSOR_INDEX1)
     # The update listener reloads the parent once, with no second reload.
+    mock_reload.assert_awaited_once_with(config_entry.entry_id)
+
+
+async def test_reconfigure_subentry_after_failed_setup_reloads(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Subentry reconfigure reloads a parent whose setup failed."""
+    with patch.object(
+        api.sensors, "async_get_sensors", AsyncMock(side_effect=InvalidApiKeyError)
+    ):
+        assert not await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert not config_entry.update_listeners
+
+    result = await config_entry.start_subentry_reconfigure_flow(
+        hass, config_subentry.subentry_id
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    with patch.object(
+        hass.config_entries, "async_reload", AsyncMock(return_value=True)
+    ) as mock_reload:
+        result = await hass.config_entries.subentries.async_configure(
+            result[CONF_FLOW_ID],
+            user_input={CONF_SENSOR_READ_KEY: TEST_SENSOR_READ_KEY},
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
     mock_reload.assert_awaited_once_with(config_entry.entry_id)
 
 
