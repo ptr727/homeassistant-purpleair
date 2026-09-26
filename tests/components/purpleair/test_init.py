@@ -654,15 +654,24 @@ async def test_async_migrate_integration_rehomes_disabled_sibling_entities(
     assert migrated_device.disabled_by is dr.DeviceEntryDisabler.USER
 
 
+@pytest.mark.parametrize(
+    ("sibling_disabled_by", "entity_disabled_by"),
+    [
+        (ConfigEntryDisabler.USER, er.RegistryEntryDisabler.CONFIG_ENTRY),
+        (None, er.RegistryEntryDisabler.DEVICE),
+    ],
+)
 async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     hass: HomeAssistant,
+    sibling_disabled_by: ConfigEntryDisabler | None,
+    entity_disabled_by: er.RegistryEntryDisabler,
 ) -> None:
     """A sibling's entities for a sensor the parent also lists survive merge.
 
     Devices are per config entry, so both entries hold a device for the
     shared sensor. The parent's is rehomed first and has no entities, and
     the sibling's entities must join it rather than be removed along with
-    the sibling entry.
+    the sibling entry, staying disabled on the parent's enabled device.
     """
     parent = MockConfigEntry(
         domain=DOMAIN,
@@ -683,10 +692,10 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
             CONF_SHOW_ON_MAP: False,
         },
         title="sibling",
-        disabled_by=ConfigEntryDisabler.USER,
+        disabled_by=sibling_disabled_by,
     )
-    sibling.add_to_hass(hass)
     parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
 
     device_registry = dr.async_get(hass)
     sibling_device = device_registry.async_get_or_create(
@@ -707,7 +716,7 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
         f"{TEST_SENSOR_INDEX1}-temperature",
         config_entry=sibling,
         device_id=sibling_device.id,
-        disabled_by=er.RegistryEntryDisabler.CONFIG_ENTRY,
+        disabled_by=entity_disabled_by,
         original_name="Temp",
     )
     await hass.async_block_till_done()
