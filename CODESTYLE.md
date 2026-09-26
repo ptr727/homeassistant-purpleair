@@ -2,7 +2,7 @@
 
 This is the single code-style guide for the repo. The **General** section applies to every language. The **Python** language section is self-contained: it is the style guide for the Python code this repo ships.
 
-Cross-cutting *process* rules (PR titles, branching, US English, markdown style, comments philosophy, workflow YAML, PR review etiquette) live in [AGENTS.md](./AGENTS.md) and are not repeated here.
+Cross-cutting *process* rules (PR titles, branching, US English, markdown style, comments philosophy, workflow YAML, PR review etiquette) live in [GOVERNANCE.md](./GOVERNANCE.md), with this repo's own extensions in [OPERATIONS.md](./OPERATIONS.md), and are not repeated here.
 
 ## General
 
@@ -22,7 +22,7 @@ Each language defines a **clean-compile** verification - the combination of buil
 
 ### Analyzer Diagnostics and Suppressions
 
-- **A new port is not a license to silence diagnostics.** Brownfield / just-ported status never justifies relaxing analyzer or linter severities or muting newly surfaced warnings - fix them. (The only brownfield allowance in this template is the one-time git-signing / line-ending migration described in [AGENTS.md](./AGENTS.md) and [README.md](./README.md), which has nothing to do with code analysis.)
+- **A new port is not a license to silence diagnostics.** Brownfield / just-ported status never justifies relaxing analyzer or linter severities or muting newly surfaced warnings, so fix them. (The only brownfield allowance in this template is the one-time git-signing / line-ending migration described in [GOVERNANCE.md](./GOVERNANCE.md) and [README.md](./README.md), which has nothing to do with code analysis.)
 - **Suppress only genuine false-positives or deliberate, documented exceptions**, always at the **narrowest scope that fits**, in this order of preference:
   1. An **in-code annotation on the specific symbol**, with a justification - the language's attribute/comment form, never a blanket pragma spanning a region.
   2. The **owning project's local config** when the exception is project-wide for one project (e.g. a test project's own `.editorconfig` / `pyproject.toml`).
@@ -34,7 +34,7 @@ Each language defines a **clean-compile** verification - the combination of buil
 These apply repo-wide, in every directory:
 
 1. **Markdown linting**: All `.md` files must be lint-clean (error and warning free) via the VS Code `markdownlint` extension. [`.markdownlint-cli2.jsonc`](./.markdownlint-cli2.jsonc) at the repo root is the single source of truth - the davidanson `markdownlint` extension and a command-line `markdownlint-cli2` run both read it, so the IDE and CLI stay in lock-step. Rules it deliberately disables (e.g. `MD013` line-length, `MD033` inline HTML) are **intentional** - do not "fix" them. Fix violations at the source rather than disabling rules.
-2. **Spelling**: All spelling must be clean via the CSpell VS Code integration; words must be correctly spelled in **US English** (the repo-wide convention - see [AGENTS.md](./AGENTS.md)). Project-specific terms go in the workspace CSpell config.
+2. **Spelling**: All spelling must be clean via the CSpell VS Code integration, and words must be correctly spelled in **US English**, the repo-wide convention in [GOVERNANCE.md](./GOVERNANCE.md) "Documentation Style Conventions". Project-specific terms go in the workspace CSpell config.
 3. **Spelling CI scope**: The enforced CI spell-check gate covers **`README.md` and `HISTORY.md` only** - these are the files every repo visitor sees, so they must be clean. It is deliberately **not** all `**/*.md`: repos carry many markdown files full of technical terms, and gating every one of them would mean endlessly padding `cspell.json` just to keep CI green. Broad, live spell-checking across any file (source, markdown, text) is the **cspell editor extension's** job, so typos still surface to whoever is editing. A repo owner **may** widen their own CI file list, but the template ships README + HISTORY as the default; keep every surface that runs cspell - the CI workflow and any local VS Code task or one-liner the repo has - on the same file list. The list is explicit (not a glob), so a repo that ships no `HISTORY.md` (e.g. one with no changelog) must drop it from all three surfaces and gate on `README.md` alone - cspell errors on a listed file that does not exist. Markdown *linting* (item 1) stays repo-wide `**/*.md` - it does not choke on technical terms.
 
 ## Python
@@ -57,7 +57,7 @@ Two type checkers run, and **both are gates**. `mypy --strict --follow-imports=s
 
 ### Local Development Loop
 
-Development targets **Linux only** - native Linux, WSL2, or the devcontainer. Home Assistant Core doesn't run on Windows natively, so there is no Windows-native dev path (these `scripts/*` are bash); see [AGENTS.md](AGENTS.md#supported-development-platforms).
+Development targets **Linux only**: native Linux, WSL2, or the devcontainer. Home Assistant Core doesn't run on Windows natively, so there is no Windows-native dev path, and these `scripts/*` are bash. See [OPERATIONS.md](OPERATIONS.md#supported-platforms).
 
 The dev loop is a set of bash scripts under `scripts/`, run from the repo root:
 
@@ -120,6 +120,8 @@ tests/
 
 - **Everything is typed.** `mypy --strict` over `custom_components/purpleair/` is a CI gate (the platinum `strict-typing` rule), and `pyright` runs alongside it at `typeCheckingMode: basic` over `custom_components/purpleair` and `tests` (see `pyrightconfig.json`). Both must be clean.
 - **Use modern syntax**: `list[int]` not `List[int]`, `dict[str, X]` not `Dict[str, X]`, `X | None` not `Optional[X]`, `from __future__ import annotations` only when needed for forward references.
+- **Pyright framework warts get a narrow, explained ignore.** When pyright flags a Home Assistant typing wart, such as `DataUpdateCoordinator.data` typed as the generic `_DataT` but `None` until the first refresh, or `Entity.*` declared as `cached_property` while `CoordinatorEntity` re-declares them as plain `@property`, prefer a narrow `# pyright: ignore[<rule>]` with a why-comment over disabling the rule. For high-volume false positives in a single test file, a per-file `# pyright: <rule>=false` directive at the top with a rationale comment is acceptable, as in [`tests/components/purpleair/test_config_flow.py`](./tests/components/purpleair/test_config_flow.py). `pyrightconfig.json` escalates `reportUnnecessaryComparison` and `reportIncompatibleVariableOverride` to errors.
+- **`Final` annotation form.** Declare module-level constants with `Final`, never a plain assignment. Use `FOO: Final[<type>] = <value>` when the type is broader than the value, such as `API_KEY: Final[str] = "placeholder-key"` or `THRESHOLD: Final[timedelta] = timedelta(...)`, which is the form for production constants and most test fixtures. Use bare `FOO: Final = "<value>"` **only** when the constant is a TypedDict key and pyright's structural match needs the literal type preserved, such as `context={CONF_SOURCE: CONF_SOURCE_USER}` against Home Assistant's `ConfigFlowContext`, since `Final[str]` widens to `str` and breaks that match. Document the bare form with a comment so a later cleanup does not "fix" it. Never write `FOO: Final[Literal["x"]] = "x"`, which ruff PYI064 flags as redundant.
 - **Don't add `# type: ignore` to silence type errors without a comment** explaining the constraint. If a recurring false positive needs suppression, configure it project-wide in `pyrightconfig.json` (pyright) or via the `scripts/lint` mypy flags. A new port doesn't change this - fix freshly surfaced type errors rather than muting them (see [Analyzer Diagnostics and Suppressions](#analyzer-diagnostics-and-suppressions)).
 
 #### Naming
@@ -139,6 +141,8 @@ tests/
 
 - **Don't add backward-compat shims, `# removed` markers, or rename-to-`_` for unused vars** - just delete. Git history is the audit trail.
 - **Don't add error handling for impossible cases.** Trust internal code; only validate at boundaries (user input, parsed config, external APIs).
+- **Don't repeat a dict-key string literal.** When the same literal is a dict key in more than one place, such as `flow["handler"]` or `result["type"]`, promote it to a named constant. Reuse Home Assistant's canonical constants where they exist, such as `SOURCE_REAUTH` from `homeassistant.config_entries`. Production constants live in [`const.py`](./custom_components/purpleair/const.py) and test-only ones in [`tests/components/purpleair/const.py`](./tests/components/purpleair/const.py).
+- **Don't diverge from an established codebase pattern for a local improvement.** Before adopting a reviewer-suggested pattern in one file, sweep the codebase for the same construct. Where a convention already exists at several sites, match it, and adopt the new form only by migrating every site in the same pull request. A "better" idiom in one spot that creates a third style beside two existing ones is worse than the local imperfection.
 - **Don't use exceptions for expected control flow.** Exceptions are for *unexpected* states.
 - **Don't suppress errors silently** (`except Exception: pass`). Either handle the specific exception and document why it's safe, or let it propagate.
 
@@ -153,7 +157,7 @@ tests/
 
 ### Versioning
 
-The integration's shipped version lives in `custom_components/purpleair/manifest.json`. The checked-in value is the placeholder `"version": "0.0.0"`; at build time NBGV computes the real version from `version.json` (major.minor floor `1.0` plus git height, adjusted by `versionHeightOffset`) and **stamps `manifest.json` on the runner only** - no commit, no `_version.py`, no `hatch-vcs`. See [WORKFLOW.md](./WORKFLOW.md) for the full version model. Don't hand-edit the placeholder.
+The integration's shipped version lives in `custom_components/purpleair/manifest.json`. The checked-in value is the all-zero placeholder version; at build time NBGV computes the real version from `version.json` (major.minor floor `1.0` plus git height, adjusted by `versionHeightOffset`) and **stamps `manifest.json` on the runner only** - no commit, no `_version.py`, no `hatch-vcs`. See [WORKFLOW.md](./WORKFLOW.md) for the full version model. Don't hand-edit the placeholder.
 
 ### Linter Cleanliness
 

@@ -196,11 +196,10 @@ jobs:
                   {"ha": res_b[1], "pytest-hacc": res_b[0]} if res_b[0] else None
               )
 
-          # newline="\r\n" forces CRLF on the Linux runner so the rewrite honors
-          # the repo's CRLF-by-default policy (.editorconfig + `* -text` in
-          # .gitattributes); the default text mode would emit LF and flip the
-          # file's line endings every bump.
-          with open(path, "w", newline="\r\n") as f:
+          # newline="\n" pins LF, the repo's line-ending default per
+          # .editorconfig and .gitattributes, so the rewrite never flips the
+          # file's line endings regardless of the runner's platform.
+          with open(path, "w", newline="\n") as f:
               # ensure_ascii=False writes the $comment field (and any other
               # text) as written, not \u-escaped. The current $comment is plain
               # ASCII, but should any non-ASCII character ever be added, the
@@ -213,8 +212,8 @@ jobs:
           # Keep the dev/CI bootstrap pins in requirements*.txt in lockstep with
           # the latest-stable slot so the devcontainer (scripts/setup + F5)
           # develops against the same HA the matrix tracks. Only the stable slot
-          # drives these pins; beta never does. newline="" preserves the repo's
-          # CRLF line endings byte-for-byte.
+          # drives these pins; beta never does. newline="" preserves each file's
+          # line endings byte-for-byte.
           if stable_changed:
               def repin(pin_path, pattern, replacement):
                   with open(pin_path, newline="") as fh:
