@@ -106,16 +106,17 @@ fi
 # devcontainers and `vscode` can't create siblings there.
 #
 # The version check below trips loudly if the library checkout's pyproject.toml
-# version diverges from the manifest.json pin -- otherwise HA's package check would
-# silently reinstall ptr727-aiopurpleair==<pinned> from PyPI at integration load,
+# version falls outside the manifest.json requirement -- otherwise HA's package
+# check would silently reinstall ptr727-aiopurpleair from PyPI at integration load,
 # overwriting the editable install.
 AIOPURPLEAIR_DIR="$(pwd)/aiopurpleair"
 AIOPURPLEAIR_REPO=https://github.com/ptr727/aiopurpleair.git
 # Clone develop: the editable checkout is the latest library source for local
-# development, deliberately ahead of the pinned release in manifest.json /
+# development, deliberately ahead of the minimum in manifest.json and the pin in
 # requirements-test.txt. The checkout ships a placeholder _version.py (CI
-# overwrites it at build time), so it reports 0.0.0, not the pin - the version
-# assertion below skips that placeholder case rather than comparing it to the pin.
+# overwrites it at build time), so it reports 0.0.0, not a release - the version
+# assertion below skips that placeholder case rather than checking it against the
+# manifest.
 AIOPURPLEAIR_BRANCH=develop
 USE_EDITABLE_AIOPURPLEAIR=true
 
@@ -174,32 +175,31 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
     python3 <<'PYEOF'
 import json, pathlib
 from importlib.metadata import version
+from packaging.requirements import Requirement
 from packaging.version import Version
 manifest = json.loads(pathlib.Path("custom_components/purpleair/manifest.json").read_text())
-req = next(r for r in manifest["requirements"] if r.startswith("ptr727-aiopurpleair"))
-# Accept either a `==X.Y.Z` PyPI pin or a `@ git+…@SHA` git ref. With a git ref
-# the version assertion is skipped — the SHA is the source of truth and pip's
-# importlib.metadata still reports the version baked into the editable
-# checkout's pyproject.toml, which can lag the SHA freely.
-if "==" in req:
-    pkg_name, expected = req.split("==", 1)
-    pkg_name = pkg_name.strip()
-    installed = version(pkg_name)
+req = next(
+    r for r in map(Requirement, manifest["requirements"]) if r.name == "ptr727-aiopurpleair"
+)
+# With a `@ git+...@SHA` ref the version assertion is skipped - the SHA is the
+# source of truth and importlib.metadata still reports the version baked into the
+# editable checkout's pyproject.toml, which can lag the SHA freely.
+if req.url:
+    print(f"{req.name} pinned at git ref ({req}); skipping version assertion.")
+else:
+    installed = version(req.name)
     if Version(installed) == Version("0.0.0"):
         # The editable dev checkout ships a placeholder _version.py (CI overwrites
-        # it via NBGV at build time), so it always reports 0.0.0 - never the pin.
+        # it via NBGV at build time), so it always reports 0.0.0 - never a release.
         # The checkout is intentionally the latest source; skip the drift check.
-        print(f"{pkg_name} editable checkout reports placeholder {installed}; skipping version assertion.")
-    elif Version(installed) != Version(expected):
+        print(f"{req.name} editable checkout reports placeholder {installed}; skipping version assertion.")
+    elif not req.specifier.contains(installed, prereleases=True):
         raise RuntimeError(
-            f"{pkg_name} editable install reports {installed}; manifest.json expects {expected}. "
-            f"Sync the library checkout's pyproject.toml version, or update manifest.json + requirements-test.txt."
+            f"{req.name} editable install reports {installed}; manifest.json requires {req.specifier}. "
+            f"Sync the library checkout's pyproject.toml version, or update manifest.json."
         )
     else:
-        print(f"{pkg_name} editable install verified at version {installed}")
-else:
-    pkg_name = req.split("@", 1)[0].strip()
-    print(f"{pkg_name} pinned at git ref ({req}); skipping version assertion.")
+        print(f"{req.name} editable install verified at version {installed} ({req.specifier})")
 PYEOF
 else
     echo "Skipping editable aiopurpleair install and editable-version assertion."
