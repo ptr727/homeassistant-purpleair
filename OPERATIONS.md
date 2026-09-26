@@ -74,7 +74,7 @@ Locally, `scripts/develop` runs Home Assistant with `--debug`, and the "Home Ass
 ## Tool Usage
 
 - **Issue tracker and pull requests**: prefer the `gh` CLI, such as `gh pr view`, `gh pr list`, and `gh api repos/ptr727/homeassistant-purpleair/pulls/<N>/comments`.
-- **Home Assistant core API reference**: when adding or changing entity behavior, check upstream conventions in `home-assistant/core`. Entity registry semantics changed in 2026.4, which is why the matrix `minimum` is pinned there.
+- **Home Assistant core API reference**: when adding or changing entity behavior, check upstream conventions in `home-assistant/core`. The matrix `minimum` is pinned to 2026.8, the first release carrying the per-config-entry device lookup (`async_get_device_by_identifier`) the integration uses.
 - **The client library**: the `aiopurpleair` client this integration depends on is maintained at [`ptr727/aiopurpleair`](https://github.com/ptr727/aiopurpleair) and published as `ptr727-aiopurpleair`. Client-side changes, such as a new endpoint or error code, belong there rather than here. `scripts/setup` clones its `develop` branch into the gitignored `./aiopurpleair` and installs it editable, so a library change can be exercised here before it is published.
 - **The upstream core proposal was abandoned.** This integration is independent of the built-in Home Assistant PurpleAir integration, and the README's Credits section keeps the historical attribution. Do not mirror changes upstream.
 

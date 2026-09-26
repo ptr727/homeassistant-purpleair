@@ -5,7 +5,7 @@ Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality se
 ## Release History
 
 - **Version 1.0**:
-  - Requires Home Assistant 2026.4.0 or newer.
+  - Requires Home Assistant 2026.8.0 or newer.
   - New services use the PurpleAir organization name as their service title (e.g. *Acme Corp* instead of *PurpleAir* / *PurpleAir (1)*) so multi-key installs stay legible at a glance. Falls back to the numbered default when the organization lookup is unavailable.
   - Private sensor support via per-sensor read keys (free API points when querying your own sensors).
   - Subentry layout - one subentry per sensor; automatic v1 -> v2 migration from the built-in integration preserving entity IDs, devices, and long-term-statistics history.

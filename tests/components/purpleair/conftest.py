@@ -1,7 +1,6 @@
 """Define fixtures for PurpleAir tests."""
 
 from collections.abc import Generator
-import importlib
 from types import MappingProxyType
 from typing import Any, Final
 from unittest.mock import AsyncMock, Mock, patch
@@ -26,38 +25,25 @@ from custom_components.purpleair.const import (
     SCHEMA_VERSION,
     TITLE,
 )
+from homeassistant.components.sensor.const import SensorEntityCapabilityAttribute
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import CONF_API_KEY, CONF_SHOW_ON_MAP
+from homeassistant.const import CONF_API_KEY, CONF_SHOW_ON_MAP, EntityStateAttribute
 from homeassistant.core import HomeAssistant
 
 from .const import TEST_API_KEY, TEST_SENSOR_INDEX1
 
 # HA 2026.7 replaced several plain-string mapping keys with StrEnum members:
 # entity-registry `capabilities` keys became SensorEntityCapabilityAttribute and
-# State `attributes` keys became EntityStateAttribute. A StrEnum member's repr()
-# is `<EntityStateAttribute.DEVICE_CLASS: 'device_class'>` rather than the old
-# `'device_class'`, so a single shared syrupy snapshot would match only one HA
-# version and fail every other leg of the version matrix (minimum, latest-stable
-# and latest-beta all share one .ambr file). Normalize these *key* enums back to
-# their string value so the serialized snapshot is byte-identical on every HA
-# version; enum *values* (e.g. SensorStateClass.MEASUREMENT) keep their rich
-# repr. Mirrors the extension's own _IntFlagWrapper repr-normalization.
-#
-# Resolved via importlib rather than a static `from ... import <name>`: the
-# enums do not exist before 2026.7, and a static import would trip pyright's
-# reportAttributeAccessIssue when CI type-checks against the older HA pinned in
-# requirements. On older HA getattr returns None for the absent symbols, so the
-# tuple stays empty, the keys are already plain strings, and the serializer is a
-# no-op. Append any future HA key-enum to the list below.
-_STRENUM_KEY_TYPES: list[type[Any]] = []
-for _module_name, _enum_name in (
-    ("homeassistant.components.sensor.const", "SensorEntityCapabilityAttribute"),
-    ("homeassistant.const", "EntityStateAttribute"),
-):
-    _key_enum = getattr(importlib.import_module(_module_name), _enum_name, None)
-    if _key_enum is not None:
-        _STRENUM_KEY_TYPES.append(_key_enum)
-_STRENUM_KEY_TYPES_TUPLE: Final[tuple[type[Any], ...]] = tuple(_STRENUM_KEY_TYPES)
+# State `attributes` keys became EntityStateAttribute. Normalize these *key*
+# enums back to their string value so the serialized snapshot keeps plain string
+# keys and stays readable across the version matrix, which shares one .ambr
+# file. Enum *values* (e.g. SensorStateClass.MEASUREMENT) keep their rich repr.
+# Mirrors the extension's own _IntFlagWrapper repr-normalization.
+# Append any future HA key-enum to the tuple below.
+_STRENUM_KEY_TYPES_TUPLE: Final[tuple[type[Any], ...]] = (
+    SensorEntityCapabilityAttribute,
+    EntityStateAttribute,
+)
 
 
 class _PurpleAirSnapshotSerializer(HomeAssistantSnapshotSerializer):
