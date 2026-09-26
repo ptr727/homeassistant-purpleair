@@ -724,7 +724,14 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     assert migrated_entity.config_entry_id == parent.entry_id
     assert migrated_entity.config_subentry_id == subentries[0].subentry_id
     assert migrated_entity.device_id == parent_device.id
-    assert migrated_entity.disabled_by is er.RegistryEntryDisabler.DEVICE
+    assert migrated_entity.disabled_by is er.RegistryEntryDisabler.USER
+
+    # The disable must survive an update to the enabled parent device
+    device_registry.async_update_device(parent_device.id, sw_version="2.0")
+    await hass.async_block_till_done()
+    migrated_entity = entity_registry.async_get(entity_entry.entity_id)
+    assert migrated_entity is not None
+    assert migrated_entity.disabled_by is er.RegistryEntryDisabler.USER
 
 
 async def test_async_migrate_integration_skips_future_parent_alignment(

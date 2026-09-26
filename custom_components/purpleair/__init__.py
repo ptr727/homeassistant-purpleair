@@ -231,7 +231,13 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                         entity_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
                         and not all_disabled
                     ):
-                        entity_disabled_by = er.RegistryEntryDisabler.DEVICE
+                        # The parent's device stays enabled, so a DEVICE
+                        # disable would be lifted on its next update
+                        entity_disabled_by = (
+                            er.RegistryEntryDisabler.USER
+                            if target_device is not None
+                            else er.RegistryEntryDisabler.DEVICE
+                        )
 
                     entity_registry.async_update_entity(
                         entity_entry.entity_id,
