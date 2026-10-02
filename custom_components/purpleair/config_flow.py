@@ -206,7 +206,7 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Reject a key any other entry holds, as data or as unique ID.
         # Reauth and reconfigure pass their own entry, which may keep its key.
-        # An earlier version's reconfigure left the old key as the unique ID.
+        # Some entries still hold a stale key as their unique ID.
         api_key = str(self._flow_data[CONF_API_KEY])
         for config_entry in self.hass.config_entries.async_entries(DOMAIN):
             if (
