@@ -158,11 +158,12 @@ jobs:
           set -euo pipefail
           INCLUDE=$(jq -c '
             [
-              (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum"       }),
-              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable" })
+              (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum",               "aiopurpleair": "minimum" }),
+              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable",         "aiopurpleair": "pin"     }),
+              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable-min-lib", "aiopurpleair": "minimum" })
             ]
             + ( if ."latest-beta" then
-                [ ."latest-beta" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-beta"   } ]
+                [ ."latest-beta" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-beta",           "aiopurpleair": "pin"     } ]
               else [] end )
           ' .github/ha-test-versions.json)
           echo "include=$INCLUDE" >> "$GITHUB_OUTPUT"
@@ -195,10 +196,11 @@ jobs:
 
       - name: Install the manifest's minimum aiopurpleair step
         # HA leaves an installed library alone while it satisfies the
-        # manifest's >= requirement, so a long-standing install keeps the
-        # minimum while Dependabot moves only the requirements-test.txt pin.
-        # The minimum slot tests that oldest pairing, the other slots the pin.
-        if: ${{ matrix.label == 'minimum' }}
+        # manifest's >= requirement, so a venv install can keep an old
+        # release across HA updates while Dependabot moves only the
+        # requirements-test.txt pin. The minimum and latest-stable-min-lib
+        # legs test the oldest allowed release, the other legs the pin.
+        if: ${{ matrix.aiopurpleair == 'minimum' }}
         run: |
           set -Eeuo pipefail
           requirement=$(jq -er '
@@ -213,7 +215,8 @@ jobs:
           fi
           python -m pip install "ptr727-aiopurpleair==$minimum"
           installed=$(python -c "import importlib.metadata as m; print(m.version('ptr727-aiopurpleair'))")
-          if [[ "$installed" != "$minimum" ]]; then
+          # PEP 440 equality pads with zeros, so 1.1 installs 1.1.0
+          if ! python -c "import sys; from packaging.version import Version; sys.exit(Version(sys.argv[1]) != Version(sys.argv[2]))" "$installed" "$minimum"; then
             echo "::error::Installed ptr727-aiopurpleair $installed, expected $minimum"
             exit 1
           fi
