@@ -5,8 +5,8 @@
     "pytest-hacc": "0.13.354"
   },
   "latest-stable": {
-    "ha": "2026.9.3",
-    "pytest-hacc": "0.13.366"
+    "ha": "2026.9.4",
+    "pytest-hacc": "0.13.367"
   },
   "latest-beta": null
 }

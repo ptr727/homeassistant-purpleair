@@ -9,6 +9,7 @@
 # on essentially every line. Scope the suppression to this file rather than
 # annotating each access individually.
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.errors import (
@@ -22,6 +23,7 @@ from aiopurpleair.errors import (
 from aiopurpleair.models.keys import GetKeysResponse
 from aiopurpleair.models.organizations import GetOrganizationResponse
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.purpleair.const import (
     CONF_ADD_MAP_LOCATION,
@@ -174,9 +176,186 @@ async def test_reconfigure(
     assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
 
     assert config_entry.data[CONF_API_KEY] == TEST_NEW_API_KEY
+    # The unique ID follows the key, so a later reauth with it matches.
+    assert config_entry.unique_id == TEST_NEW_API_KEY
     # The update listener reloads the changed entry, exactly once.
     mock_reload.assert_awaited_once_with(config_entry.entry_id)
     assert "should use it for scheduling a reload" not in caplog.text
+
+    # Reauth with the reconfigured key succeeds instead of a unique ID mismatch abort.
+    result = await config_entry.start_reauth_flow(hass)
+    await hass.async_block_till_done()
+    with patch.object(
+        hass.config_entries, "async_reload", AsyncMock(return_value=True)
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_REAUTH_SUCCESSFUL
+
+    # The old key is free again, so it can be added as a new entry.
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+
+
+async def test_reconfigure_same_key(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Reconfigure accepts the entry's own current key and reloads once."""
+    result = await config_entry.start_reconfigure_flow(hass)
+    await hass.async_block_till_done()
+    with patch.object(
+        hass.config_entries, "async_reload", AsyncMock(return_value=True)
+    ) as mock_reload:
+        result = await hass.config_entries.flow.async_configure(
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_API_KEY}
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
+    assert config_entry.data[CONF_API_KEY] == TEST_API_KEY
+    assert config_entry.unique_id == TEST_API_KEY
+    mock_reload.assert_awaited_once_with(config_entry.entry_id)
+
+
+async def test_reconfigure_repairs_stale_unique_id(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    mock_aiopurpleair,
+    api,
+) -> None:
+    """Reconfigure with the current key moves a stale unique ID onto it.
+
+    An entry reconfigured by an earlier version kept its old key as its
+    unique ID while its data holds the new one.
+    """
+    hass.config_entries.async_update_entry(
+        config_entry, data={**config_entry.data, CONF_API_KEY: TEST_NEW_API_KEY}
+    )
+    assert config_entry.unique_id == TEST_API_KEY
+
+    result = await config_entry.start_reconfigure_flow(hass)
+    await hass.async_block_till_done()
+    with patch.object(
+        hass.config_entries, "async_reload", AsyncMock(return_value=True)
+    ) as mock_reload:
+        result = await hass.config_entries.flow.async_configure(
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+        )
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.ABORT
+    assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
+    assert config_entry.unique_id == TEST_NEW_API_KEY
+    mock_reload.assert_awaited_once_with(config_entry.entry_id)
+
+
+async def test_reconfigure_aborts_while_user_flow_in_progress(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+    get_organization_response,
+) -> None:
+    """Reconfigure to a key a user flow is still adding aborts.
+
+    Otherwise the user flow finishes with the unique ID the reconfigured
+    entry now holds, and HA replaces that entry, subentries included.
+    """
+    lookup_started = asyncio.Event()
+    release_lookup = asyncio.Event()
+
+    async def held_org_lookup(*_args, **_kwargs):
+        lookup_started.set()
+        await release_lookup.wait()
+        return get_organization_response
+
+    with patch.object(
+        api.organizations,
+        "async_get_organization",
+        AsyncMock(side_effect=held_org_lookup),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+        )
+        user_flow = hass.async_create_task(
+            hass.config_entries.flow.async_configure(
+                result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+            )
+        )
+        # Bounded so a user flow that misses the lookup fails rather than hangs.
+        async with asyncio.timeout(5):
+            await lookup_started.wait()
+
+        result = await config_entry.start_reconfigure_flow(hass)
+        result = await hass.config_entries.flow.async_configure(
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+        )
+        assert result[CONF_TYPE] is FlowResultType.ABORT
+        assert result[CONF_REASON] == "already_in_progress"
+        assert config_entry.unique_id == TEST_API_KEY
+
+        release_lookup.set()
+        result = await user_flow
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert config_entry.entry_id in {
+        entry.entry_id for entry in hass.config_entries.async_entries(DOMAIN)
+    }
+    assert len(config_entry.subentries) == 1
+
+
+@pytest.mark.parametrize(
+    ("other_data_key", "other_unique_id"),
+    [
+        (TEST_NEW_API_KEY, TEST_NEW_API_KEY),
+        # A stale unique ID left by an earlier reconfigure still claims the key.
+        ("other_api_key", TEST_NEW_API_KEY),
+    ],
+)
+async def test_reconfigure_rejects_key_of_other_entry(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+    other_data_key: str,
+    other_unique_id: str,
+) -> None:
+    """Reconfigure rejects a key another entry holds as data or unique ID."""
+    MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=other_unique_id,
+        data={CONF_API_KEY: other_data_key},
+        version=config_entry.version,
+    ).add_to_hass(hass)
+
+    result = await config_entry.start_reconfigure_flow(hass)
+    await hass.async_block_till_done()
+    result = await hass.config_entries.flow.async_configure(
+        result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+    )
+    await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.FORM
+    assert result[CONF_ERRORS] == {CONF_API_KEY: CONF_ALREADY_CONFIGURED}
+    assert config_entry.data[CONF_API_KEY] == TEST_API_KEY
+    assert config_entry.unique_id == TEST_API_KEY
 
 
 async def test_reconfigure_after_failed_setup_reloads(
