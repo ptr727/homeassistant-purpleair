@@ -299,7 +299,10 @@ async def test_reconfigure_aborts_while_user_flow_in_progress(
                 result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
             )
         )
-        await lookup_started.wait()
+        # Bounded so a user flow that never reaches the lookup fails the test
+        # rather than hanging it.
+        async with asyncio.timeout(5):
+            await lookup_started.wait()
 
         result = await config_entry.start_reconfigure_flow(hass)
         result = await hass.config_entries.flow.async_configure(
