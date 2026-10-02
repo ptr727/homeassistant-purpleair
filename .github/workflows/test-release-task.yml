@@ -193,6 +193,32 @@ jobs:
             homeassistant==${{ matrix.ha-version }} \
             pytest-homeassistant-custom-component==${{ matrix.pytest-hacc-version }}
 
+      - name: Install the manifest's minimum aiopurpleair step
+        # HA leaves an installed library alone while it satisfies the
+        # manifest's >= requirement, so a long-standing install keeps the
+        # minimum while Dependabot moves only the requirements-test.txt pin.
+        # The minimum slot tests that oldest pairing, the other slots the pin.
+        if: ${{ matrix.label == 'minimum' }}
+        run: |
+          set -Eeuo pipefail
+          requirement=$(jq -er '
+            [.requirements[] | select(startswith("ptr727-aiopurpleair>="))]
+            | if length == 1 then .[0]
+              else error("expected exactly one ptr727-aiopurpleair>= requirement") end
+          ' custom_components/purpleair/manifest.json)
+          minimum=${requirement#ptr727-aiopurpleair>=}
+          if [[ ! "$minimum" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::Unsupported manifest requirement: $requirement"
+            exit 1
+          fi
+          python -m pip install "ptr727-aiopurpleair==$minimum"
+          installed=$(python -c "import importlib.metadata as m; print(m.version('ptr727-aiopurpleair'))")
+          if [[ "$installed" != "$minimum" ]]; then
+            echo "::error::Installed ptr727-aiopurpleair $installed, expected $minimum"
+            exit 1
+          fi
+          echo "Testing ptr727-aiopurpleair $installed, the manifest minimum"
+
       - name: Run pytest step
         run: python -m pytest -ra --cov=custom_components/purpleair --cov-report=xml --cov-branch
 
