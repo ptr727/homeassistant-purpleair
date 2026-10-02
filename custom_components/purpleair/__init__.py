@@ -264,28 +264,15 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 ):
                     device_disabled_by = dr.DeviceEntryDisabler.USER
 
+                # A device belongs to one config entry and subentry, so this
+                # moves it off the sibling entry, or off the parent's legacy
+                # entry-level link, in one step
                 device_registry.async_update_device(
                     device.id,
                     disabled_by=device_disabled_by,
-                    add_config_entry_id=parent_entry.entry_id,
-                    add_config_subentry_id=subentry.subentry_id,
+                    new_config_entry_id=parent_entry.entry_id,
+                    new_config_subentry_id=subentry.subentry_id,
                 )
-
-                if parent_entry.entry_id != entry.entry_id:
-                    # Fully detach device from the migrated sibling entry
-                    device_registry.async_update_device(
-                        device.id,
-                        remove_config_entry_id=entry.entry_id,
-                    )
-                elif None in device.config_entries_subentries.get(
-                    parent_entry.entry_id, set()
-                ):
-                    # Drop only the legacy (parent_entry, None) link
-                    device_registry.async_update_device(
-                        device.id,
-                        remove_config_entry_id=parent_entry.entry_id,
-                        remove_config_subentry_id=None,
-                    )
 
         if parent_entry.entry_id != entry.entry_id:
             # Remove the sibling entry after rehoming its sensors
