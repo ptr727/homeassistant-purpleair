@@ -9,9 +9,14 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(
+    no_deprecated_usage_reported: None,
     enable_custom_integrations: None,
 ) -> None:
-    """Load custom_components/ during every test."""
+    """Load custom_components/ during every test.
+
+    The deprecation guard is requested ahead of the hass fixture, so it is
+    torn down after hass unloads the entry and reads what that unload logged.
+    """
     return
 
 
