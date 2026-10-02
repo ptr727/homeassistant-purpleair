@@ -226,7 +226,9 @@ jobs:
       - name: Type-check against the manifest's minimum aiopurpleair step
         # The tests mock the API client without a spec, so a call to a method
         # or keyword the minimum lacks still passes them. The library ships
-        # type hints, so mypy against the installed minimum catches it.
+        # type hints, so mypy against the installed minimum catches it. On
+        # the minimum leg this also type-checks against the minimum HA,
+        # which the standalone mypy job does not.
         if: ${{ matrix.aiopurpleair == 'minimum' }}
         run: python -m mypy --strict --follow-imports=silent custom_components/purpleair/
 
@@ -236,9 +238,9 @@ jobs:
       - name: Upload coverage to Codecov step
         # Tokenless OIDC uploads are rejected on protected-branch PR runs
         # ("Token required because branch is protected"), so the upload
-        # always uses CODECOV_TOKEN. `flags` keys on the slot label and
-        # the HA version so each slot stays uniquely identifiable in the
-        # Codecov dashboard even when slot HA versions coincide (e.g. if
+        # always uses CODECOV_TOKEN. `flags` keys on the leg label and
+        # the HA version so each leg stays uniquely identifiable in the
+        # Codecov dashboard even when leg HA versions coincide (e.g. if
         # `minimum` ever catches up to `latest-stable`). The repo's
         # overall coverage badge merges all uploads for a SHA.
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
