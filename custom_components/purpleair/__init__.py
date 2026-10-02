@@ -264,9 +264,7 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 ):
                     device_disabled_by = dr.DeviceEntryDisabler.USER
 
-                # A device belongs to one config entry and subentry, so this
-                # moves it off the sibling entry, or off the parent's legacy
-                # entry-level link, in one step
+                # A device has one owning entry and subentry, so one move rehomes it
                 device_registry.async_update_device(
                     device.id,
                     disabled_by=device_disabled_by,

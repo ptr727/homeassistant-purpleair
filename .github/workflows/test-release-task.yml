@@ -195,12 +195,10 @@ jobs:
             pytest-homeassistant-custom-component==${{ matrix.pytest-hacc-version }}
 
       - name: Install the manifest's minimum aiopurpleair step
-        # HA leaves an installed library alone while it satisfies the
-        # manifest's >= requirement, so a venv install can keep an old
-        # release across HA updates while Dependabot moves only the
-        # requirements-test.txt pin. The minimum and latest-stable-min-lib
-        # legs type-check and test against the oldest allowed release, the
-        # other legs against the pin.
+        # HA keeps an installed library while it satisfies the manifest's >= minimum.
+        # A venv install can therefore stay on an old release across HA updates.
+        # Dependabot moves only the requirements-test.txt pin.
+        # The minimum and latest-stable-min-lib legs test the oldest allowed release.
         if: ${{ matrix.aiopurpleair == 'minimum' }}
         run: |
           set -Eeuo pipefail
@@ -224,11 +222,9 @@ jobs:
           echo "Testing ptr727-aiopurpleair $installed, the manifest minimum"
 
       - name: Type-check against the manifest's minimum aiopurpleair step
-        # The tests mock the API client without a spec, so a call to a method
-        # or keyword the minimum lacks still passes them. The library ships
-        # type hints, so mypy against the installed minimum catches it. On
-        # the minimum leg this also type-checks against the minimum HA,
-        # which the standalone mypy job does not.
+        # The tests mock the API client without a spec, so they miss calls the minimum lacks.
+        # The library ships type hints, so mypy against the installed minimum catches them.
+        # On the minimum leg this also type-checks against the minimum HA.
         if: ${{ matrix.aiopurpleair == 'minimum' }}
         run: python -m mypy --strict --follow-imports=silent custom_components/purpleair/
 
@@ -236,13 +232,10 @@ jobs:
         run: python -m pytest -ra --cov=custom_components/purpleair --cov-report=xml --cov-branch
 
       - name: Upload coverage to Codecov step
-        # Tokenless OIDC uploads are rejected on protected-branch PR runs
-        # ("Token required because branch is protected"), so the upload
-        # always uses CODECOV_TOKEN. `flags` keys on the leg label and
-        # the HA version so each leg stays uniquely identifiable in the
-        # Codecov dashboard even when leg HA versions coincide (e.g. if
-        # `minimum` ever catches up to `latest-stable`). The repo's
-        # overall coverage badge merges all uploads for a SHA.
+        # Tokenless OIDC uploads fail on protected-branch PR runs ("Token required because branch is protected").
+        # The upload therefore always uses CODECOV_TOKEN.
+        # `flags` keys on the leg label and HA version, so each leg stays distinct even when versions coincide.
+        # The repo's overall coverage badge merges all uploads for a SHA.
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
