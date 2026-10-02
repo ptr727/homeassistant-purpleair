@@ -204,10 +204,9 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             self._errors[CONF_BASE] = CONF_UNKNOWN
             return False
 
-        # Reject duplicates across any other entry - reauth/reconfigure pass the
-        # current entry so changing _its_ key to the same value is allowed. The
-        # unique ID is checked too, since an entry reconfigured by an earlier
-        # version kept its old key as its unique ID.
+        # Reject a key any other entry holds, as data or as unique ID.
+        # Reauth and reconfigure pass their own entry, which may keep its key.
+        # Some entries still hold a stale key as their unique ID.
         api_key = str(self._flow_data[CONF_API_KEY])
         for config_entry in self.hass.config_entries.async_entries(DOMAIN):
             if (
@@ -345,11 +344,9 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors=self._errors,
             )
 
-        # The validation above already rejected a key any other entry uses, and
-        # the entry's own current key is accepted, so there is no
-        # already-configured check against itself. Setting the unique ID still
-        # aborts while a user flow for the same key is in progress, which would
-        # otherwise replace this entry when it finishes.
+        # Validation already rejected a key held by any other entry.
+        # Setting the unique ID still aborts while a user flow adds the same key.
+        # Otherwise that flow would replace this entry when it finishes.
         await self.async_set_unique_id(self._flow_data[CONF_API_KEY])
 
         return self._async_update_api_key_and_abort(
@@ -360,11 +357,9 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
         self, entry: ConfigEntry, reason: str
     ) -> ConfigFlowResult:
         """Store the validated API key as data and unique ID, reload, and abort."""
-        # The update listener reloads the entry when it changes, and HA
-        # 2026.12 drops async_update_reload_and_abort() for entries with a
-        # listener. Reload explicitly when the listener will not: reauth, or a
-        # reconfigure with the entry's own key, changes nothing, and an entry
-        # whose setup failed never registered the listener.
+        # HA 2026.12 drops async_update_reload_and_abort() for entries with a listener.
+        # The update listener reloads the entry on any change.
+        # Reload here if nothing changed or a failed setup never added the listener.
         changed = self.hass.config_entries.async_update_entry(
             entry,
             data={**entry.data, CONF_API_KEY: self._flow_data[CONF_API_KEY]},

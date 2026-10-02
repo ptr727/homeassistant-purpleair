@@ -318,8 +318,7 @@ async def test_async_migrate_integration_merges_sibling_entries(
     }
     assert sensor_indices == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
 
-    # Both devices survive the sibling's removal, each owned by the parent's
-    # subentry for its sensor.
+    # Both devices survive the sibling's removal, owned by their sensor's subentry.
     subentry_ids = {
         int(sub.data[CONF_SENSOR_INDEX]): sub.subentry_id
         for sub in survivor.subentries.values()

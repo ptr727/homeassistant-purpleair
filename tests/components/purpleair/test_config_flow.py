@@ -182,8 +182,7 @@ async def test_reconfigure(
     mock_reload.assert_awaited_once_with(config_entry.entry_id)
     assert "should use it for scheduling a reload" not in caplog.text
 
-    # Reauth with the reconfigured key succeeds rather than aborting on a
-    # unique ID mismatch.
+    # Reauth with the reconfigured key succeeds instead of a unique ID mismatch abort.
     result = await config_entry.start_reauth_flow(hass)
     await hass.async_block_till_done()
     with patch.object(
@@ -299,8 +298,7 @@ async def test_reconfigure_aborts_while_user_flow_in_progress(
                 result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
             )
         )
-        # Bounded so a user flow that never reaches the lookup fails the test
-        # rather than hanging it.
+        # Bounded so a user flow that misses the lookup fails rather than hangs.
         async with asyncio.timeout(5):
             await lookup_started.wait()
 
