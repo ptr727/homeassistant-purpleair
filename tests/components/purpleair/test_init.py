@@ -290,12 +290,12 @@ async def test_async_migrate_integration_merges_sibling_entries(
     sibling.add_to_hass(hass)
 
     device_registry = mock_device_registry(hass)
-    device_registry.async_get_or_create(
+    parent_device = device_registry.async_get_or_create(
         config_entry_id=parent.entry_id,
         identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
         name="TEST_SENSOR_INDEX1",
     )
-    device_registry.async_get_or_create(
+    sibling_device = device_registry.async_get_or_create(
         config_entry_id=sibling.entry_id,
         identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
         name="TEST_SENSOR_INDEX2",
@@ -317,6 +317,21 @@ async def test_async_migrate_integration_merges_sibling_entries(
         int(sub.data[CONF_SENSOR_INDEX]) for sub in survivor.subentries.values()
     }
     assert sensor_indices == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
+
+    # Both devices survive the sibling's removal, each owned by the parent's
+    # subentry for its sensor.
+    subentry_ids = {
+        int(sub.data[CONF_SENSOR_INDEX]): sub.subentry_id
+        for sub in survivor.subentries.values()
+    }
+    for device, sensor_index in (
+        (parent_device, TEST_SENSOR_INDEX1),
+        (sibling_device, TEST_SENSOR_INDEX2),
+    ):
+        moved = device_registry.async_get(device.id)
+        assert moved is not None
+        assert moved.config_entry_id == parent.entry_id
+        assert moved.config_subentry_id == subentry_ids[sensor_index]
 
 
 async def test_async_migrate_integration_merges_enabled_siblings(
@@ -385,14 +400,12 @@ async def test_async_migrate_integration_merges_enabled_siblings(
 async def test_async_migrate_integration_drops_legacy_device_link(
     hass: HomeAssistant,
 ) -> None:
-    """Migration removes the legacy (parent_entry, None) device link.
+    """Migration moves the device off the legacy (parent_entry, None) owner.
 
     Regression: a v1 device is registered with `config_entry_id=entry.entry_id`
-    and no subentry, recorded as `(entry, None)` in the device registry. v2
-    binds the device to a real subentry instead. The migration must add the
-    new (parent_entry, subentry) association *and* drop the legacy
-    (parent_entry, None) one - otherwise the device carries a stale "linked to
-    the entry without any subentry" association forever.
+    and no subentry. v2 binds the device to a real subentry instead, so the
+    migration must move it to (parent_entry, subentry) - otherwise the device
+    stays owned by the entry without any subentry forever.
 
     This guard exercises the parent-entry branch of async_migrate_integration
     (the case where the migrating entry is itself the chosen parent - i.e. a
@@ -416,8 +429,9 @@ async def test_async_migrate_integration_drops_legacy_device_link(
         identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
         name="TEST_SENSOR_INDEX1",
     )
-    # Pre-condition: the legacy (parent, None) link is what v1 produced.
-    assert device.config_entries_subentries[parent.entry_id] == {None}
+    # Pre-condition: the legacy (parent, None) owner is what v1 produced.
+    assert device.config_entry_id == parent.entry_id
+    assert device.config_subentry_id is None
     await hass.async_block_till_done()
 
     await async_migrate_integration(hass)
@@ -429,12 +443,11 @@ async def test_async_migrate_integration_drops_legacy_device_link(
     assert len(survivor.subentries) == 1
     sub = next(iter(survivor.subentries.values()))
 
-    # Device is still bound to the parent entry, but ONLY via the new subentry -
-    # the legacy `None` association has been removed.
+    # Device is still owned by the parent entry, now via the new subentry.
     refreshed = device_registry.async_get(device.id)
     assert refreshed is not None
-    assert parent.entry_id in refreshed.config_entries
-    assert refreshed.config_entries_subentries[parent.entry_id] == {sub.subentry_id}
+    assert refreshed.config_entry_id == parent.entry_id
+    assert refreshed.config_subentry_id == sub.subentry_id
 
 
 async def test_async_migrate_integration_noop_when_no_v1(
