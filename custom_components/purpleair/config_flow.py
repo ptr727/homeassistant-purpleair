@@ -346,8 +346,12 @@ class PurpleAirConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         # The validation above already rejected a key any other entry uses, and
-        # the entry's own current key is accepted, so the unique ID follows the
-        # new key without an already-configured check against itself.
+        # the entry's own current key is accepted, so there is no
+        # already-configured check against itself. Setting the unique ID still
+        # aborts while a user flow for the same key is in progress, which would
+        # otherwise replace this entry when it finishes.
+        await self.async_set_unique_id(self._flow_data[CONF_API_KEY])
+
         return self._async_update_api_key_and_abort(
             reconfigure_entry, reason=CONF_RECONFIGURE_SUCCESSFUL
         )

@@ -9,6 +9,7 @@
 # on essentially every line. Scope the suppression to this file rather than
 # annotating each access individually.
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 from aiopurpleair.errors import (
@@ -261,6 +262,61 @@ async def test_reconfigure_repairs_stale_unique_id(
     assert result[CONF_REASON] == CONF_RECONFIGURE_SUCCESSFUL
     assert config_entry.unique_id == TEST_NEW_API_KEY
     mock_reload.assert_awaited_once_with(config_entry.entry_id)
+
+
+async def test_reconfigure_aborts_while_user_flow_in_progress(
+    hass: HomeAssistant,
+    config_entry,
+    config_subentry,
+    setup_config_entry,
+    mock_aiopurpleair,
+    api,
+    get_organization_response,
+) -> None:
+    """Reconfigure to a key a user flow is still adding aborts.
+
+    Otherwise the user flow finishes with the unique ID the reconfigured
+    entry now holds, and HA replaces that entry, subentries included.
+    """
+    lookup_started = asyncio.Event()
+    release_lookup = asyncio.Event()
+
+    async def held_org_lookup(*_args, **_kwargs):
+        lookup_started.set()
+        await release_lookup.wait()
+        return get_organization_response
+
+    with patch.object(
+        api.organizations,
+        "async_get_organization",
+        AsyncMock(side_effect=held_org_lookup),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={CONF_SOURCE: CONF_SOURCE_USER}
+        )
+        user_flow = hass.async_create_task(
+            hass.config_entries.flow.async_configure(
+                result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+            )
+        )
+        await lookup_started.wait()
+
+        result = await config_entry.start_reconfigure_flow(hass)
+        result = await hass.config_entries.flow.async_configure(
+            result[CONF_FLOW_ID], user_input={CONF_API_KEY: TEST_NEW_API_KEY}
+        )
+        assert result[CONF_TYPE] is FlowResultType.ABORT
+        assert result[CONF_REASON] == "already_in_progress"
+        assert config_entry.unique_id == TEST_API_KEY
+
+        release_lookup.set()
+        result = await user_flow
+        await hass.async_block_till_done()
+    assert result[CONF_TYPE] is FlowResultType.CREATE_ENTRY
+    assert config_entry.entry_id in {
+        entry.entry_id for entry in hass.config_entries.async_entries(DOMAIN)
+    }
+    assert len(config_entry.subentries) == 1
 
 
 @pytest.mark.parametrize(
