@@ -224,7 +224,7 @@ jobs:
       - name: Type-check against the manifest's minimum aiopurpleair step
         # The tests mock the API client without a spec, so they miss calls the minimum lacks.
         # The library ships type hints, so mypy against the installed minimum catches them.
-        # The standalone mypy job does not type-check against the minimum HA, but this leg does.
+        # The standalone mypy job does not type-check against the minimum HA, but the minimum leg does.
         if: ${{ matrix.aiopurpleair == 'minimum' }}
         run: python -m mypy --strict --follow-imports=silent custom_components/purpleair/
 
