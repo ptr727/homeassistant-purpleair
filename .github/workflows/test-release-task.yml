@@ -155,14 +155,15 @@ jobs:
       - name: Build matrix include array step
         id: parse
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           INCLUDE=$(jq -c '
             [
-              (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum"       }),
-              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable" })
+              (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum",               "aiopurpleair": "minimum" }),
+              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable",         "aiopurpleair": "pin"     }),
+              (."latest-stable" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-stable-min-lib", "aiopurpleair": "minimum" })
             ]
             + ( if ."latest-beta" then
-                [ ."latest-beta" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-beta"   } ]
+                [ ."latest-beta" | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "latest-beta",           "aiopurpleair": "pin"     } ]
               else [] end )
           ' .github/ha-test-versions.json)
           echo "include=$INCLUDE" >> "$GITHUB_OUTPUT"
@@ -193,15 +194,53 @@ jobs:
             homeassistant==${{ matrix.ha-version }} \
             pytest-homeassistant-custom-component==${{ matrix.pytest-hacc-version }}
 
+      - name: Install the manifest's minimum aiopurpleair step
+        # HA leaves an installed library alone while it satisfies the
+        # manifest's >= requirement, so a venv install can keep an old
+        # release across HA updates while Dependabot moves only the
+        # requirements-test.txt pin. The minimum and latest-stable-min-lib
+        # legs type-check and test against the oldest allowed release, the
+        # other legs against the pin.
+        if: ${{ matrix.aiopurpleair == 'minimum' }}
+        run: |
+          set -Eeuo pipefail
+          requirement=$(jq -er '
+            [.requirements[] | select(startswith("ptr727-aiopurpleair>="))]
+            | if length == 1 then .[0]
+              else error("expected exactly one ptr727-aiopurpleair>= requirement") end
+          ' custom_components/purpleair/manifest.json)
+          minimum=${requirement#ptr727-aiopurpleair>=}
+          if [[ ! "$minimum" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::Unsupported manifest requirement: $requirement"
+            exit 1
+          fi
+          python -m pip install "ptr727-aiopurpleair==$minimum"
+          installed=$(python -c "import importlib.metadata as m; print(m.version('ptr727-aiopurpleair'))")
+          # PEP 440 equality pads with zeros, so 1.1 installs 1.1.0
+          if ! python -c "import sys; from packaging.version import Version; sys.exit(Version(sys.argv[1]) != Version(sys.argv[2]))" "$installed" "$minimum"; then
+            echo "::error::Installed ptr727-aiopurpleair $installed, expected $minimum"
+            exit 1
+          fi
+          echo "Testing ptr727-aiopurpleair $installed, the manifest minimum"
+
+      - name: Type-check against the manifest's minimum aiopurpleair step
+        # The tests mock the API client without a spec, so a call to a method
+        # or keyword the minimum lacks still passes them. The library ships
+        # type hints, so mypy against the installed minimum catches it. On
+        # the minimum leg this also type-checks against the minimum HA,
+        # which the standalone mypy job does not.
+        if: ${{ matrix.aiopurpleair == 'minimum' }}
+        run: python -m mypy --strict --follow-imports=silent custom_components/purpleair/
+
       - name: Run pytest step
         run: python -m pytest -ra --cov=custom_components/purpleair --cov-report=xml --cov-branch
 
       - name: Upload coverage to Codecov step
         # Tokenless OIDC uploads are rejected on protected-branch PR runs
         # ("Token required because branch is protected"), so the upload
-        # always uses CODECOV_TOKEN. `flags` keys on the slot label and
-        # the HA version so each slot stays uniquely identifiable in the
-        # Codecov dashboard even when slot HA versions coincide (e.g. if
+        # always uses CODECOV_TOKEN. `flags` keys on the leg label and
+        # the HA version so each leg stays uniquely identifiable in the
+        # Codecov dashboard even when leg HA versions coincide (e.g. if
         # `minimum` ever catches up to `latest-stable`). The repo's
         # overall coverage badge merges all uploads for a SHA.
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
