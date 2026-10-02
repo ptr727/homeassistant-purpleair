@@ -391,7 +391,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D1.2 The full quality gate runs.** Output: `test-release-task` runs ruff (lint + format check), mypy
   `--strict`, pyright, the HA-version pytest matrix, hassfest, and HACS validate. The matrix legs are
   `minimum`, `latest-stable`, `latest-stable-min-lib`, and `latest-beta` when non-null, and all gate equally.
-  A failure on any one reds the suite.
+  A failure in any of these checks reds the suite.
 - **D1.3 Lint and type-checks are enforced in CI.** Output: ruff, mypy, and pyright run in CI from the same
   config files the editor uses (`pyrightconfig.json`, project ruff/mypy config), so a style or typing defect
   cannot reach the branch on editor-faith. *(There is no CSharpier/`dotnet format`; this is Python.)*
