@@ -183,13 +183,13 @@ before any release, so the CI gate and the publish gate are identical.
 
 - **ruff** (`ruff check` + `ruff format --check`), **mypy** (`--strict`, Platinum quality-scale
   strict-typing), **pyright** (the engine behind Pylance, config in `pyrightconfig.json`).
-- **pytest matrix** over the HA versions in `.github/ha-test-versions.json`: `minimum` (hand-maintained,
-  must match `hacs.json`'s `homeassistant`), `latest-stable`, and `latest-beta` (bot-maintained; the beta
-  slot is omitted when null). Each leg installs the slot's `homeassistant==` and
+- **pytest matrix** over the HA versions in `.github/ha-test-versions.json`, in three slots. `minimum` is
+  hand-maintained and must match `hacs.json`'s `homeassistant`. `latest-stable` and `latest-beta` are
+  bot-maintained, and the beta slot is omitted when null. Each leg installs the slot's `homeassistant==` and
   `pytest-homeassistant-custom-component==` pins and uploads coverage to Codecov, flagged per leg.
-  `latest-stable` runs a second leg, `latest-stable-min-lib`, and that leg and `minimum` replace the
-  `requirements-test.txt` pin of `ptr727-aiopurpleair` with the manifest's `>=` minimum and run
-  `mypy --strict` against it before the tests. All three slots gate equally.
+  `latest-stable` runs a second leg, `latest-stable-min-lib`. That leg and `minimum` replace the
+  `requirements-test.txt` pin of `ptr727-aiopurpleair` with the manifest's `>=` minimum. They also run
+  `mypy --strict` against that minimum before the tests. All three slots gate equally.
 - **hassfest** (`home-assistant/actions/hassfest`) and **HACS validate** (`hacs/action`, integration
   category) - the publish-validation checks the HACS / HA ecosystems require.
 - the **no-publish build** of `purpleair.zip` (`build-release-task` with `github: false`), gated on every
@@ -389,8 +389,9 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   the aggregator), since `github.sha` is all-zeros and a checkout would fail. *Prevents a reusable-workflow
   or build break shipping untested; a branch-deletion push failing CI.*
 - **D1.2 The full quality gate runs.** Output: `test-release-task` runs ruff (lint + format check), mypy
-  `--strict`, pyright, the HA-version pytest matrix (`minimum`, `latest-stable`, `latest-stable-min-lib`, and
-  `latest-beta` when non-null - all gate equally), hassfest, and HACS validate. A failure on any one reds the suite.
+  `--strict`, pyright, the HA-version pytest matrix, hassfest, and HACS validate. The matrix legs are
+  `minimum`, `latest-stable`, `latest-stable-min-lib`, and `latest-beta` when non-null, and all gate equally.
+  A failure on any one reds the suite.
 - **D1.3 Lint and type-checks are enforced in CI.** Output: ruff, mypy, and pyright run in CI from the same
   config files the editor uses (`pyrightconfig.json`, project ruff/mypy config), so a style or typing defect
   cannot reach the branch on editor-faith. *(There is no CSharpier/`dotnet format`; this is Python.)*
