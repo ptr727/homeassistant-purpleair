@@ -155,7 +155,7 @@ jobs:
       - name: Build matrix include array step
         id: parse
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           INCLUDE=$(jq -c '
             [
               (.minimum         | { "python-version": "3.14", "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "label": "minimum",               "aiopurpleair": "minimum" }),
@@ -199,7 +199,8 @@ jobs:
         # manifest's >= requirement, so a venv install can keep an old
         # release across HA updates while Dependabot moves only the
         # requirements-test.txt pin. The minimum and latest-stable-min-lib
-        # legs test the oldest allowed release, the other legs the pin.
+        # legs type-check and test against the oldest allowed release, the
+        # other legs against the pin.
         if: ${{ matrix.aiopurpleair == 'minimum' }}
         run: |
           set -Eeuo pipefail
@@ -221,6 +222,13 @@ jobs:
             exit 1
           fi
           echo "Testing ptr727-aiopurpleair $installed, the manifest minimum"
+
+      - name: Type-check against the manifest's minimum aiopurpleair step
+        # The tests mock the API client without a spec, so a call to a method
+        # or keyword the minimum lacks still passes them. The library ships
+        # type hints, so mypy against the installed minimum catches it.
+        if: ${{ matrix.aiopurpleair == 'minimum' }}
+        run: python -m mypy --strict --follow-imports=silent custom_components/purpleair/
 
       - name: Run pytest step
         run: python -m pytest -ra --cov=custom_components/purpleair --cov-report=xml --cov-branch
