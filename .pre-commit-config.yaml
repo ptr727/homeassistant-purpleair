@@ -3,6 +3,16 @@
 repos:
   - repo: local
     hooks:
+      - id: venv-check
+        name: .venv present
+        entry: >-
+          bash -c 'for tool in ruff mypy pyright; do [[ -x .venv/bin/$tool ]] || {
+          echo "No .venv/bin/$tool in this checkout, and each linked worktree needs its own .venv." >&2;
+          echo "Run scripts/setup, or: uv venv --python 3.14 && uv pip install -r requirements-test.txt" >&2;
+          exit 1; }; done'
+        language: system
+        pass_filenames: false
+        fail_fast: true
       - id: ruff-format
         name: ruff format --check
         entry: .venv/bin/ruff format . --check

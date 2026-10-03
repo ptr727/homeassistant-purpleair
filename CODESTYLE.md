@@ -176,7 +176,7 @@ The integration's shipped version lives in `custom_components/purpleair/manifest
 Before pushing or opening a PR:
 
 - VS Code's **Problems** pane should be quiet for the files you touched. The relevant linters are ruff (via the `charliermarsh.ruff` extension) and pyright (via the `ms-python.python` extension's bundled Pylance).
-- No local commit gate is wired yet, so run the full gate set in [`OPERATIONS.md`][operations] "Local Verification" yourself before a push. `scripts/lint` covers only the Python linters within it.
+- The `pre-commit` hook runs the four `scripts/lint` linters plus the prose and line-ending gates on every commit. `pytest` and the Docs lint set still run by hand before a push, per [`OPERATIONS.md`][operations] "Local Verification".
 - CI runs the same checks as `scripts/lint` (`ruff format --check` + `ruff check` + `mypy --strict` + `pyright`) plus `pytest`, as separate workflow steps (not by invoking the script) - the authoritative gate.
 - Markdown in this directory follows the repo-wide [Markdown and Spelling](#markdown-and-spelling) rules.
 
