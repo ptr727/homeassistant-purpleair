@@ -84,7 +84,7 @@ jobs:
       needs.gate.result == 'success' &&
       needs.test-release.result == 'success'
     uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6b1b1477752e4998db98cc5af67605d4319e05a2 # 2.0.807
-    # The hub task's release upload, artifact cleanup, and D4.7 dispatch-and-cancel all write with GITHUB_TOKEN.
+    # The hub task's release upload, artifact cleanup, and supersede dispatch-and-cancel (WORKFLOW.md D4.8) all write with GITHUB_TOKEN.
     permissions:
       contents: write
       actions: write
