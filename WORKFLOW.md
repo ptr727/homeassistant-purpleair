@@ -380,7 +380,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   hub task's `branch` input is passed `github.ref_name`, so it cannot disagree with the ref. *Prevents cross-branch ref mixing, since `github.ref` is the branch being
   published.*
 - **D0.3 One version, threaded.** Output: NBGV runs once (`get-version-task`); every consumer reads it via
-  `needs:` outputs (the hub task's asset build and release jobs both read its single `get-version` job). No consumer
+  `needs:` outputs. The hub task's asset build and release jobs both read its single `get-version` job. No consumer
   recomputes it. *Prevents the stamped version diverging from the tag, and a second NBGV run reclassifying
   it.*
 
@@ -438,7 +438,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   a pull model, so the maintainer ships on demand.*
 - **D4.2 Publish exactly the dispatch branch.** Output: a dispatch publishes only `github.ref_name` -
   `main` -> stable, `develop` -> prerelease - gated by the `gate` job to `main`/`develop`. *Prevents
-  publishing the wrong branch.* D4.8 is the one case where the run publishes a newer head of that branch.
+  publishing the wrong branch.* Under D4.8 the run cancels itself and a new dispatch of the same branch
+  publishes instead.
 - **D4.3 Tag the built commit.** Output: the release `target_commitish` is set explicitly to the
   `get-version` job's `GitCommitId` (the dispatched commit), never the API's default of the repository
   default branch. *Prevents a develop release's tag landing on main's tip.*
@@ -464,10 +465,12 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   the branch head carries different `.github/workflows` files than the built commit. The hub task's
   `github-release` job then checks every push since the built commit. Where each one was by
   `ptr727-codegen[bot]` or `dependabot[bot]`, it dispatches `publish-release.yml` on that branch and
-  cancels its own run. The new run repeats `test-release` and publishes the newer head. Any other push
-  fails the run instead. *Prevents a bot's workflow bump stranding a dispatched release.* The new run
-  replaces any run pending in the global concurrency group, so a queued publish of the other branch is
-  cancelled.
+  cancels its own run before creating any release. Otherwise the run fails. The dispatched run is an
+  ordinary dispatch of the new head, so it retests before publishing. *Prevents a bot's workflow bump
+  stranding a dispatched release.* Two races stay open. A push landing between the check and the dispatch
+  reaches the new run unchecked. The new run also replaces any run pending in the global concurrency
+  group, and a run queued before the cancel lands replaces the new run in turn. Either way, confirm the
+  release appeared.
 
 ### D5 - Resource cleanup
 
@@ -495,7 +498,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D7.1 The publisher does not cancel mid-flight.** Output: the publisher uses a ref-independent group
   (`group: ${{ github.workflow }}`) with `cancel-in-progress: false`, so a stable and a prerelease publish
   serialize. CI and the tracker use a `...github.ref`/workflow group with `cancel-in-progress: true`; the
-  merge-bot keys on the PR number with `cancel-in-progress: false`.
+  merge-bot keys on the PR number with `cancel-in-progress: false`. The one self-cancel is D4.8's, which
+  happens before any release is created.
 - **D7.2 Skipped jobs still need valid permissions.** Output: every reusable job runs under valid least-privilege
   `permissions:`. A callee's extra scope (`contents: write` for the release, `actions: write` for cleanup
   and the D4.8 dispatch) is granted by the caller.
@@ -612,8 +616,8 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 ### 5C. Live probe (where warranted, never publishing)
 
-- Open a trivial-change PR touching the integration and confirm S1 (the suite runs, the zip smoke-builds and
-  asserts its layout, nothing uploaded or published, aggregator green).
+- Open a trivial-change PR touching the integration and confirm S1. The suite runs, the zip smoke-builds and
+  asserts its layout, nothing is uploaded or published, and the aggregator is green.
 - After a `main` dispatch confirm a stable release (`isPrerelease == false`, tag plus `purpleair.zip` at the
   archive root) and after a `develop` dispatch a prerelease `X.Y.Z-g<sha>`. Confirm the weekly schedule run
   retests and creates no release. Absent publish rights, record indeterminate and rely on 5A/5B.

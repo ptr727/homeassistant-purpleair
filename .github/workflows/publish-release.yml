@@ -89,6 +89,7 @@ jobs:
       contents: write
       actions: write
     with:
+      ref: ${{ github.sha }}
       github: true
       branch: ${{ github.ref_name }}
       # The one target is the HACS zip, which the build-release-asset hook builds.
