@@ -27,7 +27,7 @@ docker run --rm -v "$PWD:/workdir" -w /workdir davidanson/markdownlint-cli2:late
 docker run --rm -v "$PWD:/workdir" -w /workdir rhysd/actionlint:latest -color
 docker run --rm -v "$PWD":/check --workdir /check mstruebing/editorconfig-checker:latest
 docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest scripts/*
-docker run --rm -v "$PWD:/mnt" -w /mnt mvdan/shfmt:latest -d scripts/*
+docker run --rm -v "$PWD:/mnt" -w /mnt mvdan/shfmt:v3.14.1 -d scripts/*
 ```
 
 **What CI cannot exercise is the integration running inside Home Assistant.** `scripts/develop` boots a local Home Assistant against the gitignored `config/` directory with this integration loaded, on port 8123. A change to the config flow, entity naming, translations, or device registry behavior is worth a manual pass through the UI before merge, since the test harness mocks the parts a user sees. [`DEVCONTAINER.md`](./DEVCONTAINER.md) covers running and debugging it.
@@ -102,7 +102,7 @@ Locally, `scripts/develop` runs Home Assistant with `--debug`, and the "Home Ass
 
 ## Local Rule Extensions
 
-Rules that apply in this repository on top of the carried fleet rules. Most are here because they are specific to this integration. The one that departs from a fleet default says so, and **where an extension here and a carried rule disagree, the extension wins in this repository**.
+Rules that apply in this repository on top of the carried fleet rules. Most are here because they are specific to this integration. Each one that departs from a fleet default says so. **Where an extension here and a carried rule disagree, the extension wins in this repository**.
 
 ### Supported Platforms
 
@@ -110,7 +110,7 @@ Development is **Linux only**: native Linux, WSL2, or the devcontainer. This is 
 
 ### Bash Dev Loop
 
-The `scripts/*` dev loop (`setup`, `fix`, `lint`, `develop`, `init-config`) stays Bash, a deliberate departure from the fleet's Python-first default for scripts. It is the Home Assistant integration-scaffold convention, which integration contributors already know. The devcontainer's `postCreateCommand` and the VS Code tasks also call these paths. The scripts otherwise meet the fleet's shell rules: each opens with `set -Eeuo pipefail`, and the `Docs lint job` runs `shellcheck` and `shfmt -d` over them. A script outside this dev loop follows the fleet default.
+The `scripts/*` dev loop (`setup`, `fix`, `lint`, `develop`, `init-config`) stays Bash. This departs from the fleet default in [`CODESTYLE.md`](./CODESTYLE.md) "Shell", which allows Bash only where a program cannot be Python. It is the Home Assistant integration-scaffold convention, which integration contributors already know. The devcontainer's `postCreateCommand` and the VS Code tasks also call these paths. The scripts otherwise meet the fleet's shell rules: each opens with `set -Eeuo pipefail`, and the `Docs lint job` runs `shellcheck` and `shfmt -d` over them. A script outside this dev loop follows the fleet default.
 
 ### Branching Facts
 
