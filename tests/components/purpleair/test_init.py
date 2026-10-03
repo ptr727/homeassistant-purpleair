@@ -881,6 +881,51 @@ async def test_async_migrate_integration_keeps_foreign_sibling_entities(
     )
 
 
+async def test_async_migrate_integration_moves_parent_entity_on_sibling_device(
+    hass: HomeAssistant,
+) -> None:
+    """A parent's own entity on a sibling's device joins the subentry rather than being deleted with the device move."""
+    parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1]},
+        title="parent",
+    )
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX2]},
+        title="sibling",
+    )
+    parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
+    sibling_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+    )
+
+    entity_registry = er.async_get(hass)
+    parent_entity = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-temperature",
+        config_entry=parent,
+        device_id=sibling_device.id,
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    migrated = entity_registry.async_get(parent_entity.entity_id)
+    assert migrated is not None
+    assert migrated.config_entry_id == parent.entry_id
+    assert migrated.config_subentry_id == _subentry_ids(parent)[TEST_SENSOR_INDEX2]
+    assert migrated.device_id == sibling_device.id
+
+
 async def test_async_migrate_integration_keeps_foreign_parent_entities(
     hass: HomeAssistant,
 ) -> None:

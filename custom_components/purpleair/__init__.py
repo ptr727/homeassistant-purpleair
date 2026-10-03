@@ -247,8 +247,12 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 )
 
                 for entity_entry in entity_entries:
-                    # Another integration's entity keeps its own entry and subentry and only follows the device
-                    owned = entity_entry.config_entry_id == entry.entry_id
+                    # An entity of any other entry keeps its own entry and subentry and only follows the device
+                    # The parent's own entity moves too, since a device move into a subentry deletes the parent's entities left outside it
+                    owned = entity_entry.config_entry_id in (
+                        entry.entry_id,
+                        parent_entry.entry_id,
+                    )
                     if not owned and target_device is None:
                         continue
                     entity_disabled_by = entity_entry.disabled_by
