@@ -13,7 +13,7 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.typing import UNDEFINED, ConfigType
 
 from .const import (
     CONF_LEGACY_SENSOR_INDICES,
@@ -247,9 +247,18 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 )
 
                 for entity_entry in entity_entries:
+                    # An entity of any other entry keeps its own entry and subentry and only follows the device
+                    # The parent's own entity moves too, since a device move into a subentry deletes the parent's entities left outside it
+                    owned = entity_entry.config_entry_id in (
+                        entry.entry_id,
+                        parent_entry.entry_id,
+                    )
+                    if not owned and target_device is None:
+                        continue
                     entity_disabled_by = entity_entry.disabled_by
                     config_entry_disabled = (
-                        entity_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
+                        owned
+                        and entity_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
                         and not all_disabled
                     )
                     if target_device is not None and (
@@ -265,8 +274,8 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
 
                     entity_registry.async_update_entity(
                         entity_entry.entity_id,
-                        config_entry_id=parent_entry.entry_id,
-                        config_subentry_id=subentry.subentry_id,
+                        config_entry_id=parent_entry.entry_id if owned else UNDEFINED,
+                        config_subentry_id=subentry.subentry_id if owned else UNDEFINED,
                         device_id=(
                             target_device.id
                             if target_device is not None
