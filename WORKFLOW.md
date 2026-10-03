@@ -99,7 +99,7 @@ Legibility rules. Necessary but not sufficient: a perfectly styled workflow can 
 - **Workflow `name:`.** Reusable names end in **"task"**, entry names in **"action"**.
 - **Job and step `name:`.** Every job `name:` ends in **"job"**, every step `name:` in **"step"**, the
   aggregator included (`Check pull request workflow status job`). A job name also bound as a ruleset
-  required-check `context:` is codified in [`repo-config/`](./repo-config/) and changed only **in lockstep**
+  required-check `context:` is codified in the hub's `repo-config/` payloads and changed only **in lockstep**
   with the live ruleset.
 - **Concurrency.** Every entry workflow declares a `concurrency` group. CI and the tracker use
   `group: '${{ github.workflow }}-${{ github.ref }}'` (the tracker omits the ref, keying on the workflow
@@ -527,7 +527,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   (`home-assistant/actions/hassfest` is SHA-pinned with `# master` noting its floating provenance, not an
   exception to pinning.)
 - **D9.2** File/workflow/job/step names follow the suffix rules; a ruleset-bound `context:` name moves only
-  in lockstep with `repo-config/`.
+  in lockstep with the hub's `repo-config/` payloads.
 - **D9.3** Bash `run:` blocks start `set -euo pipefail`; multi-line `if:` uses `>-`.
 - **D9.4** Line endings follow `.editorconfig` (LF); `.github/ha-test-versions.json` is written with
   `ensure_ascii=False` to preserve its non-ASCII `$comment` without a noisy diff.
@@ -620,8 +620,7 @@ required merge method, status check, signed commits, and strict-off (with linear
 (auto-merge, allowed merge methods, auto-delete-on-merge off) are in place. `check` exits non-zero on drift.
 Secret *values* cannot be read back, so only the names are asserted. The App installation is not
 checked by either. The HACS zip release is dispatch-gated and keyless, so there is no external publish policy
-to verify, which is a noted manual item. The local [`repo-config/`](./repo-config/) copy is retired and
-awaiting removal, so it is not the audit.
+to verify, which is a noted manual item.
 
 ### Assessment
 
@@ -666,6 +665,5 @@ merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependab
 updates enabled. The GitHub App installed with the scopes above.
 
 **Validation.** This configuration is applied and audited by the hub's `repo-config/configure.sh` against the
-hub's payloads, with secret names checked separately, per [`AUDIT.md`](./AUDIT.md) section 4. The local
-[`repo-config/`](./repo-config/) copy is retired and awaiting removal. Secret values cannot be read back, so
+hub's payloads, with secret names checked separately, per [`AUDIT.md`](./AUDIT.md) section 4. Secret values cannot be read back, so
 the audit asserts the names exist. The App installation is not checked.
