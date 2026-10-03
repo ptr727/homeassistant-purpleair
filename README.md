@@ -6,6 +6,9 @@ It reads [PurpleAir][purpleair-link] sensors through the PurpleAir API, and it i
 
 ## Build and Distribution
 
+- **Source Code**: [GitHub][github-link] for source, issues, discussions, and CI/CD pipelines.
+- **Versioned Releases**: [GitHub Releases][releases-link] for version-tagged source archives and the `purpleair.zip` integration archive that HACS installs.
+
 ### Build Status
 
 [![Build Status][buildstatus-shield]][actions-link]\
@@ -36,7 +39,7 @@ It reads [PurpleAir][purpleair-link] sensors through the PurpleAir API, and it i
 - Platinum-tier quality-scale compliance.
 - ⚠️ Automatic upgrading from the core v1 schema is a one-way operation.
 
-See [Release History](./HISTORY.md) for complete release notes and older versions.
+See [Release History][history] for complete release notes and older versions.
 
 ## Table of Contents
 
@@ -79,11 +82,11 @@ See [Release History](./HISTORY.md) for complete release notes and older version
 - **Private sensor support.** Each subentry can supply its own per-sensor **Read Key**, so the integration can query unlisted private sensors and query self-owned sensors at no API-point cost.
 - **Config subentries.** One subentry per sensor (the current HA model) instead of a single config entry holding a list of sensor indices.
 - **Sensor selection from a map.** Pick nearby public sensors from a radius-filtered map picker.
-- **Cost-aware field selection.** Only fields for *enabled* entities are requested, and static device-info fields are fetched once per day instead of every refresh - see [API points and field selection](#api-points-and-field-selection).
+- **Cost-aware field selection.** Only fields for *enabled* entities are requested. Static device-info fields are fetched once per day instead of every refresh. See [API points and field selection][api-points-and-field-selection].
 - **Quality-aware availability.** Entities are marked unavailable when the sensor reports no PM data (`channel_state == 0`, "No PM"), when it has stopped reporting (`last_seen` older than 10 min), or when both Plantower channels are reporting and disagree too much (`confidence < 50`). Single-channel sensors (PA-I or one channel downgraded) aren't gated on confidence because there's no second channel to cross-check against - on those sensors the displayed Confidence value reflects internal sensor-health checks rather than channel agreement, so values typically sit between 20 and 40 by design and that's not a defect. Confidence, channel state, and last-seen diagnostic entities are all enabled by default so the reason a sensor went unavailable is visible at a glance from the device card.
 - **Hardware-aware entities.** The Volatile organic compounds (IAQ) entity is only created for devices whose `hardware` string indicates a BME680/688 gas sensor (PA-II-ZEN and newer). PA-I and original PA-II boards ship a BME280 with no gas-sensing capability, so the integration skips the entity entirely on those boards rather than registering one that would always sit at `unknown` (the API returns `voc: null`, which HA renders as Unknown for measurement entities). Existing installs that already have the entity registered keep it (the gate is bypassed for entities already present in the entity registry).
 - **Remaining-points diagnostics.** Account-level **Remaining points** and **Consumption rate** sensors (both enabled by default) plus a persistent repair issue when fewer than seven days of points remain or the API rejects requests with `PaymentRequiredError`.
-- **Platinum-tier quality scale.** Full [HA quality-scale][qualityscale-rules-link] platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, >= 95 % test coverage, and more - see [`quality_scale.yaml`](custom_components/purpleair/quality_scale.yaml).
+- **Platinum-tier quality scale.** Full [HA quality-scale][qualityscale-rules-link] platinum tier: `parallel-updates`, `entity-unavailable`, `log-when-unavailable`, `repair-issues`, `reconfiguration-flow`, entity translations, exception translations, >= 95 % test coverage, and more. See [`quality_scale.yaml`][qualityscale].
 - **Automatic v1 -> v2 migration.** Existing config entries from the built-in integration are converted to the subentry layout on first load; entity IDs, devices, and history are preserved.
 
 **Why private sensor support matters**:
@@ -152,7 +155,7 @@ See the [API docs § `pm2.5`][purpleair-api-pm25-link] for the full spec. You do
 
 For the Wallace **ALT-CF3** variant (often preferred for wildfire smoke and low-concentration outdoor monitoring) enable the disabled-by-default **PM2.5 ALT mass concentration** sensor. See [the API docs § `pm2.5_alt`][purpleair-api-pm25-link] for the formula.
 
-For US EPA-corrected PM2.5, enable the opt-in **PM2.5 EPA mass concentration** entity - see [EPA-corrected PM2.5](#epa-corrected-pm25-pm25-epa-mass-concentration) below for the formula and source.
+For US EPA-corrected PM2.5, enable the opt-in **PM2.5 EPA mass concentration** entity. See [EPA-corrected PM2.5][epa-corrected-pm25] below for the formula and source.
 
 ### Rolling Averages
 
@@ -199,7 +202,7 @@ Implementation details:
 - Uses the sensor's **internal** housing humidity as input, matching how the EPA regression was fit - no ambient correction is applied to humidity here.
 - Calibrated for outdoor sensors; enabling it on an indoor sensor is not meaningful.
 
-The code lives in `_pm25_epa_correction` in [`sensor.py`](custom_components/purpleair/sensor.py). The implementation has unit tests that verify each region's formula and the continuity of every boundary.
+The code lives in `_pm25_epa_correction` in [`sensor.py`][sensor]. The implementation has unit tests that verify each region's formula and the continuity of every boundary.
 
 ### US AQI from 24-Hour PM2.5 (`PM2.5 Air Quality Index`)
 
@@ -209,7 +212,7 @@ A disabled-by-default sensor that reports the US EPA Air Quality Index for PM2.5
 - Uses the breakpoint table from [AirNow - Air Quality Index (AQI) Basics][airnow-aqi-link], updated to the **2024 NAAQS revision** (Good/Moderate threshold lowered from 12.0 -> 9.0 µg/m³, higher bands tightened).
 - Concentrations are truncated to 0.1 µg/m³ before lookup (40 CFR § 58 App. G), AQI within each band is linearly interpolated, and values above 500.4 µg/m³ cap at AQI 500.
 
-The breakpoint table and lookup live in `_pm25_aqi` in [`sensor.py`](custom_components/purpleair/sensor.py); unit tests cover every band edge.
+The breakpoint table and lookup live in `_pm25_aqi` in [`sensor.py`][sensor], and unit tests cover every band edge.
 
 ### Availability Signals
 
@@ -225,7 +228,7 @@ Each transition is logged once at `INFO` under the `custom_components.purpleair`
 
 PurpleAir charges API points per **field** per sensor per call. The integration takes two steps to minimize that cost:
 
-**1. Only fetch fields for enabled entities.** Each [`PurpleAirSensorEntityDescription`](custom_components/purpleair/sensor.py) declares its required API fields; at refresh time the coordinator walks the entity registry for the config entry and unions the `api_fields` of every enabled description. Disabled entities contribute zero API fields to the outgoing request. Enabling or disabling an entity in the UI triggers an immediate refresh so the field set reflects reality on the next cycle.
+**1. Only fetch fields for enabled entities.** Each [`PurpleAirSensorEntityDescription`][sensor] declares its required API fields. At refresh time the coordinator walks the entity registry for the config entry. It unions the `api_fields` of every enabled description. Disabled entities contribute zero API fields to the outgoing request. Enabling or disabling an entity in the UI triggers an immediate refresh so the field set reflects reality on the next cycle.
 
 **2. Static fields are cached for 24 hours.** The API's field catalog mixes values that change every reading (PM2.5, humidity, `confidence`, `last_seen`) with values that only change on firmware updates or user actions (`name`, `hardware`, `model`, `firmware_version`, `latitude`, `longitude`). The coordinator splits them into two sets:
 
@@ -248,10 +251,10 @@ The savings here come from the static-cache split alone. A second saving comes f
 
 Free points are available for sensor owners who use their own sensor's Read Key; see [API points for sensor owners][free-points-link].
 
-The integration tracks remaining points and consumption rate via the [Account-Level Diagnostics](#account-level-diagnostics) and raises a **PurpleAir API points are running low** repair issue when fewer than seven days of points remain at the current consumption rate. New small accounts can hit the threshold soon after install while the consumption rate stabilizes; that's expected. Two ways to clear the warning:
+The integration tracks remaining points and consumption rate via the [Account-Level Diagnostics][account-level-diagnostics]. It raises a **PurpleAir API points are running low** repair issue when fewer than seven days of points remain at the current consumption rate. New small accounts can hit the threshold soon after install while the consumption rate stabilizes, which is expected. Two ways to clear the warning:
 
 - **Buy more points** at the [PurpleAir Developer dashboard][purpleair-projects-link].
-- **Use a per-sensor Read Key** for sensors you own. Queries to your own sensors with their Read Key cost zero points. For new sensors, enter the Read Key when adding (see [3. Add Sensors](#3-add-sensors)). For sensors migrated from the built-in integration that don't yet have a Read Key, see [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key).
+- **Use a per-sensor Read Key** for sensors you own. Queries to your own sensors with their Read Key cost zero points. For new sensors, enter the Read Key when adding (see [3. Add Sensors][add-sensors]). For sensors migrated from the built-in integration that don't yet have a Read Key, see [Switch an Existing Sensor to a Read Key][switch-sensor-to-read-key].
 
 A separate **PurpleAir API points are exhausted** repair issue fires (severity error) if the account runs out of points entirely; it clears automatically on the next successful refresh after points are restored.
 
@@ -274,11 +277,11 @@ If migration fails, the entry is marked `SETUP_ERROR`. Check **Settings -> Syste
 
 ### Switch an Existing Sensor to a Read Key
 
-The built-in integration didn't support per-sensor Read Keys, so subentries migrated from it have only the sensor **Index** populated. If you own a sensor, switching it to use a per-sensor Read Key makes its API queries free - see [PurpleAir community: API points for sensor owners][free-points-link]. This is the recommended remediation when the [low-points repair issue](#api-points-and-field-selection) fires on a small account.
+The built-in integration didn't support per-sensor Read Keys, so subentries migrated from it have only the sensor **Index** populated. If you own a sensor, switching it to use a per-sensor Read Key makes its API queries free. See [PurpleAir community: API points for sensor owners][free-points-link]. This is the recommended remediation when the [low-points repair issue][api-points-and-field-selection] fires on a small account.
 
 In **Settings -> Devices & Services -> PurpleAir**, click ⋮ next to the sensor -> **Configure**, then enter the sensor's Read Key. The integration validates the key against PurpleAir before saving and reloads on success - long-term-statistics history, entity IDs, and devices are preserved (only the sensor's API authentication changes). The same flow can clear an existing Read Key by leaving the field blank, or replace one that's been rotated.
 
-The Read Key can also be added at sensor-add time for new sensors - see [3. Add Sensors](#3-add-sensors).
+The Read Key can also be added at sensor-add time for new sensors. See [3. Add Sensors][add-sensors].
 
 ## Questions or Issues
 
@@ -295,13 +298,13 @@ The Read Key can also be added at sensor-add time for new sensors - see [3. Add 
   - Feature branch -> `develop` via **squash merge**; `develop` -> `main` via **merge commit**. Both methods are pinned in the branch rulesets.
   - CI runs on every branch push (there is no `pull_request` trigger); a fork PR's pushes don't run the base-repo check, so a maintainer lands the change on an in-repo branch before merge.
   - Dependabot and the HA-version-bump bot target `develop` and auto-merge once the required check passes.
-  - See [`WORKFLOW.md`](WORKFLOW.md) and [`OPERATIONS.md`](OPERATIONS.md) for the full release flow and HA-version-bump process.
+  - See [`WORKFLOW.md`][workflow] and [`OPERATIONS.md`][operations] for the full release flow and HA-version-bump process.
 - **Code style**:
-  - [ruff][ruff-link] (config in [`.ruff.toml`](.ruff.toml)), `mypy --strict`, and `pyright`; see [`CODESTYLE.md`](CODESTYLE.md) and [`.editorconfig`](.editorconfig). Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
+  - [ruff][ruff-link] (config in [`.ruff.toml`][ruff-config]), `mypy --strict`, and `pyright`. See [`CODESTYLE.md`][codestyle] and [`.editorconfig`][editorconfig]. Apply auto-fixes with `scripts/fix`, verify with `scripts/lint` (CI runs the same checks).
 - **Development**:
-  - See [`DEVCONTAINER.md`](DEVCONTAINER.md) for devcontainer development setup.
+  - See [`DEVCONTAINER.md`][devcontainer] for devcontainer development setup.
 - **Repository setup**:
-  - See [`AUDIT.md`](AUDIT.md) section 4 for repository configuration.
+  - See [`AUDIT.md`][audit] section 4 for repository configuration.
 
 ## 3rd Party Tools
 
@@ -334,12 +337,20 @@ The third-party tools, libraries, and actions this project depends on.
 This integration is an independent implementation based on the [`home-assistant/core` PurpleAir component][ha-core-components-link].\
 It was created to be maintained independently after the upstream PR [home-assistant/core#140901][ha-core-pr-link] - reducing API token usage and adding support for private sensors - was abandoned.
 
-The original Apache 2.0 copyright is retained alongside that of the current maintainer in [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+The original Apache 2.0 copyright is retained alongside that of the current maintainer in [LICENSE][license] and [NOTICE][notice].
 
 ## License
 
-Licensed under the [Apache 2.0 License][license] and [NOTICE](./NOTICE)\
+Licensed under the [Apache 2.0 License][license] and [NOTICE][notice]\
 [![License][license-shield]][license]
+
+<!-- Sections -->
+
+[account-level-diagnostics]: #account-level-diagnostics
+[add-sensors]: #3-add-sensors
+[api-points-and-field-selection]: #api-points-and-field-selection
+[epa-corrected-pm25]: #epa-corrected-pm25-pm25-epa-mass-concentration
+[switch-sensor-to-read-key]: #switch-an-existing-sensor-to-a-read-key
 
 <!-- Shields -->
 
@@ -358,13 +369,24 @@ Licensed under the [Apache 2.0 License][license] and [NOTICE](./NOTICE)\
 [actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
 [commits-link]: https://github.com/ptr727/homeassistant-purpleair/commits/main
 [discussions-link]: https://github.com/ptr727/homeassistant-purpleair/discussions
+[github-link]: https://github.com/ptr727/homeassistant-purpleair
 [issues-link]: https://github.com/ptr727/homeassistant-purpleair/issues
 [releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
 
 <!-- Repo -->
 
+[audit]: ./AUDIT.md
+[codestyle]: ./CODESTYLE.md
+[devcontainer]: ./DEVCONTAINER.md
+[editorconfig]: ./.editorconfig
+[history]: ./HISTORY.md
 [license]: ./LICENSE
+[notice]: ./NOTICE
+[operations]: ./OPERATIONS.md
 [qualityscale]: ./custom_components/purpleair/quality_scale.yaml
+[ruff-config]: ./.ruff.toml
+[sensor]: ./custom_components/purpleair/sensor.py
+[workflow]: ./WORKFLOW.md
 
 <!-- External -->
 

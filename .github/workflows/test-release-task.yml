@@ -128,6 +128,9 @@ jobs:
       - name: Lint shell scripts step
         run: shellcheck scripts/*
 
+      - name: Check shell formatting step
+        run: docker run --rm -v "$PWD":/mnt --workdir /mnt mvdan/shfmt@sha256:8c06884a35683d8763fba6c0d9484d11a61a96da65f8d497d6f625825a6043f2 -d scripts/* # shfmt v3.14.1
+
   read-versions:
     name: Read HA test matrix job
     # The matrix is sourced from .github/ha-test-versions.json so that

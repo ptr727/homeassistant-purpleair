@@ -1,0 +1,45 @@
+# The Python hooks run the tools requirements*.txt pins, from the .venv scripts/setup builds, so they match CI.
+# Type checking also needs Home Assistant installed there to resolve the integration's imports.
+repos:
+  - repo: local
+    hooks:
+      - id: venv-check
+        name: .venv present
+        entry: >-
+          bash -c 'for tool in ruff mypy pyright; do [[ -x .venv/bin/$tool ]] || {
+          echo "No .venv/bin/$tool in this checkout, and each linked worktree needs its own .venv." >&2;
+          echo "Run scripts/setup, or: uv venv --python 3.14 && uv pip install -r requirements-test.txt" >&2;
+          exit 1; }; done'
+        language: system
+        pass_filenames: false
+        fail_fast: true
+      - id: ruff-format
+        name: ruff format --check
+        entry: .venv/bin/ruff format . --check
+        language: system
+        pass_filenames: false
+      - id: ruff-check
+        name: ruff check
+        entry: .venv/bin/ruff check .
+        language: system
+        pass_filenames: false
+      - id: mypy
+        name: mypy --strict
+        entry: .venv/bin/mypy --strict --follow-imports=silent custom_components/purpleair/
+        language: system
+        pass_filenames: false
+      - id: pyright
+        name: pyright
+        entry: .venv/bin/pyright --pythonpath .venv/bin/python
+        language: system
+        pass_filenames: false
+      - id: prose-gate
+        name: prose/comment-style gate (diff-scoped, fetched fresh from ProjectTemplate@main)
+        entry: uv run --no-project python hub-fetch-run.py .github/actions/prose-gate/prose_lint.py . --diff HEAD
+        language: system
+        pass_filenames: false
+      - id: eol-gate
+        name: line-ending consistency gate (fetched fresh from ProjectTemplate@main)
+        entry: uv run --no-project python hub-fetch-run.py .github/actions/repo-gate/repo_gate.py --check eol
+        language: system
+        pass_filenames: false
