@@ -863,6 +863,15 @@ async def test_async_migrate_integration_replaces_stale_parent_device(
         stale_device.id, disabled_by=dr.DeviceEntryDisabler.USER
     )
     entity_registry = er.async_get(hass)
+    helper_entry = MockConfigEntry(domain="utility_meter")
+    helper_entry.add_to_hass(hass)
+    helper_entity = entity_registry.async_get_or_create(
+        "sensor",
+        "utility_meter",
+        "daily-humidity",
+        config_entry=helper_entry,
+        device_id=stale_device.id,
+    )
     sibling_entity = entity_registry.async_get_or_create(
         "sensor",
         DOMAIN,
@@ -899,6 +908,13 @@ async def test_async_migrate_integration_replaces_stale_parent_device(
         assert migrated.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
         assert migrated.device_id == sibling_device.id
         assert migrated.disabled_by is disabled_by
+
+    # Another integration's entity follows the device but keeps its own entry
+    helper = entity_registry.async_get(helper_entity.entity_id)
+    assert helper is not None
+    assert helper.config_entry_id == helper_entry.entry_id
+    assert helper.config_subentry_id is None
+    assert helper.device_id == sibling_device.id
 
 
 async def test_async_migrate_integration_live_device_wins_in_any_order(
@@ -953,6 +969,55 @@ async def test_async_migrate_integration_live_device_wins_in_any_order(
         assert migrated is not None
         assert migrated.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
         assert migrated.device_id == live_device.id
+
+
+@pytest.mark.parametrize(
+    ("late_lists_sensor", "late_disabled_by"),
+    [
+        (False, None),
+        (True, ConfigEntryDisabler.USER),
+    ],
+    ids=["late_sibling_does_not_list_sensor", "late_sibling_disabled"],
+)
+async def test_async_migrate_integration_adopts_stale_device_over_ineligible_sibling(
+    hass: HomeAssistant,
+    late_lists_sensor: bool,
+    late_disabled_by: ConfigEntryDisabler | None,
+) -> None:
+    """A deviceless sibling adopts the stale device when no eligible later sibling lists the sensor.
+
+    A later sibling's device only takes over when that sibling lists the sensor and is enabled.
+    """
+    parent, stale_device, _, _ = _add_stale_parent_case(hass, sibling_has_device=False)
+    late_sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [
+                TEST_SENSOR_INDEX2 if late_lists_sensor else TEST_SENSOR_INDEX1
+            ],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="late sibling",
+        disabled_by=late_disabled_by,
+    )
+    late_sibling.add_to_hass(hass)
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=late_sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+        name="TEST_SENSOR_INDEX2",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_entries(DOMAIN) == [parent]
+    adopted = dr.async_get(hass).async_get(stale_device.id)
+    assert adopted is not None
+    assert adopted.config_subentry_id == _subentry_ids(parent)[TEST_SENSOR_INDEX2]
+    assert adopted.disabled_by is None
 
 
 async def test_async_migrate_integration_adopts_stale_parent_device(

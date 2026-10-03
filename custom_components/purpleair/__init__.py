@@ -208,7 +208,9 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
             if (
                 stale_device is not None
                 and device is None
-                and _live_device_later(hass, entries, entry, parent_entry, identifier)
+                and _live_device_later(
+                    hass, entries, entry, parent_entry, sensor_index, all_disabled
+                )
             ):
                 # The later sibling's live device replaces the stale one, so it stays put until then
                 stale_device = None
@@ -348,14 +350,21 @@ def _live_device_later(
     entries: list[ConfigEntry],
     entry: ConfigEntry,
     parent_entry: ConfigEntry,
-    identifier: tuple[str, str],
+    sensor_index: int,
+    all_disabled: bool,
 ) -> bool:
-    """Return whether a sibling still to migrate holds a device for the sensor."""
+    """Return whether a sibling still to migrate lists the sensor and holds a device for it.
+
+    A disabled sibling counts only when every entry for the API key is disabled, since its device would arrive disabled.
+    """
     device_registry = dr.async_get(hass)
+    identifier = (DOMAIN, str(sensor_index))
     return any(
         other.entry_id not in (entry.entry_id, parent_entry.entry_id)
         and other.version == 1
         and other.data[CONF_API_KEY] == parent_entry.data[CONF_API_KEY]
+        and (other.disabled_by is None or all_disabled)
+        and sensor_index in (other.options.get(CONF_LEGACY_SENSOR_INDICES) or [])
         and device_registry.async_get_device_by_identifier(identifier, other.entry_id)
         is not None
         for other in entries
@@ -374,15 +383,17 @@ def _async_settle_stale_device(
 
     Its entities join the subentry before any device moves, since a device move drops entities left in another subentry.
     A live sibling device replaces the stale one and keeps its id, area and name.
-    Returns the entities detached for the live device, which the caller reattaches once that device moves.
+    Returns every entity on the replaced stale device, which the caller reattaches to the live device once it moves.
+    Another integration's entity keeps its own entry and subentry and only follows the device.
     """
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
+    device_entities = er.async_entries_for_device(
+        entity_registry, stale_device.id, include_disabled_entities=True
+    )
     stale_entities = [
         stale_entity
-        for stale_entity in er.async_entries_for_device(
-            entity_registry, stale_device.id, include_disabled_entities=True
-        )
+        for stale_entity in device_entities
         if stale_entity.config_entry_id == parent_entry.entry_id
     ]
     for stale_entity in stale_entities:
@@ -405,7 +416,7 @@ def _async_settle_stale_device(
         )
         return []
     device_registry.async_remove_device(stale_device.id)
-    return stale_entities
+    return device_entities
 
 
 @callback
