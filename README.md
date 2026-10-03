@@ -2,7 +2,7 @@
 
 A Home Assistant custom integration for PurpleAir air-quality sensors.
 
-It reads [PurpleAir][purpleair-link] sensors through the PurpleAir API, and it is installed through HACS.
+It reads [PurpleAir][purpleair-link] sensors through the PurpleAir API, and it installs through HACS as a custom repository or by hand.
 
 ## Build and Distribution
 
@@ -317,14 +317,16 @@ The third-party tools, libraries, and actions this project depends on.
 - [GitHub Actions][github-actions-link]: CI and automation runner.
 - [GitHub Dependabot][github-dependabot-link]: Dependency update bot.
 - [HACS][hacs-xyz-link]: Community store for Home Assistant custom integrations.
-- [hassfest][hassfest-link]: Home Assistant integration manifest validator.
+- [hassfest][hassfest-link]: Home Assistant integration validator.
 - [markdownlint-cli2][markdownlint-cli2-link]: Markdown linter.
 - [mypy][mypy-link]: Python static type checker.
 - [Nerdbank.GitVersioning][nerdbank-gitversioning-link]: Version computation from git height.
 - [pyright][pyright-link]: Python static type checker.
 - [pytest][pytest-link]: Python test framework.
+- [pytest-cov][pytest-cov-link]: Coverage plugin for pytest.
 - [pytest-homeassistant-custom-component][pytest-homeassistant-custom-component-link]: Test harness for Home Assistant custom integrations.
 - [ruff][ruff-link]: Python linter and formatter.
+- [ShellCheck][shellcheck-link]: Shell script static analyzer.
 - [uv][uv-link]: Python package and project manager.
 
 ## Credits
@@ -396,8 +398,10 @@ Licensed under the [Apache 2.0 License][license] and [NOTICE](./NOTICE)\
 [purpleair-link]: https://www.purpleair.com/
 [purpleair-projects-link]: https://develop.purpleair.com/dashboards/projects
 [pyright-link]: https://github.com/microsoft/pyright
+[pytest-cov-link]: https://github.com/pytest-dev/pytest-cov
 [pytest-homeassistant-custom-component-link]: https://github.com/MatthewFlamm/pytest-homeassistant-custom-component
 [pytest-link]: https://docs.pytest.org/
 [qualityscale-rules-link]: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/
 [ruff-link]: https://docs.astral.sh/ruff/
+[shellcheck-link]: https://www.shellcheck.net/
 [uv-link]: https://docs.astral.sh/uv/
