@@ -56,8 +56,8 @@ See [Release History][history] for complete release notes and older versions.
   - [Configuration](#configuration)
     - [1. Get a PurpleAir API Key](#1-get-a-purpleair-api-key)
     - [2. Add the Integration in Home Assistant](#2-add-the-integration-in-home-assistant)
-    - [3. Add Sensors][add-sensors]
-    - [Account-Level Diagnostics][account-level-diagnostics]
+    - [3. Add Sensors](#3-add-sensors)
+    - [Account-Level Diagnostics](#account-level-diagnostics)
   - [Sensor Behavior and Calibration](#sensor-behavior-and-calibration)
     - [PM2.5 Mass Concentration](#pm25-mass-concentration)
     - [Rolling Averages](#rolling-averages)
@@ -68,7 +68,7 @@ See [Release History][history] for complete release notes and older versions.
     - [API Points and Field Selection](#api-points-and-field-selection)
   - [Migration from the Built-in Integration](#migration-from-the-built-in-integration)
     - [Upgrade: Built-in -\> Custom](#upgrade-built-in---custom)
-    - [Switch an Existing Sensor to a Read Key][switch-sensor-to-read-key]
+    - [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key)
   - [Questions or Issues](#questions-or-issues)
   - [Contributing](#contributing)
   - [3rd Party Tools](#3rd-party-tools)
