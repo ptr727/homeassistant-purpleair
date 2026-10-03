@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Check workflow results step
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           if [[ "${{ needs.test-release.result }}" != "success" ]]; then
               echo "Job 'test-release' result: ${{ needs.test-release.result }}"
               exit 1

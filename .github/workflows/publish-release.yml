@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Assert dispatch ref step
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "develop" ]; then
               echo "::error::Publish must be dispatched from main (stable) or develop (prerelease); got ${{ github.ref_name }}."
               exit 1

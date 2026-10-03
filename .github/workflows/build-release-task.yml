@@ -36,7 +36,7 @@ jobs:
         env:
           SEMVER2: ${{ needs.get-version.outputs.SemVer2 }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           jq --arg v "$SEMVER2" '.version=$v' \
              custom_components/purpleair/manifest.json > custom_components/purpleair/manifest.json.tmp
           mv custom_components/purpleair/manifest.json.tmp custom_components/purpleair/manifest.json
@@ -58,7 +58,7 @@ jobs:
         # which on a re-run could carry stale entries (e.g. the old nested
         # purpleair/ wrapper) alongside the new root files.
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           rm -f purpleair.zip
           cd custom_components/purpleair
           zip -r ../../purpleair.zip . -x '__pycache__/*' '*.pyc'
@@ -79,7 +79,7 @@ jobs:
         # or `./manifest.json` depending on Info-ZIP version, and an
         # unnormalized check could miss a `./purpleair/` wrapper.
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           entries=$(unzip -Z1 purpleair.zip | sed 's|^\./||')
           if ! echo "$entries" | grep -qx 'manifest.json'; then
               echo "::error::purpleair.zip missing manifest.json at root - HACS layout regression?"
@@ -149,7 +149,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           if ! ids=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/${{ github.run_id }}/artifacts" --paginate \
             --jq '.artifacts[] | select(.name == "purpleair-zip") | .id'); then
             echo "::warning::Could not list run artifacts; retention-days backstop will reap them."
