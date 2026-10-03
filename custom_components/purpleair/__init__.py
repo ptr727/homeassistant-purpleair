@@ -400,16 +400,16 @@ def _async_settle_stale_device(
     device_entities = er.async_entries_for_device(
         entity_registry, stale_device.id, include_disabled_entities=True
     )
-    stale_entities = [
-        stale_entity
-        for stale_entity in device_entities
-        if stale_entity.config_entry_id == parent_entry.entry_id
-    ]
-    for stale_entity in stale_entities:
+    for stale_entity in device_entities:
         disabled_by = stale_entity.disabled_by
         if live_device is not None and disabled_by is er.RegistryEntryDisabler.DEVICE:
             # The live device is not the one that disabled the entity
             disabled_by = er.RegistryEntryDisabler.USER
+        if stale_entity.config_entry_id != parent_entry.entry_id:
+            entity_registry.async_update_entity(
+                stale_entity.entity_id, disabled_by=disabled_by
+            )
+            continue
         entity_registry.async_update_entity(
             stale_entity.entity_id,
             config_subentry_id=subentry.subentry_id,
