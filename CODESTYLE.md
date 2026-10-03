@@ -81,7 +81,7 @@ pytest              # run tests (after scripts/setup, in the uv .venv)
 scripts/develop     # launch Home Assistant against ./config with the integration loaded
 ```
 
-The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy --strict --follow-imports=silent custom_components/purpleair/` + `pyright`. Run it (plus `pytest`) before committing. These commands are also wired as VS Code tasks (`Fix:`, `Lint:`, `Test:`, `Develop:`) in [`.vscode/tasks.json`](./.vscode/tasks.json) for convenience. CI runs the same checks as the authoritative backstop. A `pre-commit` hook runs the four checks on every commit, from [`.pre-commit-config.yaml`](./.pre-commit-config.yaml), and `scripts/setup` enables it. The hook does not run `pytest`, so the suite still runs by hand before a push, per [OPERATIONS.md](OPERATIONS.md#local-verification).
+The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy --strict --follow-imports=silent custom_components/purpleair/` + `pyright`. Run it (plus `pytest`) before committing. These commands are also wired as VS Code tasks (`Fix:`, `Lint:`, `Test:`, `Develop:`) in [`.vscode/tasks.json`](./.vscode/tasks.json) for convenience. CI runs the same checks as the authoritative backstop. A `pre-commit` hook runs the four checks on every commit, from [`.pre-commit-config.yaml`][pre-commit-config], and `scripts/setup` enables it. The hook does not run `pytest`, so the suite still runs by hand before a push, per [OPERATIONS.md][operations-local-verification].
 
 ### Layout
 
@@ -188,6 +188,8 @@ Bash, and only where a program cannot be Python: a bootstrap that installs the i
 
 [governance]: ./GOVERNANCE.md
 [operations]: ./OPERATIONS.md
+[operations-local-verification]: ./OPERATIONS.md#local-verification
 [governance-verification-discipline]: ./GOVERNANCE.md#verification-discipline
+[pre-commit-config]: ./.pre-commit-config.yaml
 [readme]: ./README.md
 [root]: ./.editorconfig
