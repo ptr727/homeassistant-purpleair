@@ -330,6 +330,7 @@ The third-party tools, libraries, and actions this project depends on.
 - [pytest-homeassistant-custom-component][pytest-homeassistant-custom-component-link]: Test harness for Home Assistant custom integrations.
 - [ruff][ruff-link]: Python linter and formatter.
 - [ShellCheck][shellcheck-link]: Shell script static analyzer.
+- [shfmt][shfmt-link]: Shell script formatter.
 - [uv][uv-link]: Python package and project manager.
 
 ## Credits
@@ -426,4 +427,5 @@ Licensed under the [Apache 2.0 License][license] and [NOTICE][notice]\
 [qualityscale-rules-link]: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/
 [ruff-link]: https://docs.astral.sh/ruff/
 [shellcheck-link]: https://www.shellcheck.net/
+[shfmt-link]: https://github.com/mvdan/sh
 [uv-link]: https://docs.astral.sh/uv/

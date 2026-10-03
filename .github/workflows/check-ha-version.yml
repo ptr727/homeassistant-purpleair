@@ -75,7 +75,7 @@ jobs:
         # the resolver fails loudly so a maintainer can investigate before
         # relaxing the cap.
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           import urllib.request
@@ -158,7 +158,7 @@ jobs:
           BETA_HACC: ${{ steps.resolve.outputs.beta_hacc }}
           BETA_HA: ${{ steps.resolve.outputs.beta_ha }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           import os
