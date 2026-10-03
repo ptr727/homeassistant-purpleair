@@ -147,7 +147,7 @@ and a develop tip dispatched as stable.*
 ### Versioning: compute once, thread everywhere
 
 NBGV runs in exactly **one** job, the hub's `get-version-task.yml` reached by pin. It classifies from
-`github.ref` on a real-branch-tip checkout, and emits `SemVer2`, which is also the release tag, and a
+`github.ref` on a checkout of the triggering commit, and emits `SemVer2`, which is also the release tag, and a
 derived `Prerelease` flag. Those thread to every consumer via `outputs:` / `needs:`. No other job re-invokes NBGV
 (`build-release-task` calls `get-version-task` once and reads its outputs in both the build and release
 jobs). `main` (the public ref, `publicReleaseRefSpec = ^refs/heads/main$`) builds a clean `X.Y.Z`; every
@@ -303,7 +303,7 @@ flowchart TD
     CG -- "no" --> CSKIP(["create-release skipped<br/>no publish"]):::stop
     CG -- "yes" --> BRT
     subgraph BRT ["build-release-task.yml (github: true)"]
-        GV["get-version job<br/>NBGV @master, runs once<br/>SemVer2 + Tag + Prerelease"] --> BD["build job<br/>stamp manifest, zip at root,<br/>assert HACS layout"]
+        GV["get-version job<br/>NBGV @master, runs once<br/>SemVer2 + Prerelease"] --> BD["build job<br/>stamp manifest, zip at root,<br/>assert HACS layout"]
         BD --> REL[("GitHub release<br/>tag = SemVer2 at github.sha<br/>prerelease = derived flag<br/>purpleair.zip attached")]:::pub
     end
     REL --> CL(["cleanup-artifacts job<br/>always(), best-effort"]):::stop
