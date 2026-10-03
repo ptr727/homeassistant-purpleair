@@ -762,6 +762,91 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     assert migrated_entity.disabled_by is er.RegistryEntryDisabler.USER
 
 
+async def test_async_migrate_integration_adopts_stale_parent_device(
+    hass: HomeAssistant,
+) -> None:
+    """A parent device for a sensor only a sibling lists absorbs the sibling's.
+
+    The parent holds a device for a sensor its own sensor list does not name.
+    Moving the sibling's device for that sensor onto the parent would collide
+    with it, so the stale parent device joins the new subentry instead, and
+    the sibling's entities move onto it.
+    """
+    parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="parent",
+    )
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX2],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="sibling",
+    )
+    parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
+
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="TEST_SENSOR_INDEX1",
+    )
+    stale_device = device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+        name="TEST_SENSOR_INDEX2",
+    )
+    sibling_device = device_registry.async_get_or_create(
+        config_entry_id=sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+        name="TEST_SENSOR_INDEX2",
+    )
+
+    entity_registry = er.async_get(hass)
+    entity_entry = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-temperature",
+        config_entry=sibling,
+        device_id=sibling_device.id,
+        original_name="Temp",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_get_entry(sibling.entry_id) is None
+    subentry_ids = {
+        int(sub.data[CONF_SENSOR_INDEX]): sub.subentry_id
+        for sub in parent.subentries.values()
+    }
+    assert set(subentry_ids) == {TEST_SENSOR_INDEX1, TEST_SENSOR_INDEX2}
+
+    adopted = device_registry.async_get(stale_device.id)
+    assert adopted is not None
+    assert adopted.config_entry_id == parent.entry_id
+    assert adopted.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
+    assert device_registry.async_get(sibling_device.id) is None
+
+    migrated_entity = entity_registry.async_get(entity_entry.entity_id)
+    assert migrated_entity is not None
+    assert migrated_entity.config_entry_id == parent.entry_id
+    assert migrated_entity.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
+    assert migrated_entity.device_id == stale_device.id
+    assert migrated_entity.disabled_by is None
+
+
 async def test_async_migrate_integration_keeps_enabled_entities_enabled(
     hass: HomeAssistant,
 ) -> None:
