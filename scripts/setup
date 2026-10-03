@@ -10,6 +10,7 @@
 #      davidanson.vscode-markdownlint extension uses, so CLI verification matches
 #      what the IDE shows. Node.js itself is provided by the devcontainer
 #      `node:2` feature.
+#   6. The pre-commit hook for the local commit gate, enabled in the base clone only.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
 # release assets, so the hashes below are computed manually when bumping and
@@ -66,6 +67,33 @@ PY
 if [[ -n "${frontend_req}" ]]; then
     echo "Pre-installing ${frontend_req}"
     uv pip install "${frontend_req}"
+fi
+
+# --- pre-commit hook --------------------------------------------------------
+# The commit gate in .pre-commit-config.yaml runs the tools in the .venv built above.
+# The hook runner, pre-commit, is a host tool installed with uv, never a project dependency.
+# A linked worktree shares the base clone's hooks directory, so only the base clone enables the hook.
+if ! inside_work_tree="$(LC_ALL=C git rev-parse --is-inside-work-tree 2>&1)"; then
+    if [[ "${inside_work_tree}" != *"not a git repository"* ]]; then
+        echo "${inside_work_tree}" >&2
+        exit 1
+    fi
+    echo "Not a git checkout; skipping the pre-commit hook." >&2
+else
+    # A commit inside the devcontainer runs the host's hook, which falls back to the pre-commit on PATH.
+    if ! command -v pre-commit >/dev/null 2>&1; then
+        uv tool install pre-commit
+    fi
+    if ! [[ "$(git rev-parse --git-dir)" -ef "$(git rev-parse --git-common-dir)" ]]; then
+        echo "Linked worktree; the base clone enables the pre-commit hook, skipping."
+    elif [[ -n "${REMOTE_CONTAINERS:-}" || -f /.dockerenv || -f /run/.containerenv ]]; then
+        echo "Inside a container: install the hook from the host for a bind-mounted checkout, or run pre-commit install here for a clone inside the container."
+    elif [[ -n "$(git config --get core.hooksPath || true)" ]]; then
+        echo "core.hooksPath is set, so pre-commit cannot install its hook; skipping." >&2
+    else
+        pre_commit="$(command -v pre-commit || echo "$(uv tool dir --bin)/pre-commit")"
+        "${pre_commit}" install
+    fi
 fi
 
 # --- markdownlint-cli2 ----------------------------------------------------
