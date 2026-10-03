@@ -5,12 +5,8 @@ on:
     inputs:
       # Controls whether the no-publish build-release child job runs.
       # PR-trigger callers (test-pull-request.yml) want it true so the
-      # build path is validated end-to-end on every PR. The
-      # publish-release.yml caller wants it false because create-release
-      # builds the artifact for real immediately after; running both
-      # would double the build cost and produce two purpleair-zip
-      # artifacts in the same workflow run, which only works because of
-      # an undocumented quirk of actions/upload-artifact.
+      # build path is validated end-to-end on every PR.
+      # The publish-release.yml caller wants it false because create-release builds the zip for real immediately after.
       build:
         required: false
         type: boolean
@@ -277,8 +273,13 @@ jobs:
     # - so a bare `if: ${{ inputs.build }}` would run this job even on a
     # manual dispatch with build=false. Compare against both forms.
     if: ${{ inputs.build == true || inputs.build == 'true' }}
-    uses: ./.github/workflows/build-release-task.yml
-    secrets: inherit
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6b1b1477752e4998db98cc5af67605d4319e05a2 # 2.0.807
     with:
-      # Validate the build pipeline produces purpleair.zip without publishing.
-      github: false
+      # Smoke mode builds purpleair.zip through the hook and never uploads or publishes it.
+      smoke: true
+      branch: ${{ github.base_ref || github.ref_name }}
+      enable_release_asset: true
+      enable_docker: false
+      enable_nuget: false
+      enable_pypi: false
+      enable_dotnet_publish: false

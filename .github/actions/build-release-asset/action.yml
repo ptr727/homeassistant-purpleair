@@ -1,0 +1,70 @@
+name: Build HACS release zip
+description: Stamp the NBGV version into manifest.json and zip the integration as the HACS release asset.
+
+inputs:
+  branch:
+    description: Logical branch the hub task is building. The zip is the same on every branch.
+    required: true
+  smoke:
+    description: Smoke mode. The zip builds the same either way, and the hub task skips its upload.
+    required: false
+    default: 'false'
+  semver2:
+    description: NBGV SemVer2 stamped into manifest.json.
+    required: true
+  output-directory:
+    description: Absolute directory the hub task uploads from, which takes purpleair.zip at its top level.
+    required: true
+
+runs:
+  using: composite
+  steps:
+
+    # The checked-in manifest.json carries a "0.0.0" placeholder, and the real SemVer2 lives in NBGV.
+    # Rewrite the field on the runner only, so the zip carries the release version and no commit is created.
+    - name: Stamp manifest.json with NBGV version step
+      shell: bash
+      env:
+        SEMVER2: ${{ inputs.semver2 }}
+      run: |
+        set -Eeuo pipefail
+        manifest=custom_components/purpleair/manifest.json
+        jq --arg v "$SEMVER2" '.version=$v' "$manifest" > "$manifest.tmp"
+        mv "$manifest.tmp" "$manifest"
+        echo "Stamped manifest.json version: $(jq -r .version "$manifest")"
+
+    # HACS extracts the asset straight into <config>/custom_components/<domain>/, so the integration's files sit at the zip root.
+    # A nested purpleair/ wrapper would land one level too deep, where Home Assistant can't find it.
+    # __pycache__ is excluded as defense in depth, since a clean checkout has none.
+    - name: Build purpleair.zip step
+      shell: bash
+      env:
+        OUTPUT_DIRECTORY: ${{ inputs.output-directory }}
+      run: |
+        set -Eeuo pipefail
+        zip_path="$OUTPUT_DIRECTORY/purpleair.zip"
+        rm -f "$zip_path"
+        (cd custom_components/purpleair && zip -r "$zip_path" . -x '__pycache__/*' '*.pyc')
+        unzip -l "$zip_path"
+
+    # Fail the build rather than ship a zip that breaks every HACS install.
+    # A leading ./ is stripped first, since Info-ZIP may record root entries either way.
+    - name: Assert zip layout step
+      shell: bash
+      env:
+        OUTPUT_DIRECTORY: ${{ inputs.output-directory }}
+      run: |
+        set -Eeuo pipefail
+        zip_path="$OUTPUT_DIRECTORY/purpleair.zip"
+        entries=$(unzip -Z1 "$zip_path" | sed 's|^\./||')
+        for required in manifest.json __init__.py; do
+          if ! grep -qx "$required" <<<"$entries"; then
+            echo "::error::purpleair.zip is missing $required at its root, a HACS layout regression."
+            exit 1
+          fi
+        done
+        if grep -qE '^purpleair/' <<<"$entries"; then
+          echo "::error::purpleair.zip has a top-level purpleair/ wrapper, which HACS would extract one level too deep."
+          exit 1
+        fi
+        echo "Zip layout OK: manifest.json and __init__.py at the root, no purpleair/ wrapper."

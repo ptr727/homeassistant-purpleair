@@ -43,22 +43,24 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   orchestrator that an event or a person starts.
 - **Reusable workflow (task)** - a `workflow_call` workflow invoked through a `uses:` reference, never
   triggered directly. File ends in `-task.yml`.
-- **Target** - the one shipped output: the **HACS zip** `purpleair.zip`, produced by
-  [`build-release-task.yml`](./.github/workflows/build-release-task.yml) and attached to a GitHub Release.
+- **Target** - the one shipped output: the **HACS zip** `purpleair.zip`. The hub's `build-release-task.yml`,
+  reached by pin, builds it through this repo's
+  [`build-release-asset`](./.github/actions/build-release-asset/action.yml) hook and attaches it to a GitHub
+  Release.
 - **Validate task** - [`test-release-task.yml`](./.github/workflows/test-release-task.yml): ruff, mypy
   `--strict`, pyright, the HA-version pytest matrix (Codecov upload), hassfest, HACS validate, and a
   no-publish build of the release zip. The Python analog of a validate-plus-smoke pair. CI runs it on every
   push; the publisher runs the identical task before any release.
 - **No-publish build** - a build of `purpleair.zip` that proves the release pipeline still produces a valid
-  HACS zip, uploading the artifact for the run but creating no release. Driven by `build-release-task`'s
-  `github: false` input (and `test-release-task`'s `build` input, which selects whether that no-publish
-  build runs).
+  HACS zip, with no upload and no release. Driven by the hub task's `smoke: true` input (and
+  `test-release-task`'s `build` input, which selects whether that no-publish build runs).
 - **HACS zip** - `purpleair.zip` with the integration's files **at the archive root** (`manifest.json`,
   `__init__.py`, ...), no `purpleair/` wrapper - the layout HACS requires when `hacs.json` sets
   `zip_release: true` + `filename`, since HACS extracts the asset directly into
   `<config>/custom_components/<domain>/`. The build asserts this layout and fails on a regression.
-- **Transfer artifact** - a workflow artifact handing a file between jobs of one run (here, `purpleair-zip`
-  passed from the build job to the release job). The durable copy lives on the GitHub release.
+- **Transfer artifact** - a workflow artifact handing a file between jobs of one run (here,
+  `release-asset-<branch>-build-release-asset`, carrying `purpleair.zip` from the hub task's
+  `build-release-asset` job to its `github-release` job). The durable copy lives on the GitHub release.
 - **Shipped version** - NBGV's `SemVer2`, computed from `version.json` (`1.0` floor plus a `versionHeightOffset`
   of `-1`, so the first release of a floor series is `.0`) plus git height. It is
   stamped into `manifest.json` at build time and used as the release tag. Independent of the integration's
@@ -149,22 +151,23 @@ and a develop tip dispatched as stable.*
 NBGV runs in exactly **one** job, the hub's `get-version-task.yml` reached by pin. It classifies from
 `github.ref` on a checkout of the triggering commit, and emits `SemVer2`, which is also the release tag, and a
 derived `Prerelease` flag. Those thread to every consumer via `outputs:` / `needs:`. No other job re-invokes NBGV
-(`build-release-task` calls `get-version-task` once and reads its outputs in both the build and release
-jobs). `main` (the public ref, `publicReleaseRefSpec = ^refs/heads/main$`) builds a clean `X.Y.Z`; every
+(the hub's `build-release-task` calls `get-version-task` once and reads its outputs in both the asset build
+and the release jobs). `main` (the public ref, `publicReleaseRefSpec = ^refs/heads/main$`) builds a clean `X.Y.Z`, and every
 other branch a prerelease `X.Y.Z-g<sha>`. *Keeps the stamped `manifest.json` version and the release tag in
 agreement.* NBGV needs only `version.json` (floor `1.0`, `versionHeightOffset -1`) and git height, so it works although the repo
-builds no .NET assembly. The `Prerelease` flag is derived by testing `SemVer2` for any `-` segment (not from
-NBGV's `PrereleaseVersion`, which carries only an explicit `-tag` from `version.json`), so a dispatch from
-the wrong branch stays honest about its prerelease status.
+builds no .NET assembly. The release's `prerelease` boolean is `branch != 'main'`. Before the zip is built, the hub task's
+`validate-release` job refuses a run where `SemVer2` disagrees with it. A `main` version may carry no `-`,
+and every other branch's version must carry one.
 
 ### Validate at entry, then build the zip
 
-`build-release-task` versions once, then in the `build` job stamps `manifest.json` with the NBGV `SemVer2`
-(the checked-in placeholder is the all-zero placeholder version; the rewrite is on the runner only, no commit), zips
-`custom_components/purpleair/` **at the archive root**, and **asserts the layout** (`manifest.json` +
-`__init__.py` present at root, no `purpleair/` wrapper) before uploading - failing the build on a HACS
-double-nesting regression rather than shipping a broken install. The `release` job runs only when
-`inputs.github` is true.
+The hub's `build-release-task` versions once and runs `validate-release` before any build. Its
+`build-release-asset` job then runs this repo's hook, which stamps `manifest.json` with the NBGV `SemVer2`.
+The checked-in value is the all-zero placeholder version, and the rewrite is on the runner only, with no commit.
+The hook zips `custom_components/purpleair/` **at the archive root** and **asserts the layout**
+(`manifest.json` + `__init__.py` present at root, no `purpleair/` wrapper). A HACS double-nesting
+regression fails the build rather than shipping a broken install. The task uploads the zip only on a
+non-smoke run, and its `github-release` job runs only when `github` is true and `smoke` is false.
 
 ### Fast CI feedback, head-resolved
 
@@ -192,18 +195,16 @@ before any release, so the CI gate and the publish gate are identical.
   `mypy --strict` against that minimum before the tests. All three slots gate equally.
 - **hassfest** (`home-assistant/actions/hassfest`) and **HACS validate** (`hacs/action`, integration
   category) - the publish-validation checks the HACS / HA ecosystems require.
-- the **no-publish build** of `purpleair.zip` (`build-release-task` with `github: false`), gated on every
+- the **no-publish build** of `purpleair.zip` (the hub's `build-release-task` with `smoke: true`), gated on every
   upstream check, run on CI's `build: true` and skipped on the publisher's `build: false` so the release
   zip is built once for real by `create-release`.
 
 ### Resource lifecycle
 
-The build job's `purpleair-zip` is an intra-run transfer artifact; the durable copy is the GitHub release
-asset. The build's `upload-artifact` sets `retention-days: 1` as a backstop, and the publisher's
-`cleanup-artifacts` job (`always()`, `continue-on-error: true`) deletes the run's artifacts after
-`create-release` has consumed them. *(This repo's cleanup currently enumerates and deletes the run's whole
-artifact set rather than the single transfer artifact by name; with one short-lived transfer artifact and a
-`retention-days: 1` backstop the practical effect is the same. See D5.)*
+The hub task's `release-asset-<branch>-build-release-asset` upload is an intra-run transfer artifact, and the
+durable copy is the GitHub release asset. The upload sets `retention-days: 1` as a backstop. The task's
+`github-release` job deletes the artifacts matching `release-asset-<branch>-` by name once the release is
+created, best-effort, so diagnostic artifacts survive. See D5.
 
 ### Self-testing workflows, and the required-context invariant
 
@@ -239,13 +240,14 @@ for a breaking change (a red check) or to dispatch a release.
 
 ### The single-target release
 
-The repo produces exactly one shipped artifact, the HACS zip. `create-release` (in `build-release-task`,
-`github: true`) downloads `purpleair-zip` and `softprops/action-gh-release` creates the tag + release with
-auto-generated notes, attaching `purpleair.zip` (`fail_on_unmatched_files: true` - the asset must exist).
-`target_commitish` is set explicitly to `github.sha` so the tag lands on the built commit (the develop or
-main tip dispatched), not the API's default of the repository default branch. The GitHub-release
-`prerelease` boolean is NBGV's derived `Prerelease`. There is no NuGet push, no Docker push, no OIDC - the
-release is keyless and GitHub-native.
+The repo produces exactly one shipped artifact, the HACS zip. `create-release` calls the hub's
+`build-release-task` with `github: true` and only `enable_release_asset` on. Its `github-release` job
+downloads the `release-asset-<branch>-*` artifacts and `softprops/action-gh-release` creates the tag and
+release with auto-generated notes. It attaches `purpleair.zip`, `README.md`, and `LICENSE`, with
+`fail_on_unmatched_files: true`, so the zip must exist. `target_commitish` is set explicitly to the
+`get-version` job's `GitCommitId`, the dispatched commit, rather than the API's default of the repository
+default branch. The GitHub-release `prerelease` boolean is `branch != 'main'`. There is no NuGet push, no
+Docker push, and no OIDC, so the release is keyless and GitHub-native.
 
 ### Flow diagrams
 
@@ -271,7 +273,7 @@ flowchart TD
         PT["pytest job (matrix)<br/>minimum, latest-stable,<br/>latest-stable-min-lib,<br/>latest-beta (if non-null)"]
         HF["hassfest job"]
         HC["HACS validation job"]
-        BR["build-release job (github: false)<br/>stamp manifest, zip at root,<br/>assert HACS layout, no release"]
+        BR["build-release job (hub task, smoke: true)<br/>hook: stamp manifest, zip at root,<br/>assert HACS layout, no upload or release"]
         RF --> BR
         MY --> BR
         PY --> BR
@@ -289,7 +291,7 @@ flowchart TD
     classDef stop fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
 ```
 
-**Publish (dispatch-only) - `publish-release.yml` -> `build-release-task.yml`.** ONLY a
+**Publish (dispatch-only), `publish-release.yml` -> the hub's `build-release-task.yml`.** ONLY a
 `workflow_dispatch` reaches `create-release`. The `gate` job restricts the dispatch ref to `main` or
 `develop`, the validate task gates it, NBGV versions once, and the GitHub release is cut with
 `purpleair.zip` attached (D2, D3, D4).
@@ -302,11 +304,12 @@ flowchart TD
     TR["test-release job<br/>(test-release-task.yml, build: false)<br/>ruff/mypy/pyright/pytest/hassfest/HACS"] --> CG{"create-release guard<br/>event = workflow_dispatch AND<br/>gate = success AND<br/>test-release = success?"}:::gate
     CG -- "no" --> CSKIP(["create-release skipped<br/>no publish"]):::stop
     CG -- "yes" --> BRT
-    subgraph BRT ["build-release-task.yml (github: true)"]
-        GV["get-version job<br/>NBGV @master, runs once<br/>SemVer2 + Prerelease"] --> BD["build job<br/>stamp manifest, zip at root,<br/>assert HACS layout"]
-        BD --> REL[("GitHub release<br/>tag = SemVer2 at github.sha<br/>prerelease = derived flag<br/>purpleair.zip attached")]:::pub
+    subgraph BRT ["hub build-release-task.yml (github: true)"]
+        GV["get-version job<br/>NBGV @master, runs once<br/>SemVer2 + GitCommitId"] --> VR{"validate-release job<br/>main has no '-',<br/>develop has one?"}:::gate
+        VR -- "yes" --> BD["build-release-asset job<br/>hook: stamp manifest, zip at root,<br/>assert HACS layout"]
+        BD --> REL[("GitHub release<br/>tag = SemVer2 at GitCommitId<br/>prerelease = branch != main<br/>purpleair.zip attached")]:::pub
+        REL --> CL(["delete release-asset-branch-*<br/>best-effort"]):::stop
     end
-    REL --> CL(["cleanup-artifacts job<br/>always(), best-effort"]):::stop
     classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
     classDef gate fill:#fef9c3,stroke:#ca8a04,color:#713f12
     classDef pub fill:#dcfce7,stroke:#16a34a,color:#14532d
@@ -377,7 +380,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   input that can disagree with the ref. *Prevents cross-branch ref mixing - `github.ref` is the branch being
   published.*
 - **D0.3 One version, threaded.** Output: NBGV runs once (`get-version-task`); every consumer reads it via
-  `needs:` outputs (the build and release jobs both read the single `get-version` job). No consumer
+  `needs:` outputs (the hub task's asset build and release jobs both read its single `get-version` job). No consumer
   recomputes it. *Prevents the stamped version diverging from the tag, and a second NBGV run reclassifying
   it.*
 
@@ -395,9 +398,9 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D1.3 Lint and type-checks are enforced in CI.** Output: ruff, mypy, and pyright run in CI from the same
   config files the editor uses (`pyrightconfig.json`, project ruff/mypy config), so a style or typing defect
   cannot reach the branch on editor-faith. *(There is no CSharpier/`dotnet format`; this is Python.)*
-- **D1.4 The no-publish build never publishes.** Output: `build-release-task` with `github: false` builds
-  and asserts the zip layout but creates no release (the `release` job is gated `if: inputs.github`).
-  *Prevents a CI run publishing.*
+- **D1.4 The no-publish build never publishes.** Output: the hub's `build-release-task` with `smoke: true`
+  builds and asserts the zip layout but uploads nothing and creates no release. Its `github-release` job is
+  gated `inputs.github && !inputs.smoke`. *Prevents a CI run publishing.*
 - **D1.5 One required aggregator gates merge.** Output: a single aggregator job
   (`Check pull request workflow status job`) must **succeed** (not merely "not fail"), `needs:`
   `test-release`, and blocks on any non-success. Its name is ruleset-bound (D6.2) and must not be renamed.
@@ -408,10 +411,10 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D2.1 Gate the dispatch before publishing.** Output: the publisher's `gate` job asserts the dispatch ref
   is `main` or `develop` and fails fast with `::error::` before any build; `test-release` and
   `create-release` are gated on it. *Prevents a stray dispatch from a feature branch publishing.*
-- **D2.2 Branch matches version classification.** Output: the `Prerelease` flag is derived from `SemVer2`'s
-  `-` segment, so a `develop` build is always prerelease and a `main` build always stable, independent of
-  any explicit flag. NBGV's `publicReleaseRefSpec = ^refs/heads/main$` and the dispatch gate together keep
-  `main` clean and every other branch suffixed. *Prevents a develop build published as stable.*
+- **D2.2 Branch matches version classification.** Output: the hub task's `validate-release` job refuses a
+  `main` `SemVer2` carrying a `-` and a `develop` one lacking it, before any build. NBGV's
+  `publicReleaseRefSpec = ^refs/heads/main$` and the dispatch gate together keep `main` clean and every
+  other branch suffixed. *Prevents a develop build published as stable.*
 
 ### D3 - Versioning and classification
 
@@ -419,8 +422,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   `github.ref`; no consumer re-invokes it. *Prevents a leg classified by the wrong ref; a version diverging
   from the tag.*
 - **D3.2 `main` = stable, others = prerelease.** Output: `main` -> `X.Y.Z` (`Prerelease=false`), any other
-  branch -> `X.Y.Z-g<sha>` (`Prerelease=true`). `publicReleaseRefSpec` is `^refs/heads/main$`; the GitHub
-  release `prerelease` boolean is the derived `Prerelease`.
+  branch -> `X.Y.Z-g<sha>` (`Prerelease=true`). `publicReleaseRefSpec` is `^refs/heads/main$`. The GitHub
+  release `prerelease` boolean is `branch != 'main'`, which `validate-release` holds in agreement with the version.
 - **D3.3 Version floor + git height.** Output: `version.json` sets the major.minor floor (`1.0`), NBGV
   appends the git height (adjusted by `versionHeightOffset`, currently `-1`) as the patch, never bumped on a cadence. The NBGV version is stamped into
   `manifest.json` and drives the release tag; it is independent of the integration's `requirements` pins and
@@ -436,18 +439,18 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D4.2 Publish exactly the dispatch branch.** Output: a dispatch publishes only `github.ref_name` -
   `main` -> stable, `develop` -> prerelease - gated by the `gate` job to `main`/`develop`. *Prevents
   publishing the wrong branch.*
-- **D4.3 Tag the built commit.** Output: the release `target_commitish` is set explicitly to `github.sha`
-  (the dispatched tip), never the API's default of the repository default branch. *Prevents a develop
-  release's tag landing on main's tip.*
+- **D4.3 Tag the built commit.** Output: the release `target_commitish` is set explicitly to the
+  `get-version` job's `GitCommitId` (the dispatched commit), never the API's default of the repository
+  default branch. *Prevents a develop release's tag landing on main's tip.*
 - **D4.4 Release contents and flag.** Output: every release is a tag on the built commit plus auto-generated
-  notes, with `purpleair.zip` attached (`fail_on_unmatched_files: true` - the HACS asset must exist; this
-  repo *does* attach a build asset, unlike a Docker-only sibling). The zip carries the integration's files
-  at the archive root (HACS layout, asserted at build). The GitHub-release `prerelease` boolean is the
-  derived NBGV `Prerelease`.
+  notes, with `purpleair.zip`, `README.md`, and `LICENSE` attached (`fail_on_unmatched_files: true`, so the
+  HACS asset must exist). This repo *does* attach a build asset, unlike a Docker-only sibling. The zip
+  carries the integration's files at the archive root (HACS layout, asserted at build). The GitHub-release
+  `prerelease` boolean is `branch != 'main'`.
 - **D4.5 No publish on the retest schedule.** Output: a weekly scheduled run executes the full validate
   suite against `main` and creates **no** release (`create-release` is dispatch-only). *Prevents a duplicate
-  or unintended scheduled release while still surfacing upstream HA drift.* *(There is no version-unchanged
-  re-dispatch dedup: a dispatch re-creating an existing tag is a maintainer action, and the schedule never
+  or unintended scheduled release while still surfacing upstream HA drift.* *(A dispatch whose tag already
+  exists refreshes that release, which is the hub task's `workflow_dispatch` path, and the schedule never
   reaches `create-release`.)*
 - **D4.6 Publish is tested as built.** Output: the publisher runs the same `test-release-task` (the D1.2
   suite) as a `test-release` job, and `create-release` requires `needs.test-release.result == 'success'` -
@@ -460,16 +463,13 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 
 ### D5 - Resource cleanup
 
-- **D5.1 The transfer artifact is reclaimed.** Output: the build's `purpleair-zip` upload sets
-  `retention-days: 1`, and the publisher's `cleanup-artifacts` job (`always()`, `continue-on-error: true`)
-  deletes the run's artifacts after `create-release` consumes them. *Prevents transfer artifacts
-  accumulating against the storage quota.*
-- **D5.2 Cleanup never reds a run.** Output: `cleanup-artifacts` is `continue-on-error: true`, tolerates a
+- **D5.1 The transfer artifact is reclaimed.** Output: the hub task's
+  `release-asset-<branch>-build-release-asset` upload sets `retention-days: 1`. Its `github-release` job
+  deletes the artifacts matching `release-asset-<branch>-` by name once the release is created or
+  refreshed. *Prevents transfer artifacts accumulating against the storage quota.*
+- **D5.2 Cleanup never reds a run.** Output: the delete step is `continue-on-error: true`, tolerates a
   failed listing, and is independent of any required check, so a housekeeping hiccup never reds a successful
-  publish or gates a merge. *Known divergence from the canonical contract: this cleanup enumerates and
-  deletes the run's whole artifact set (`.artifacts[].id`) rather than the single transfer artifact by name.
-  With exactly one short-lived transfer artifact and the `retention-days: 1` backstop the effect is benign,
-  but a future second artifact would want a name-scoped delete to preserve any diagnostic artifact.*
+  publish or gates a merge. It deletes by name, so diagnostic artifacts survive.
 
 ### D6 - Self-testing workflows
 
@@ -558,17 +558,17 @@ assert the fact behind each applicable guarantee with a `file:line` citation:
 - **D1:** CI runs on `push: ['**']` with no paths filter; both jobs carry the `!github.event.deleted` guard;
   `test-release-task` runs ruff/mypy/pyright/pytest-matrix/hassfest/HACS plus the `build: true` no-publish
   build; the aggregator `needs: test-release` and blocks on non-success.
-- **D2:** the publisher `gate` asserts the dispatch ref in `main`/`develop`; `Prerelease` is derived from
-  `SemVer2`'s `-`.
+- **D2:** the publisher `gate` asserts the dispatch ref in `main`/`develop`, and the hub task's `validate-release`
+  refuses a `SemVer2` whose `-` segment disagrees with the branch.
 - **D3:** `publicReleaseRefSpec` is `^refs/heads/main$`; `version.json` floor is `1.0`; `manifest.json` is
   stamped with the threaded `SemVer2`.
 - **D4:** `publish-release` triggers are `workflow_dispatch` + `schedule` only (no `push`, no
-  `PUBLISH_ON_MERGE`); `create-release` is gated `github.event_name == 'workflow_dispatch'` and
-  `needs.test-release.result == 'success'`; `target_commitish` is `github.sha`; the `prerelease` boolean is
-  the derived `Prerelease`; the release attaches `purpleair.zip` with `fail_on_unmatched_files: true`; the
-  build asserts the files-at-root HACS layout.
-- **D5:** the `purpleair-zip` upload sets `retention-days: 1`; `cleanup-artifacts` is `always()` +
-  `continue-on-error: true` and independent of any required check (note the blanket-delete divergence).
+  `PUBLISH_ON_MERGE`). `create-release` is gated `github.event_name == 'workflow_dispatch'` and
+  `needs.test-release.result == 'success'`. The hub task's `target_commitish` is `GitCommitId`, and the
+  `prerelease` boolean is `branch != 'main'`. The release attaches `purpleair.zip` with
+  `fail_on_unmatched_files: true`, and the `build-release-asset` hook asserts the files-at-root HACS layout.
+- **D5:** the hub task's `release-asset-*` upload sets `retention-days: 1`. Its delete step is
+  `continue-on-error: true`, deletes by name, and is independent of any required check.
 - **D6:** CI is `push` on every branch; the aggregator context has exactly one producer; no
   `pull_request`-triggered fallback.
 - **D7:** the publisher group is ref-independent with `cancel-in-progress: false`; the merge-bot keys on PR
