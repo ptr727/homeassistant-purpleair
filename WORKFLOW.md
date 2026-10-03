@@ -146,9 +146,9 @@ and a develop tip dispatched as stable.*
 
 ### Versioning: compute once, thread everywhere
 
-NBGV runs in exactly **one** job ([`get-version-task.yml`](./.github/workflows/get-version-task.yml)),
-classifying from `github.ref` on a real-branch-tip checkout, and emits `SemVer2`, `Tag`, and a derived
-`Prerelease` flag. Those thread to every consumer via `outputs:` / `needs:`; no other job re-invokes NBGV
+NBGV runs in exactly **one** job, the hub's `get-version-task.yml` reached by pin. It classifies from
+`github.ref` on a real-branch-tip checkout, and emits `SemVer2`, which is also the release tag, and a
+derived `Prerelease` flag. Those thread to every consumer via `outputs:` / `needs:`. No other job re-invokes NBGV
 (`build-release-task` calls `get-version-task` once and reads its outputs in both the build and release
 jobs). `main` (the public ref, `publicReleaseRefSpec = ^refs/heads/main$`) builds a clean `X.Y.Z`; every
 other branch a prerelease `X.Y.Z-g<sha>`. *Keeps the stamped `manifest.json` version and the release tag in
@@ -523,7 +523,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 
 - **D9.1** Every action SHA-pinned with a version comment, **sole exception `dotnet/nbgv@master`**: its tag
   stream lags `master`, so Dependabot tag-tracking would only propose downgrades to stale tags. The
-  rationale is documented inline in [`get-version-task.yml`](./.github/workflows/get-version-task.yml).
+  rationale is documented inline in the hub's `get-version-task.yml`, which this repo reaches by pin.
   (`home-assistant/actions/hassfest` is SHA-pinned with `# master` noting its floating provenance, not an
   exception to pinning.)
 - **D9.2** File/workflow/job/step names follow the suffix rules; a ruleset-bound `context:` name moves only
