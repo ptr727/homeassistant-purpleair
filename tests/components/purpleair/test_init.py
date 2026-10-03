@@ -842,6 +842,7 @@ async def test_async_migrate_integration_replaces_stale_parent_device(
     Moving the sibling's device onto the parent would collide with the stale one.
     The live device carries the user's settings and the ID automations reference, so it survives.
     Entities on either device end up on it, in the subentry for that sensor.
+    A stale entity the disabled stale device disabled stays disabled on the enabled live device.
     """
     parent, stale_device, sibling_device, stale_entity_id = _add_stale_parent_case(
         hass, sibling_has_device=True
@@ -857,6 +858,9 @@ async def test_async_migrate_integration_replaces_stale_parent_device(
     device_registry = dr.async_get(hass)
     device_registry.async_update_device(
         sibling_device.id, area_id=area.id, name_by_user="Backyard"
+    )
+    device_registry.async_update_device(
+        stale_device.id, disabled_by=dr.DeviceEntryDisabler.USER
     )
     entity_registry = er.async_get(hass)
     sibling_entity = entity_registry.async_get_or_create(
@@ -885,13 +889,70 @@ async def test_async_migrate_integration_replaces_stale_parent_device(
     assert live.name_by_user == "Backyard"
     assert live.disabled_by is None
 
-    for entity_id in (sibling_entity.entity_id, stale_entity_id):
+    for entity_id, disabled_by in (
+        (sibling_entity.entity_id, None),
+        (stale_entity_id, er.RegistryEntryDisabler.USER),
+    ):
         migrated = entity_registry.async_get(entity_id)
         assert migrated is not None
         assert migrated.config_entry_id == parent.entry_id
         assert migrated.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
         assert migrated.device_id == sibling_device.id
-        assert migrated.disabled_by is None
+        assert migrated.disabled_by is disabled_by
+
+
+async def test_async_migrate_integration_live_device_wins_in_any_order(
+    hass: HomeAssistant,
+) -> None:
+    """A live device replaces a stale parent device even after a deviceless sibling.
+
+    The first sibling lists the sensor but holds no device for it, so it leaves the stale device for the second.
+    """
+    parent, stale_device, _, stale_entity_id = _add_stale_parent_case(
+        hass, sibling_has_device=False
+    )
+    late_sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX2],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="late sibling",
+    )
+    late_sibling.add_to_hass(hass)
+    device_registry = dr.async_get(hass)
+    live_device = device_registry.async_get_or_create(
+        config_entry_id=late_sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX2))},
+        name="TEST_SENSOR_INDEX2",
+    )
+    entity_registry = er.async_get(hass)
+    live_entity = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{TEST_SENSOR_INDEX2}-temperature",
+        config_entry=late_sibling,
+        device_id=live_device.id,
+        original_name="Temp",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_entries(DOMAIN) == [parent]
+    subentry_ids = _subentry_ids(parent)
+    assert device_registry.async_get(stale_device.id) is None
+    live = device_registry.async_get(live_device.id)
+    assert live is not None
+    assert live.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
+    for entity_id in (live_entity.entity_id, stale_entity_id):
+        migrated = entity_registry.async_get(entity_id)
+        assert migrated is not None
+        assert migrated.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
+        assert migrated.device_id == live_device.id
 
 
 async def test_async_migrate_integration_adopts_stale_parent_device(
@@ -900,9 +961,19 @@ async def test_async_migrate_integration_adopts_stale_parent_device(
     """A stale parent device joins the new subentry when the sibling has no device.
 
     Its own entity moves with it rather than being dropped by the device move.
+    Another integration's entity on the device keeps its own entry and no subentry.
     """
     parent, stale_device, _, stale_entity_id = _add_stale_parent_case(
         hass, sibling_has_device=False
+    )
+    helper_entry = MockConfigEntry(domain="utility_meter")
+    helper_entry.add_to_hass(hass)
+    helper_entity = er.async_get(hass).async_get_or_create(
+        "sensor",
+        "utility_meter",
+        "daily-humidity",
+        config_entry=helper_entry,
+        device_id=stale_device.id,
     )
     await hass.async_block_till_done()
 
@@ -921,6 +992,11 @@ async def test_async_migrate_integration_adopts_stale_parent_device(
     assert migrated is not None
     assert migrated.config_subentry_id == subentry_ids[TEST_SENSOR_INDEX2]
     assert migrated.device_id == stale_device.id
+
+    helper = er.async_get(hass).async_get(helper_entity.entity_id)
+    assert helper is not None
+    assert helper.config_entry_id == helper_entry.entry_id
+    assert helper.config_subentry_id is None
 
 
 async def test_async_migrate_integration_keeps_enabled_entities_enabled(
