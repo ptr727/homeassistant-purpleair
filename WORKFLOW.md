@@ -108,7 +108,7 @@ Legibility rules. Necessary but not sufficient: a perfectly styled workflow can 
   main-dispatch stable release and a develop-dispatch prerelease never run concurrently against the same
   Releases repo and none is cancelled mid-release (which could leave a half-created release). The
   **merge-bot** keys on the PR number with `cancel-in-progress: false`.
-- **Shells.** Every multi-line bash `run:` starts with `set -euo pipefail`.
+- **Shells.** Every multi-line bash `run:` starts with `set -Eeuo pipefail`.
 - **Conditionals.** Multi-line `if:` uses the folded scalar `if: >-`.
 - **Boolean inputs.** A boolean used by both `workflow_call` and `workflow_dispatch` is declared in both
   trigger blocks and compared against `true` and `'true'` (`workflow_dispatch` delivers the string).
@@ -528,7 +528,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   exception to pinning.)
 - **D9.2** File/workflow/job/step names follow the suffix rules; a ruleset-bound `context:` name moves only
   in lockstep with the hub's `repo-config/` payloads.
-- **D9.3** Bash `run:` blocks start `set -euo pipefail`; multi-line `if:` uses `>-`.
+- **D9.3** Multi-line bash `run:` blocks start `set -Eeuo pipefail`. Multi-line `if:` uses `>-`.
 - **D9.4** Line endings follow `.editorconfig` (LF); `.github/ha-test-versions.json` is written with
   `ensure_ascii=False` to preserve its non-ASCII `$comment` without a noisy diff.
 - **D9.5 No decorative / dropped workflows.** No date-badge, no codegen, no NuGet/Docker task, no

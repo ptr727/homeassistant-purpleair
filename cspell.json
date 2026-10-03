@@ -62,6 +62,7 @@
     "sdist",
     "semver",
     "shellcheck",
+    "shfmt",
     "signingkey",
     "softprops",
     "startswith",

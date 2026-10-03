@@ -192,6 +192,7 @@ jobs:
 
       - name: Install dependencies step
         run: |
+          set -Eeuo pipefail
           python -m pip install -r requirements-test.txt
           python -m pip install --upgrade \
             homeassistant==${{ matrix.ha-version }} \
