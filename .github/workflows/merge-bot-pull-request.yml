@@ -26,5 +26,5 @@ jobs:
     with:
       rules: '[{"head-prefix": "ha-version-bump/", "base": "develop"}]'
       # This repository keeps the repository-wide auto-delete off, so a promotion cannot delete develop.
-      # Bot heads are therefore deleted here explicitly, which is what the carried implementation did with --delete-branch.
+      # Bot heads are therefore deleted here explicitly.
       delete-branch: true
