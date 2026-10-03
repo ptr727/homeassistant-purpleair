@@ -881,6 +881,46 @@ async def test_async_migrate_integration_keeps_foreign_sibling_entities(
     )
 
 
+async def test_async_migrate_integration_keeps_foreign_parent_entities(
+    hass: HomeAssistant,
+) -> None:
+    """Another integration's entity on the parent's own device keeps its own entry and stays on the device."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1]},
+        title="parent",
+    )
+    entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+    )
+
+    entity_registry = er.async_get(hass)
+    helper_entry = MockConfigEntry(domain="utility_meter")
+    helper_entry.add_to_hass(hass)
+    helper_entity = entity_registry.async_get_or_create(
+        "sensor",
+        "utility_meter",
+        "daily-temperature",
+        config_entry=helper_entry,
+        device_id=device.id,
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert set(_subentry_ids(entry)) == {TEST_SENSOR_INDEX1}
+    helper = entity_registry.async_get(helper_entity.entity_id)
+    assert helper is not None
+    assert helper.config_entry_id == helper_entry.entry_id
+    assert helper.config_subentry_id is None
+    assert helper.device_id == device.id
+
+
 async def test_async_migrate_integration_moves_foreign_entity_with_missing_entry(
     hass: HomeAssistant,
 ) -> None:
