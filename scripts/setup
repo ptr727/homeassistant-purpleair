@@ -17,7 +17,7 @@
 # hard-coded here. Regenerate with:
 #   curl -fsSL <asset-url> | sha256sum
 
-set -euo pipefail
+set -Eeuo pipefail
 
 cd "$(dirname "$0")/.."
 
@@ -42,8 +42,8 @@ fi
 # from an older base image would otherwise be reused silently. --clear keeps it
 # non-interactive (uv otherwise prompts "replace existing venv?", which would
 # hang the postCreate run).
-if [[ ! -x .venv/bin/python ]] \
-    || ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info[:2] != (3, 14))' 2>/dev/null; then
+if [[ ! -x .venv/bin/python ]] ||
+    ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info[:2] != (3, 14))' 2>/dev/null; then
     uv venv --python 3.14 --clear
 fi
 # shellcheck source=/dev/null
@@ -54,7 +54,8 @@ uv pip install --requirement requirements-test.txt
 # Pre-install the frontend package HA expects. HA installs it at runtime
 # otherwise, which races the frontend component's setup and drops HA into
 # recovery mode on first launch. Pin to the version HA's own manifest declares.
-frontend_req="$(python - <<'PY'
+frontend_req="$(
+    python - <<'PY'
 import json, pathlib
 try:
     import homeassistant.components.frontend as f
@@ -108,8 +109,8 @@ MARKDOWNLINT_VERSION=0.22.1
 if command -v npm >/dev/null 2>&1; then
     installed_markdownlint=""
     if command -v markdownlint-cli2 >/dev/null 2>&1; then
-        installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null \
-            | awk '{print $2}' | tr -d 'v')"
+        installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null |
+            awk '{print $2}' | tr -d 'v')"
     fi
     if [[ "${installed_markdownlint}" = "${MARKDOWNLINT_VERSION}" ]]; then
         echo "markdownlint-cli2 ${MARKDOWNLINT_VERSION} already installed, skipping."
@@ -161,9 +162,9 @@ else
     existing_remote="$(git -C "${AIOPURPLEAIR_DIR}" remote get-url origin 2>/dev/null || true)"
     if [[ "${existing_remote}" == *"ptr727/aiopurpleair"* ]]; then
         echo "Updating existing ${AIOPURPLEAIR_DIR} checkout to ${AIOPURPLEAIR_BRANCH}"
-        if ! (git -C "${AIOPURPLEAIR_DIR}" fetch --quiet origin "${AIOPURPLEAIR_BRANCH}" \
-                && git -C "${AIOPURPLEAIR_DIR}" checkout --quiet "${AIOPURPLEAIR_BRANCH}" \
-                && git -C "${AIOPURPLEAIR_DIR}" merge --quiet --ff-only "origin/${AIOPURPLEAIR_BRANCH}"); then
+        if ! (git -C "${AIOPURPLEAIR_DIR}" fetch --quiet origin "${AIOPURPLEAIR_BRANCH}" &&
+            git -C "${AIOPURPLEAIR_DIR}" checkout --quiet "${AIOPURPLEAIR_BRANCH}" &&
+            git -C "${AIOPURPLEAIR_DIR}" merge --quiet --ff-only "origin/${AIOPURPLEAIR_BRANCH}"); then
             echo "Warning: could not update ${AIOPURPLEAIR_DIR}; using the existing checkout as-is." >&2
         fi
     else
@@ -245,22 +246,22 @@ if [[ "${installed_version}" = "go2rtc version ${GO2RTC_VERSION}" ]]; then
 else
     machine="$(uname -m)"
     case "${machine}" in
-        x86_64)
-            arch=amd64
-            expected_sha=32d616af226bd731678ffde328b94cfb94e30339bfefc469cfb76323144615a6
-            ;;
-        aarch64)
-            arch=arm64
-            expected_sha=359fabade8a7a51e81a55fe6df6b0ef81764a5e1d63179577534eaaa71904b50
-            ;;
-        armv7l)
-            arch=arm
-            expected_sha=4d7e1639af5a2722a28e864468fd8099b3c1682565446c798bf9e3b38fde12e4
-            ;;
-        *)
-            echo "Unsupported architecture: ${machine}" >&2
-            exit 1
-            ;;
+    x86_64)
+        arch=amd64
+        expected_sha=32d616af226bd731678ffde328b94cfb94e30339bfefc469cfb76323144615a6
+        ;;
+    aarch64)
+        arch=arm64
+        expected_sha=359fabade8a7a51e81a55fe6df6b0ef81764a5e1d63179577534eaaa71904b50
+        ;;
+    armv7l)
+        arch=arm
+        expected_sha=4d7e1639af5a2722a28e864468fd8099b3c1682565446c798bf9e3b38fde12e4
+        ;;
+    *)
+        echo "Unsupported architecture: ${machine}" >&2
+        exit 1
+        ;;
     esac
     url="https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${arch}"
     tmp=$(mktemp)
@@ -297,22 +298,22 @@ if [[ "${installed_actionlint}" = "${ACTIONLINT_VERSION}" ]]; then
 else
     machine="$(uname -m)"
     case "${machine}" in
-        x86_64)
-            arch=amd64
-            actionlint_sha=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
-            ;;
-        aarch64)
-            arch=arm64
-            actionlint_sha=401942f9c24ed71e4fe71b76c7d638f66d8633575c4016efd2977ce7c28317d0
-            ;;
-        armv7l)
-            arch=armv6
-            actionlint_sha=82e98d7252341b83fa557764824f225fa50431801b8e3d8e99f70dc1efc317b2
-            ;;
-        *)
-            echo "Unsupported architecture for actionlint: ${machine}" >&2
-            exit 1
-            ;;
+    x86_64)
+        arch=amd64
+        actionlint_sha=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+        ;;
+    aarch64)
+        arch=arm64
+        actionlint_sha=401942f9c24ed71e4fe71b76c7d638f66d8633575c4016efd2977ce7c28317d0
+        ;;
+    armv7l)
+        arch=armv6
+        actionlint_sha=82e98d7252341b83fa557764824f225fa50431801b8e3d8e99f70dc1efc317b2
+        ;;
+    *)
+        echo "Unsupported architecture for actionlint: ${machine}" >&2
+        exit 1
+        ;;
     esac
     url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${arch}.tar.gz"
     tmp=$(mktemp)

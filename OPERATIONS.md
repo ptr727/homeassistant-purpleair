@@ -19,7 +19,7 @@ scripts/lint                  # verify: ruff format --check, ruff check, mypy --
 
 **A `pre-commit` hook runs the four `scripts/lint` checks on every commit.** It is configured in [`.pre-commit-config.yaml`](./.pre-commit-config.yaml) and runs the tools from the `.venv`, so `scripts/setup` has to have run first. It also runs the fleet's diff-scoped prose gate and line-ending check. `hub-fetch-run.py` fetches both fresh from the hub's `main` branch, so a commit needs network access. `scripts/setup` installs `pre-commit` with `uv tool install` and enables the hook in the base clone. A linked worktree shares the base clone's hooks directory, so `scripts/setup` leaves the hook alone there. Each linked worktree still needs its own `.venv` for the hook to run. The light way to build one is `uv venv --python 3.14 && uv pip install -r requirements-test.txt`. Inside a container, `scripts/setup` installs `pre-commit` but not the hook. A checkout bind-mounted from the host keeps the host's `.git`, where a hook installed from the container would point at a container-only Python. Install the hook from the host side there, where the host needs its own `.venv` too. A clone that lives inside the container runs `pre-commit install` in the container instead. Run `pre-commit run --all-files` to run the gate by hand. A commit that adds a code comment on purpose sets `PROSE_ALLOW_COMMENTS=1`, the local counterpart of the `comments` pull request label. The hook runs neither `pytest` nor the Docs lint set, so the commands above and below still have to pass before a push.
 
-The `Docs lint job` in [`test-release-task.yml`](./.github/workflows/test-release-task.yml) runs `markdownlint` over all `*.md`, `cspell` over `README.md` and `HISTORY.md`, `actionlint`, `editorconfig-checker`, and `shellcheck` over `scripts/*`. **Run all five locally rather than deferring a check to CI because a tool is not installed.** Where a CLI is not on `PATH`, run it through its official image:
+The `Docs lint job` in [`test-release-task.yml`](./.github/workflows/test-release-task.yml) runs `markdownlint` over all `*.md`, `cspell` over `README.md` and `HISTORY.md`, `actionlint`, `editorconfig-checker`, and `shellcheck` and `shfmt -d` over `scripts/*`. **Run all six locally rather than deferring a check to CI because a tool is not installed.** Where a CLI is not on `PATH`, run it through its official image:
 
 ```sh
 docker run --rm -v "$PWD:/workdir" -w /workdir ghcr.io/streetsidesoftware/cspell:latest --no-progress --config cspell.json README.md HISTORY.md
@@ -27,6 +27,7 @@ docker run --rm -v "$PWD:/workdir" -w /workdir davidanson/markdownlint-cli2:late
 docker run --rm -v "$PWD:/workdir" -w /workdir rhysd/actionlint:latest -color
 docker run --rm -v "$PWD":/check --workdir /check mstruebing/editorconfig-checker:latest
 docker run --rm -v "$PWD:/workdir" -w /workdir koalaman/shellcheck:latest scripts/*
+docker run --rm -v "$PWD:/mnt" -w /mnt mvdan/shfmt:v3.14.1 -d scripts/*
 ```
 
 **What CI cannot exercise is the integration running inside Home Assistant.** `scripts/develop` boots a local Home Assistant against the gitignored `config/` directory with this integration loaded, on port 8123. A change to the config flow, entity naming, translations, or device registry behavior is worth a manual pass through the UI before merge, since the test harness mocks the parts a user sees. [`DEVCONTAINER.md`](./DEVCONTAINER.md) covers running and debugging it.
@@ -101,11 +102,15 @@ Locally, `scripts/develop` runs Home Assistant with `--debug`, and the "Home Ass
 
 ## Local Rule Extensions
 
-Rules that apply in this repository on top of the carried fleet rules. Most are here because they are specific to this integration. The one that departs from a fleet default says so, and **where an extension here and a carried rule disagree, the extension wins in this repository**.
+Rules that apply in this repository on top of the carried fleet rules. Most are here because they are specific to this integration. Each one that departs from a fleet default says so. **Where an extension here and a carried rule disagree, the extension wins in this repository**.
 
 ### Supported Platforms
 
 Development is **Linux only**: native Linux, WSL2, or the devcontainer. This is the narrowing [`GOVERNANCE.md`](./GOVERNANCE.md) "Supported Development Platforms" describes, recorded here as that section requires. Home Assistant Core has POSIX-only dependencies and does not run natively on Windows, so a Windows-native environment can neither boot the integration with `scripts/develop` nor reliably run the Home Assistant test harness. The `scripts/*` dev loop and the `scripts/lint` gate assume a POSIX shell, and there is no "could not run `scripts/lint` on Windows" exception, since every supported environment has bash.
+
+### Bash Dev Loop
+
+The `scripts/*` dev loop (`setup`, `fix`, `lint`, `develop`, `init-config`) stays Bash. This departs from the fleet default in [`CODESTYLE.md`](./CODESTYLE.md) "Shell", which allows Bash only where a program cannot be Python. It is the Home Assistant integration-scaffold convention, which integration contributors already know. The devcontainer's `postCreateCommand` and the VS Code tasks also call these paths. The scripts otherwise meet the fleet's shell rules: each opens with `set -Eeuo pipefail`, and the `Docs lint job` runs `shellcheck` and `shfmt -d` over them. A script outside this dev loop follows the fleet default.
 
 ### Branching Facts
 
