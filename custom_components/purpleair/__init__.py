@@ -247,9 +247,14 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 )
 
                 for entity_entry in entity_entries:
+                    # Another integration's entity keeps its own entry and subentry and only follows the device
+                    owned = entity_entry.config_entry_id == entry.entry_id
+                    if not owned and target_device is None:
+                        continue
                     entity_disabled_by = entity_entry.disabled_by
                     config_entry_disabled = (
-                        entity_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
+                        owned
+                        and entity_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
                         and not all_disabled
                     )
                     if target_device is not None and (
@@ -265,8 +270,16 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
 
                     entity_registry.async_update_entity(
                         entity_entry.entity_id,
-                        config_entry_id=parent_entry.entry_id,
-                        config_subentry_id=subentry.subentry_id,
+                        config_entry_id=(
+                            parent_entry.entry_id
+                            if owned
+                            else entity_entry.config_entry_id
+                        ),
+                        config_subentry_id=(
+                            subentry.subentry_id
+                            if owned
+                            else entity_entry.config_subentry_id
+                        ),
                         device_id=(
                             target_device.id
                             if target_device is not None

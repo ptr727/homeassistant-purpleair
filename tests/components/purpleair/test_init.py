@@ -763,6 +763,111 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     assert migrated_entity.disabled_by is er.RegistryEntryDisabler.USER
 
 
+@pytest.mark.parametrize(
+    ("sibling_sensor_index", "helper_disabled_by"),
+    [
+        (TEST_SENSOR_INDEX2, None),
+        (TEST_SENSOR_INDEX2, er.RegistryEntryDisabler.DEVICE),
+        (TEST_SENSOR_INDEX1, None),
+        (TEST_SENSOR_INDEX1, er.RegistryEntryDisabler.DEVICE),
+    ],
+)
+async def test_async_migrate_integration_keeps_foreign_sibling_entities(
+    hass: HomeAssistant,
+    sibling_sensor_index: int,
+    helper_disabled_by: er.RegistryEntryDisabler | None,
+) -> None:
+    """Another integration's entity on a sibling's device keeps its own entry.
+
+    It follows the device, which is the sibling's own for a new sensor and the parent's for one the parent also lists.
+    A disabled sibling device keeps a DEVICE disable in place where the device moves.
+    The parent's device is not the one that disabled it, so a DEVICE disable becomes a USER one there.
+    """
+    parent = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="parent",
+    )
+    sibling = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={CONF_API_KEY: TEST_API_KEY},
+        options={
+            CONF_LEGACY_SENSOR_INDICES: [sibling_sensor_index],
+            CONF_SHOW_ON_MAP: False,
+        },
+        title="sibling",
+    )
+    parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
+
+    device_registry = dr.async_get(hass)
+    parent_device = device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+        name="TEST_SENSOR_INDEX1",
+    )
+    sibling_device = device_registry.async_get_or_create(
+        config_entry_id=sibling.entry_id,
+        identifiers={(DOMAIN, str(sibling_sensor_index))},
+        name="SIBLING_SENSOR",
+        disabled_by=(
+            dr.DeviceEntryDisabler.USER if helper_disabled_by is not None else None
+        ),
+    )
+
+    entity_registry = er.async_get(hass)
+    helper_entry = MockConfigEntry(domain="utility_meter")
+    helper_entry.add_to_hass(hass)
+    helper_entity = entity_registry.async_get_or_create(
+        "sensor",
+        "utility_meter",
+        "daily-temperature",
+        config_entry=helper_entry,
+        device_id=sibling_device.id,
+        disabled_by=helper_disabled_by,
+    )
+    sibling_entity = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{sibling_sensor_index}-temperature",
+        config_entry=sibling,
+        device_id=sibling_device.id,
+        original_name="Temp",
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_get_entry(sibling.entry_id) is None
+    subentry_ids = _subentry_ids(parent)
+    rehomed = sibling_sensor_index == TEST_SENSOR_INDEX1
+    live_device_id = parent_device.id if rehomed else sibling_device.id
+
+    migrated = entity_registry.async_get(sibling_entity.entity_id)
+    assert migrated is not None
+    assert migrated.config_entry_id == parent.entry_id
+    assert migrated.config_subentry_id == subentry_ids[sibling_sensor_index]
+    assert migrated.device_id == live_device_id
+
+    helper = entity_registry.async_get(helper_entity.entity_id)
+    assert helper is not None
+    assert helper.config_entry_id == helper_entry.entry_id
+    assert helper.config_subentry_id is None
+    assert helper.device_id == live_device_id
+    assert helper.disabled_by is (
+        er.RegistryEntryDisabler.USER
+        if rehomed and helper_disabled_by is not None
+        else helper_disabled_by
+    )
+
+
 def _add_stale_parent_case(
     hass: HomeAssistant, *, sibling_has_device: bool
 ) -> tuple[MockConfigEntry, dr.DeviceEntry, dr.DeviceEntry | None, str]:
