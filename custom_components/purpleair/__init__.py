@@ -13,7 +13,7 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.typing import UNDEFINED, ConfigType
 
 from .const import (
     CONF_LEGACY_SENSOR_INDICES,
@@ -270,16 +270,8 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
 
                     entity_registry.async_update_entity(
                         entity_entry.entity_id,
-                        config_entry_id=(
-                            parent_entry.entry_id
-                            if owned
-                            else entity_entry.config_entry_id
-                        ),
-                        config_subentry_id=(
-                            subentry.subentry_id
-                            if owned
-                            else entity_entry.config_subentry_id
-                        ),
+                        config_entry_id=parent_entry.entry_id if owned else UNDEFINED,
+                        config_subentry_id=subentry.subentry_id if owned else UNDEFINED,
                         device_id=(
                             target_device.id
                             if target_device is not None

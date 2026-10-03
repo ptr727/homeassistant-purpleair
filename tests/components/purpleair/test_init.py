@@ -3,6 +3,7 @@
 import logging
 from types import MappingProxyType
 
+import attr
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -768,8 +769,10 @@ async def test_async_migrate_integration_rehomes_shared_sensor_entities(
     [
         (TEST_SENSOR_INDEX2, None),
         (TEST_SENSOR_INDEX2, er.RegistryEntryDisabler.DEVICE),
+        (TEST_SENSOR_INDEX2, er.RegistryEntryDisabler.CONFIG_ENTRY),
         (TEST_SENSOR_INDEX1, None),
         (TEST_SENSOR_INDEX1, er.RegistryEntryDisabler.DEVICE),
+        (TEST_SENSOR_INDEX1, er.RegistryEntryDisabler.CONFIG_ENTRY),
     ],
 )
 async def test_async_migrate_integration_keeps_foreign_sibling_entities(
@@ -782,6 +785,7 @@ async def test_async_migrate_integration_keeps_foreign_sibling_entities(
     It follows the device, which is the sibling's own for a new sensor and the parent's for one the parent also lists.
     A disabled sibling device keeps a DEVICE disable in place where the device moves.
     The parent's device is not the one that disabled it, so a DEVICE disable becomes a USER one there.
+    A CONFIG_ENTRY disable belongs to the entity's own entry, so it stays for that entry to lift.
     """
     parent = MockConfigEntry(
         domain=DOMAIN,
@@ -817,12 +821,21 @@ async def test_async_migrate_integration_keeps_foreign_sibling_entities(
         identifiers={(DOMAIN, str(sibling_sensor_index))},
         name="SIBLING_SENSOR",
         disabled_by=(
-            dr.DeviceEntryDisabler.USER if helper_disabled_by is not None else None
+            dr.DeviceEntryDisabler.USER
+            if helper_disabled_by is er.RegistryEntryDisabler.DEVICE
+            else None
         ),
     )
 
     entity_registry = er.async_get(hass)
-    helper_entry = MockConfigEntry(domain="utility_meter")
+    helper_entry = MockConfigEntry(
+        domain="utility_meter",
+        disabled_by=(
+            ConfigEntryDisabler.USER
+            if helper_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
+            else None
+        ),
+    )
     helper_entry.add_to_hass(hass)
     helper_entity = entity_registry.async_get_or_create(
         "sensor",
@@ -863,9 +876,65 @@ async def test_async_migrate_integration_keeps_foreign_sibling_entities(
     assert helper.device_id == live_device_id
     assert helper.disabled_by is (
         er.RegistryEntryDisabler.USER
-        if rehomed and helper_disabled_by is not None
+        if rehomed and helper_disabled_by is er.RegistryEntryDisabler.DEVICE
         else helper_disabled_by
     )
+
+
+async def test_async_migrate_integration_moves_foreign_entity_with_missing_entry(
+    hass: HomeAssistant,
+) -> None:
+    """A foreign entity whose own entry is gone still follows the device without failing the merge.
+
+    The registry keeps such an entity on load, and checking its entry again would raise and stop setup on every boot.
+    """
+    parent, sibling = (
+        MockConfigEntry(
+            domain=DOMAIN,
+            version=1,
+            data={CONF_API_KEY: TEST_API_KEY},
+            options={CONF_LEGACY_SENSOR_INDICES: [TEST_SENSOR_INDEX1]},
+            title=title,
+        )
+        for title in ("parent", "sibling")
+    )
+    parent.add_to_hass(hass)
+    sibling.add_to_hass(hass)
+
+    device_registry = dr.async_get(hass)
+    parent_device = device_registry.async_get_or_create(
+        config_entry_id=parent.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+    )
+    sibling_device = device_registry.async_get_or_create(
+        config_entry_id=sibling.entry_id,
+        identifiers={(DOMAIN, str(TEST_SENSOR_INDEX1))},
+    )
+
+    entity_registry = er.async_get(hass)
+    helper_entry = MockConfigEntry(domain="utility_meter")
+    helper_entry.add_to_hass(hass)
+    helper_entity = entity_registry.async_get_or_create(
+        "sensor",
+        "utility_meter",
+        "daily-temperature",
+        config_entry=helper_entry,
+        device_id=sibling_device.id,
+    )
+    # The registry's own API refuses an unknown entry, so this writes the loaded state directly
+    entity_registry.entities[helper_entity.entity_id] = attr.evolve(
+        helper_entity, config_entry_id="removed-entry"
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    assert hass.config_entries.async_get_entry(sibling.entry_id) is None
+    helper = entity_registry.async_get(helper_entity.entity_id)
+    assert helper is not None
+    assert helper.config_entry_id == "removed-entry"
+    assert helper.device_id == parent_device.id
 
 
 def _add_stale_parent_case(
