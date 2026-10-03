@@ -143,8 +143,9 @@ section is the pointer to what to read rather than the answer, and `AGENTS.md` "
 already says stale context is worse than absent. A handoff is context by construction, so this is
 that rule applied to the one artifact built to outlive the session that wrote it.
 
-Read the current link's comments too, with `gh issue view "<n>" --comments`, since `resume` prints
-only the body, and a parking comment or a closing session's answers land in the comments.
+Read the current link's comments too, with `gh issue view "<n>" --repo OWNER/NAME --comments`, since
+`resume` prints only the body, and a parking comment or a closing session's answers land in the
+comments.
 
 Read the chain before re-attempting anything. `resume` prints the current body and indexes the
 closed links behind it, and `chain --grep` searches the bodies it walks for a regular expression,
@@ -161,7 +162,9 @@ rather than `resume`.
 
 Re-derive a count rather than copying one, and read it with an explicit page size. `gh issue list`
 returns 30 rows unless told otherwise, and a truncated count reads exactly like a repository with
-30 issues, which is worse than an absent count because it gets stated.
+30 issues, which is worse than an absent count because it gets stated. The same holds at any page
+size, so where a read returns as many rows as its limit, raise the limit and read again until it
+returns fewer.
 
 ## The Attended Session
 
@@ -169,15 +172,17 @@ A maintainer resuming work says little, often only "resume the handoff", and tha
 the whole procedure below. Run every step without being reminded of any of them.
 
 1. **Pick the link.** Where the maintainer names an issue, take it. Where none is named, read
-   `gh issue list --label handoff --state open --limit 100 --json number,title,labels,updatedAt`,
-   since `tracks` prints neither labels nor exact update times. Take a link carrying `blocked`
-   first, newest update first among them, since its blocker is a decision only the maintainer can
-   make and the maintainer is now present. Otherwise take the newest update among the rest. An
-   `auto-*` link not carrying `blocked` is skipped unless named, since an `unattended-handoff`
-   worker may hold it right now, and where one is named, confirm with the maintainer that no
-   unattended run is live before working it. Where every open link is skipped, say so and ask the
-   maintainer which to take. Say which link was picked in one line before anything else, so a wrong pick costs one reply
-   rather than a round.
+   `gh issue list --repo OWNER/NAME --label handoff --state open --limit 100 --json
+   number,title,labels,updatedAt`, since `tracks` prints neither labels nor exact update times.
+   Where it returns as many rows as the limit, the list may be truncated, so raise the limit and
+   read again until it returns fewer, rather than picking from a partial list. Take a link carrying
+   `blocked` first, newest update first among them, since its blocker is a decision only the
+   maintainer can make and the maintainer is now present. Otherwise take the newest update among the
+   rest. An `auto-*` link not carrying `blocked` is skipped unless named, since an
+   `unattended-handoff` worker may hold it right now, and where one is named, confirm with the
+   maintainer that no unattended run is live before working it. Where every open link is skipped,
+   say so and ask the maintainer which to take. Say which link was picked in one line before
+   anything else, so a wrong pick costs one reply rather than a round.
 2. **Resume it** per "Resuming" above, comments included, re-deriving live state rather than
    trusting the body.
 3. **Ask what it is blocked on first.** Where the link carries `blocked`, the parking comment names
@@ -231,11 +236,12 @@ it.
 The rules below are `GOVERNANCE.md` "Communicating with the User", carried whole so this skill works
 in isolation. Two of them state the obligation: the one opening "A question filed as an issue is
 parked rather than asked" and the one opening "The session that writes a handoff presents the parked
-queue in the same act". Three more state the form the questions take, the one opening "Raise work
-blocked on the user as a direct interactive prompt" and the one opening "Ask for input as a numbered
-list", the first superseding the second wherever a prompt is available and naming it as the fallback
-where none is, and the one opening "Lead every choice with a recommendation and its reason", which
-binds both. A reader who stops after the obligation has it with no shape to put it in.
+queue in the same act". Three more state the form the questions take, the one opening "Ask every
+question through the interface's prompt, never in prose", which also names the numbered list as the
+fallback where no prompt exists, the one opening "Raise work blocked on the user as a direct
+interactive prompt", which shapes the options, and the one opening "Lead every choice with a
+recommendation and its reason", which binds every question put either way. A reader who stops after
+the obligation has it with no shape to put it in.
 
 Recording the queue is not asking it. The handoff's "The parked decision queue" section is the
 recording half, and what the other half is depends on what the session can reach: a prompt where one
@@ -246,8 +252,8 @@ falls to the next session that has one. The rules below settle which case applie
 <!-- include: GOVERNANCE.md > Communicating with the User -->
 
 - **Reference every pull request as a clickable link.** When you mention a PR on a surface that renders Markdown (chat, a summary, a report), render it as a Markdown link to the PR (`[#N](https://github.com/OWNER/REPO/pull/N)`), never a bare `#N`. The same applies to issues and commits. **The form follows the surface.** Some surfaces link neither a Markdown link nor a bare URL, an interactive prompt's question and option text among them, and pasting a full URL into one of those does not rescue it, since the reader gets a string to copy, which is the outcome this rule exists to prevent. There the reference is a bare `#N`, and the clickable link goes in the message that comes **before** the prompt rather than merely alongside it, because the prompt blocks on an answer and a message emitted after it is read once that answer is already given, which is the one moment the link is no longer any use. The test is whether the reader can click it where it is read, not whether it was written in the syntax that works elsewhere.
-- **Ask for input as a numbered list.** When you need the user to decide or answer, present the questions, and any options, as a numbered list so they can reply per number. A single inline question is fine, and two or more are always numbered.
-- **Raise work blocked on the user as a direct interactive prompt.** When progress needs a decision, an authorization, or an answer only the user can give, ask for it through the interface's own prompt mechanism, at the point the work stops. Never leave it as prose in a summary: a handoff buried in a paragraph is a handoff that did not happen, because a summary reads as a report of finished work and the one line still waiting on the user is the easiest in it to skim past. The blocked item is the message, not a closing remark on a message about something else. **The options offered are the actions themselves**, and the one that unblocks the work names the action it authorizes ("squash and merge it"), so selecting it is the go-ahead rather than a note to act on later. Offering only ways to wait is the same failure in interactive clothing, since a prompt whose every choice is inaction reports the block rather than clearing it, and where the agent may not perform the authorized action itself, the option says who does it. This supersedes the numbered-list rule above wherever an interactive prompt is available, and the numbered list is the fallback where none is.
+- **Ask every question through the interface's prompt, never in prose.** When you need the user to decide, answer, or approve anything, put it to them through the interface's own prompt mechanism, whether or not work is blocked on it, and an offer to do more work ("want me to file that?") is a question like any other. A question written into a message is lost in the report around it however short it is, and one closing a long report sits where the reader is least likely to reach it. Where no prompt mechanism is available, the questions go as a numbered list opening the message rather than closing it, so the user can reply per number. This bullet settles how a question is put once it is asked, and whether a question is asked now or recorded for later is the parking bullet's to settle, the one opening "A question filed as an issue is parked rather than asked".
+- **Raise work blocked on the user as a direct interactive prompt.** When progress needs a decision, an authorization, or an answer only the user can give, ask for it through the interface's own prompt mechanism, at the point the work stops. Never leave it as prose in a summary: a handoff buried in a paragraph is a handoff that did not happen, because a summary reads as a report of finished work and the one line still waiting on the user is the easiest in it to skim past. The blocked item is the message, not a closing remark on a message about something else. **The options offered are the actions themselves**, and the one that unblocks the work names the action it authorizes ("squash and merge it"), so selecting it is the go-ahead rather than a note to act on later. Offering only ways to wait is the same failure in interactive clothing, since a prompt whose every choice is inaction reports the block rather than clearing it, and where the agent may not perform the authorized action itself, the option says who does it. Where no interactive prompt is available, the numbered list the bullet above names is the fallback.
 - **Lead every choice with a recommendation and its reason.** Wherever the user is asked to choose, in a prompt or in a numbered list, the option the agent recommends comes first and is marked as the recommendation, and every option states the reason for it. A user who takes the recommendation then reads one line, and one who does not sees what the other options trade away. A question with no defensible recommendation says so rather than inventing one. Where an open question has no options and the agent does have an answer, that answer and its reason go in the question's text, never as an invented option.
 - **A question filed as an issue is parked rather than asked, and it stays owed.** Where the work cannot continue without the answer, the interactive-prompt bullet governs and the question is asked at the point the work stops. Wherever the question is recorded rather than asked, whether because the work can continue without the answer or because the question was asked once and deferred, recording it is the right thing to do and recording it is still not asking it, so the issue carries the fleet's `decision` label and, when the filing session knows the choices the question is between, states them, which is what lets a later session, one that was not there when the issue was filed, find the question and put it to the user without inventing its answers. **The parked queue is the failure, not the parking.** An issue holding a question the user has never seen reads to every later session as tracked work rather than as a block, so each session files correctly and moves on, and presenting the accumulation is the step nobody owns.
 - **The session that writes a handoff presents the parked queue in the same act.** This binds at the moment the session writes the handoff that `AGENTS.md` "Session Scope" defines, rather than at the moment the session ends, because a session also ends by interruption, where no agent acts at all and no rule reaches it. The session enumerates this repository's open issues carrying that label, states how many issues the queue holds, and puts the highest-ranked of them to the user as questions, **one question per parked decision, carrying that decision's own answers as its options**, which is the interactive-prompt bullet's own shape applied per decision rather than a single prompt whose options are topics. An issue that states no choices is put as the open question it is, never as invented options, since the label marks every decision waiting on the user rather than only the ones filed under this rule, and the issues that already carry the label predate the rule. Rank them longest-waited first. Every issue records how long it has waited, so any session can reproduce that order. Promote one ahead of that order where it blocks work in flight, and say in the handoff that it was promoted, since two sessions order the same queue differently where the key is subjective and nobody records it. Where more are parked than one round of questions can carry, the stated count still covers every one of them and the handoff names the remainder by issue number in that order, a list of numbers rather than of questions, which is what keeps the handoff inside the size rule that `AGENTS.md` "Session Scope" sets for it. **A count nobody states is a queue nobody can see**, which is how a backlog reported as healthy hides the questions inside it. Where a user is present but no prompt mechanism is available, the questions go as the numbered list the interactive-prompt bullet already names as its fallback, which reaches a reader who is there to read it. Where no user is present at all, the session asks nothing, names the whole queue by issue number in the handoff, and leaves the asking to the next session that has one. An item leaves the queue when the user answers it, and also at triage where a later change has already answered or overtaken its decision. Either way it leaves by losing the label, with the answer or the reason recorded on the issue, and the issue itself closes only where it held nothing but the question, since the queue holds issues that outlive their decision, and closing such an issue just to clear the queue discards the other work that issue tracks.
@@ -287,13 +293,14 @@ comments on whatever link that lane has, closing it too where it was open.
   already names it.
 
 ```sh
-python3 scripts/handoff.py current --repo OWNER/NAME --track "<slug>"
-python3 scripts/handoff.py resume  --repo OWNER/NAME --track "<slug>" --history 5
-python3 scripts/handoff.py chain   --repo OWNER/NAME --track "<slug>" --grep "an escaped regex"
-python3 scripts/handoff.py new     --repo OWNER/NAME --track "<slug>" --title "<subject>" \
+handoff="<hub-checkout>/scripts/handoff.py"   # in the hub itself, scripts/handoff.py
+python3 "$handoff" current --repo OWNER/NAME --track "<slug>"
+python3 "$handoff" resume  --repo OWNER/NAME --track "<slug>" --history 5
+python3 "$handoff" chain   --repo OWNER/NAME --track "<slug>" --grep "an escaped regex"
+python3 "$handoff" new     --repo OWNER/NAME --track "<slug>" --title "<subject>" \
   --body-file "<path>" --dry-run
-python3 scripts/handoff.py link    --repo OWNER/NAME --new "<successor>" --previous "<predecessor>"
-python3 scripts/handoff.py tracks  --repo OWNER/NAME
+python3 "$handoff" link    --repo OWNER/NAME --new "<successor>" --previous "<predecessor>"
+python3 "$handoff" tracks  --repo OWNER/NAME
 ```
 
 Read `--dry-run` output before the first real `new` of a session, since the run can close an issue.
@@ -301,13 +308,25 @@ It is accepted by `new` and `link`, the two subcommands that write, and by no ot
 
 Exit `0` is success, `1` a refusal the caller can act on, a usage error included, and `2` the
 command not having run to an answer, so a refusal and a failure to reach one never share a code. A
-repository missing the `handoff` label is a refusal rather than a degraded empty answer, and it
-names the command that applies the fleet label set except where the label read filled its window,
-which is the one case where the label's absence is unproven rather than established.
+fleet repository missing the `handoff` label, one the hub's `registry/repos.json` lists, is a
+refusal rather than a degraded empty answer, and it names the command that applies the fleet label
+set except where the label read filled its window, which is the one case where the label's absence
+is unproven rather than established.
+
+A fork under the registry's owner that the registry does not list, such as one kept for an
+upstream contribution per `upstream-contribution-workflow`, can host a chain to keep a session's
+state without taking on any fleet configuration. Missing the label there, a read prints a warning
+and answers as an empty chain does, and `new` refuses until it is given `--create-label`, which
+creates the one `handoff` label, confirms it, and then files the first link. Issues turned off stop
+it before any write, naming the command that turns them on. Never apply the fleet label set to such
+a fork. A repository under another owner, or an unregistered one of the owner's that is not a fork,
+refuses before any write. `new` and `link` refuse both whatever the label state, since a label on
+such a repository opens no write there, and that refusal bounds no read.
 
 Creating an issue, commenting on one, closing one, and editing a body are each outward-facing
 writes. `new` creates, comments, and closes, the label riding inside the one create call rather than
-being a write of its own. `link` edits a body, comments, and closes. Each of them is bound by
+being a write of its own, and `new --create-label` adds one write ahead of those, the label itself.
+`link` edits a body, comments, and closes. Each of them is bound by
 `GOVERNANCE.md` "Repository Boundaries and Write Safety" exactly as any other write is. Point them
 at the repository `AGENTS.md` "Session Scope" sends the link to, the one holding the work the next
 session resumes, and at no other. `link` also reaches an issue this chain never created, since the

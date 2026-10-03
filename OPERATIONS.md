@@ -96,7 +96,6 @@ Locally, `scripts/develop` runs Home Assistant with `--debug`, and the "Home Ass
 - `CODECOV_TOKEN` is the Codecov upload token the pytest matrix uses, in both stores for the same reason.
 - With no "Require approvals" on `develop` or `main`, bot pull requests auto-merge as soon as `Check pull request workflow status job` is green. If approvals are ever turned on, both `ptr727-codegen[bot]` and `dependabot[bot]` need to be on the bypass list. If a tag ruleset ever restricts tag creation, `github-actions[bot]` must be allowed to create release tags.
 - **Local state on disk** is the `.venv`, the gitignored `config/` directory, and the gitignored `./aiopurpleair` checkout. **`config/` holds real credentials once the dev loop is used**: adding the PurpleAir integration stores its API key under `config/.storage/`, and so does any token given to the HACS install `scripts/setup` places there. Never commit, share, or copy `config/` as though it were secret-free.
-- **The local `repo-config/` directory is a retired copy awaiting removal, not the authority.** The hub's `repo-config/configure.sh` and its payloads are the source for settings, rulesets, and labels, per [`AUDIT.md`](./AUDIT.md) section 4. Until the directory is deleted, do not run its `configure.sh` as the audit, since it predates the fleet's secret and label checks and passes a repository missing the Dependabot copy of `CODECOV_TOKEN`. [`WORKFLOW.md`](./WORKFLOW.md) and [`README.md`](./README.md) still describe the local copy and move with the deletion.
 
 ## Local Rule Extensions
 
