@@ -14,8 +14,8 @@ jobs:
 
   get-version:
     name: Get version information job
-    uses: ./.github/workflows/get-version-task.yml
-    secrets: inherit
+    # No ref input, so the task checks out github.sha, the commit this run builds and tags, rather than the branch tip at fetch time.
+    uses: ptr727/ProjectTemplate/.github/workflows/get-version-task.yml@bc9dc654288d9dac165acdde75379131d04fc537 # 2.0.805
 
   build:
     name: Build release artifact job
@@ -133,7 +133,7 @@ jobs:
         # pointing at unrelated code.
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ needs.get-version.outputs.Tag }}
+          tag_name: ${{ needs.get-version.outputs.SemVer2 }}
           target_commitish: ${{ github.sha }}
           prerelease: ${{ needs.get-version.outputs.Prerelease == 'true' }}
           generate_release_notes: true
