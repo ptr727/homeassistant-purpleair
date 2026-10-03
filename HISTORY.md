@@ -1,6 +1,6 @@
-# PurpleAir Integration for Home Assistant
+# homeassistant-purpleair
 
-Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality sensors.
+A Home Assistant custom integration for PurpleAir air-quality sensors.
 
 ## Release History
 
@@ -22,5 +22,3 @@ Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality se
   - Disabled-by-default diagnostic entities: Channel flags, PM2.5 ALT, PM2.5 10-minute/30-minute/60-minute/6-hour/24-hour/1-week averages.
   - Clear config-flow errors - WRITE API keys, disabled keys, and wrong per-sensor read keys each surface a targeted error on the right field.
   - Platinum-tier quality-scale compliance.
-
-[purpleair-link]: https://www.purpleair.com/

@@ -1,6 +1,8 @@
-# PurpleAir Integration for Home Assistant
+# homeassistant-purpleair
 
-A Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality sensors.
+A Home Assistant custom integration for PurpleAir air-quality sensors.
+
+It reads [PurpleAir][purpleair-link] sensors through the PurpleAir API, and it installs through HACS as a custom repository or by hand.
 
 ## Build and Distribution
 
@@ -10,7 +12,7 @@ A Home Assistant custom integration for [PurpleAir][purpleair-link] air-quality 
 [![Last Commit][lastcommit-shield]][commits-link]\
 [![Coverage][coverage-shield]][coverage-link]\
 [![HACS Custom][hacs-shield]][hacs-link]\
-[![Quality Scale][qualityscale-shield]][qualityscale-link]\
+[![Quality Scale][qualityscale-shield]][qualityscale]\
 [![Home Assistant][haversion-shield]][haversion-link]
 
 ### Releases
@@ -38,13 +40,13 @@ See [Release History](./HISTORY.md) for complete release notes and older version
 
 ## Table of Contents
 
-- [PurpleAir Integration for Home Assistant](#purpleair-integration-for-home-assistant)
+- [homeassistant-purpleair](#homeassistant-purpleair)
   - [Build and Distribution](#build-and-distribution)
     - [Build Status](#build-status)
     - [Releases](#releases)
     - [Release Notes](#release-notes)
   - [Table of Contents](#table-of-contents)
-  - [Features](#features)
+  - [Overview](#overview)
   - [Installation](#installation)
     - [Via HACS (Recommended)](#via-hacs-recommended)
     - [Manual](#manual)
@@ -66,10 +68,11 @@ See [Release History](./HISTORY.md) for complete release notes and older version
     - [Switch an Existing Sensor to a Read Key](#switch-an-existing-sensor-to-a-read-key)
   - [Questions or Issues](#questions-or-issues)
   - [Contributing](#contributing)
+  - [3rd Party Tools](#3rd-party-tools)
   - [Credits](#credits)
   - [License](#license)
 
-## Features
+## Overview
 
 **Features beyond Home Assistant's built-in PurpleAir integration**:
 
@@ -300,6 +303,32 @@ The Read Key can also be added at sensor-add time for new sensors - see [3. Add 
 - **Repository setup**:
   - See [`AUDIT.md`](AUDIT.md) section 4 for repository configuration.
 
+## 3rd Party Tools
+
+The third-party tools, libraries, and actions this project depends on.
+
+- [actionlint][actionlint-link]: GitHub Actions workflow linter.
+- [aiopurpleair][aiopurpleair-link]: Async Python client for the PurpleAir API.
+- [Codecov][codecov-link]: Code coverage reporting service.
+- [Create Pull Request][create-pull-request-link]: GitHub action that opens a pull request from workspace changes.
+- [cspell][cspell-link]: Spell checker.
+- [editorconfig-checker][editorconfig-checker-link]: Line-ending and whitespace linter.
+- [GH Release][gh-release-link]: GitHub action that creates a release.
+- [GitHub Actions][github-actions-link]: CI and automation runner.
+- [GitHub Dependabot][github-dependabot-link]: Dependency update bot.
+- [HACS][hacs-xyz-link]: Community store for Home Assistant custom integrations.
+- [hassfest][hassfest-link]: Home Assistant integration validator.
+- [markdownlint-cli2][markdownlint-cli2-link]: Markdown linter.
+- [mypy][mypy-link]: Python static type checker.
+- [Nerdbank.GitVersioning][nerdbank-gitversioning-link]: Version computation from git height.
+- [pyright][pyright-link]: Python static type checker.
+- [pytest][pytest-link]: Python test framework.
+- [pytest-cov][pytest-cov-link]: Coverage plugin for pytest.
+- [pytest-homeassistant-custom-component][pytest-homeassistant-custom-component-link]: Test harness for Home Assistant custom integrations.
+- [ruff][ruff-link]: Python linter and formatter.
+- [ShellCheck][shellcheck-link]: Shell script static analyzer.
+- [uv][uv-link]: Python package and project manager.
+
 ## Credits
 
 This integration is an independent implementation based on the [`home-assistant/core` PurpleAir component][ha-core-components-link].\
@@ -309,39 +338,58 @@ The original Apache 2.0 copyright is retained alongside that of the current main
 
 ## License
 
-Licensed under the [Apache 2.0 License][license-link] and [NOTICE](./NOTICE)\
-[![License][license-shield]][license-link]
+Licensed under the [Apache 2.0 License][license] and [NOTICE](./NOTICE)\
+[![License][license-shield]][license]
 
-<!-- Shields links -->
+<!-- Shields -->
 
-[actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
 [buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-pull-request.yml?logo=github&label=Build%20Status
-[commits-link]: https://github.com/ptr727/homeassistant-purpleair/commits/main
-[coverage-link]: https://app.codecov.io/gh/ptr727/homeassistant-purpleair
 [coverage-shield]: https://img.shields.io/codecov/c/github/ptr727/homeassistant-purpleair?logo=codecov&label=Coverage
-[discussions-link]: https://github.com/ptr727/homeassistant-purpleair/discussions
-[hacs-link]: https://github.com/hacs/integration
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
-[haversion-link]: https://www.home-assistant.io/blog/categories/release-notes/
 [haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.8.0%2B-41BDF5?logo=homeassistant
-[issues-link]: https://github.com/ptr727/homeassistant-purpleair/issues
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
-[license-link]: ./LICENSE
 [license-shield]: https://img.shields.io/github/license/ptr727/homeassistant-purpleair?label=License
 [prereleaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?include_prereleases&label=GitHub%20Pre-Release&logo=github&color=orange
-[qualityscale-link]: ./custom_components/purpleair/quality_scale.yaml
 [qualityscale-shield]: https://img.shields.io/badge/Quality_Scale-Platinum-9C27B0?logo=homeassistant
-[releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
 [releaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?logo=github&label=GitHub%20Release
 
-<!-- Other links -->
+<!-- Distribution -->
 
+[actions-link]: https://github.com/ptr727/homeassistant-purpleair/actions
+[commits-link]: https://github.com/ptr727/homeassistant-purpleair/commits/main
+[discussions-link]: https://github.com/ptr727/homeassistant-purpleair/discussions
+[issues-link]: https://github.com/ptr727/homeassistant-purpleair/issues
+[releases-link]: https://github.com/ptr727/homeassistant-purpleair/releases
+
+<!-- Repo -->
+
+[license]: ./LICENSE
+[qualityscale]: ./custom_components/purpleair/quality_scale.yaml
+
+<!-- External -->
+
+[actionlint-link]: https://github.com/rhysd/actionlint
+[aiopurpleair-link]: https://github.com/ptr727/aiopurpleair
 [airnow-aqi-link]: https://www.airnow.gov/aqi/aqi-basics/
+[codecov-link]: https://about.codecov.io/
+[coverage-link]: https://app.codecov.io/gh/ptr727/homeassistant-purpleair
+[create-pull-request-link]: https://github.com/marketplace/actions/create-pull-request
+[cspell-link]: https://cspell.org
+[editorconfig-checker-link]: https://github.com/editorconfig-checker/editorconfig-checker
 [epa-pm25-link]: https://cfpub.epa.gov/si/si_public_record_report.cfm?dirEntryId=353088&Lab=CEMM
 [free-points-link]: https://community.purpleair.com/t/api-points-for-sensor-owners/7525
+[gh-release-link]: https://github.com/marketplace/actions/gh-release
+[github-actions-link]: https://github.com/actions
+[github-dependabot-link]: https://github.com/dependabot
 [ha-core-components-link]: https://github.com/home-assistant/core/tree/dev/homeassistant/components/purpleair
 [ha-core-pr-link]: https://github.com/home-assistant/core/pull/140901
+[hacs-link]: https://github.com/hacs/integration
 [hacs-xyz-link]: https://hacs.xyz/
+[hassfest-link]: https://github.com/home-assistant/actions
+[haversion-link]: https://www.home-assistant.io/blog/categories/release-notes/
+[markdownlint-cli2-link]: https://github.com/DavidAnson/markdownlint-cli2
+[mypy-link]: https://mypy-lang.org/
+[nerdbank-gitversioning-link]: https://github.com/dotnet/Nerdbank.GitVersioning
 [purpleair-api-link]: https://api.purpleair.com/
 [purpleair-api-pm25-link]: https://api.purpleair.com/#api-sensors-get-sensor-data
 [purpleair-api-pricing-link]: https://community.purpleair.com/t/api-pricing/4523
@@ -349,5 +397,11 @@ Licensed under the [Apache 2.0 License][license-link] and [NOTICE](./NOTICE)\
 [purpleair-keys-link]: https://develop.purpleair.com/dashboards/keys
 [purpleair-link]: https://www.purpleair.com/
 [purpleair-projects-link]: https://develop.purpleair.com/dashboards/projects
+[pyright-link]: https://github.com/microsoft/pyright
+[pytest-cov-link]: https://github.com/pytest-dev/pytest-cov
+[pytest-homeassistant-custom-component-link]: https://github.com/MatthewFlamm/pytest-homeassistant-custom-component
+[pytest-link]: https://docs.pytest.org/
 [qualityscale-rules-link]: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/
 [ruff-link]: https://docs.astral.sh/ruff/
+[shellcheck-link]: https://www.shellcheck.net/
+[uv-link]: https://docs.astral.sh/uv/
