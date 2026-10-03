@@ -189,15 +189,18 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
             ):
                 continue
 
-            # The sibling's entities join the parent's device for this sensor, since the sibling device goes with the sibling entry.
-            # That includes a stale parent device for a sensor the parent does not list, which a moved sibling device would collide with.
-            target_device = (
+            parent_device = (
                 device_registry.async_get_device_by_identifier(
                     identifier, parent_entry.entry_id
                 )
                 if parent_entry.entry_id != entry.entry_id
                 else None
             )
+            # The sibling's entities join the parent's device for an already-rehomed sensor, since the sibling device goes with the sibling entry.
+            target_device = parent_device if existing_subentry is not None else None
+            # A stale parent device is one for a sensor the parent does not list, and a moved sibling device would collide with it.
+            stale_device = parent_device if existing_subentry is None else None
+            stale_entities: list[er.RegistryEntry] = []
 
             if existing_subentry is not None:
                 subentry = existing_subentry
@@ -216,12 +219,35 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                 # Create subentry under the chosen parent
                 hass.config_entries.async_add_subentry(parent_entry, subentry)
 
-                if target_device is not None:
-                    # A stale parent device joins the subentry created for its sensor
+            if stale_device is not None:
+                # Its entities join the subentry before any device moves, since a device move drops entities left in another subentry.
+                # Where the sibling holds a live device, that device replaces the stale one and keeps its id, area and name.
+                stale_entities = er.async_entries_for_device(
+                    entity_registry,
+                    stale_device.id,
+                    include_disabled_entities=True,
+                )
+                for stale_entity in stale_entities:
+                    entity_registry.async_update_entity(
+                        stale_entity.entity_id,
+                        config_subentry_id=subentry.subentry_id,
+                        device_id=stale_device.id if device is None else None,
+                        disabled_by=(
+                            er.RegistryEntryDisabler.USER
+                            if device is not None
+                            and stale_entity.disabled_by
+                            is er.RegistryEntryDisabler.DEVICE
+                            else stale_entity.disabled_by
+                        ),
+                    )
+                if device is None:
                     device_registry.async_update_device(
-                        target_device.id,
+                        stale_device.id,
+                        new_config_entry_id=parent_entry.entry_id,
                         new_config_subentry_id=subentry.subentry_id,
                     )
+                else:
+                    device_registry.async_remove_device(stale_device.id)
 
             if device is not None:
                 # Move entities tied to the old device to the new subentry
@@ -277,6 +303,11 @@ async def async_migrate_integration(hass: HomeAssistant) -> None:
                     new_config_entry_id=parent_entry.entry_id,
                     new_config_subentry_id=subentry.subentry_id,
                 )
+
+                for stale_entity in stale_entities:
+                    entity_registry.async_update_entity(
+                        stale_entity.entity_id, device_id=device.id
+                    )
 
         if parent_entry.entry_id != entry.entry_id:
             # Remove the sibling entry after rehoming its sensors
