@@ -1323,6 +1323,93 @@ async def test_async_migrate_integration_adopts_stale_parent_device(
     assert helper.config_subentry_id is None
 
 
+@pytest.mark.parametrize("sibling_has_device", [True, False], ids=["replace", "adopt"])
+@pytest.mark.parametrize(
+    "helper_disabled_by",
+    [
+        None,
+        er.RegistryEntryDisabler.DEVICE,
+        er.RegistryEntryDisabler.CONFIG_ENTRY,
+        er.RegistryEntryDisabler.USER,
+    ],
+)
+async def test_async_migrate_integration_keeps_foreign_stale_entity_disable(
+    hass: HomeAssistant,
+    sibling_has_device: bool,
+    helper_disabled_by: er.RegistryEntryDisabler | None,
+) -> None:
+    """Another integration's entity on a stale parent device keeps its disable through the migration.
+
+    The live device that replaces a disabled stale device is not the one that disabled it, so a DEVICE disable becomes a USER one there.
+    An adopted stale device stays disabled, so a DEVICE disable stays for that device to lift, and its move disables an enabled entity.
+    Any other disable belongs to the entity or its own entry, so it stays as it is.
+    """
+    parent, stale_device, sibling_device, stale_entity_id = _add_stale_parent_case(
+        hass, sibling_has_device=sibling_has_device
+    )
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+    # The device disables its entities too, so the parent's own entity starts DEVICE-disabled
+    # The helper comes after, so its disable is the case's own
+    device_registry.async_update_device(
+        stale_device.id, disabled_by=dr.DeviceEntryDisabler.USER
+    )
+    await hass.async_block_till_done()
+    helper_entry = MockConfigEntry(
+        domain="utility_meter",
+        disabled_by=(
+            ConfigEntryDisabler.USER
+            if helper_disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY
+            else None
+        ),
+    )
+    helper_entry.add_to_hass(hass)
+    helper_entity = entity_registry.async_get_or_create(
+        "sensor",
+        "utility_meter",
+        "daily-humidity",
+        config_entry=helper_entry,
+        device_id=stale_device.id,
+        disabled_by=helper_disabled_by,
+    )
+    await hass.async_block_till_done()
+
+    await async_migrate_integration(hass)
+    await hass.async_block_till_done()
+
+    live_device_id = sibling_device.id if sibling_device else stale_device.id
+    expected_disabled_by = helper_disabled_by
+    if sibling_has_device and helper_disabled_by is er.RegistryEntryDisabler.DEVICE:
+        expected_disabled_by = er.RegistryEntryDisabler.USER
+    elif not sibling_has_device and helper_disabled_by is None:
+        # Moving the still-disabled device is an update, which disables its enabled entities
+        expected_disabled_by = er.RegistryEntryDisabler.DEVICE
+    helper = entity_registry.async_get(helper_entity.entity_id)
+    assert helper is not None
+    assert helper.config_entry_id == helper_entry.entry_id
+    assert helper.config_subentry_id is None
+    assert helper.device_id == live_device_id
+    assert helper.disabled_by is expected_disabled_by
+
+    if sibling_has_device:
+        # The disable must survive an update to the enabled live device
+        device_registry.async_update_device(live_device_id, sw_version="2.0")
+        await hass.async_block_till_done()
+        helper = entity_registry.async_get(helper_entity.entity_id)
+        assert helper is not None
+        assert helper.disabled_by is expected_disabled_by
+
+    migrated = entity_registry.async_get(stale_entity_id)
+    assert migrated is not None
+    assert migrated.config_subentry_id == _subentry_ids(parent)[TEST_SENSOR_INDEX2]
+    assert migrated.device_id == live_device_id
+    assert migrated.disabled_by is (
+        er.RegistryEntryDisabler.USER
+        if sibling_has_device
+        else er.RegistryEntryDisabler.DEVICE
+    )
+
+
 async def test_async_migrate_integration_keeps_enabled_entities_enabled(
     hass: HomeAssistant,
 ) -> None:
