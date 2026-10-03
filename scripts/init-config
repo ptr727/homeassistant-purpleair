@@ -7,13 +7,13 @@
 # single integration. Add PurpleAir from the UI once HA is up:
 # Settings -> Devices & Services -> Add Integration -> PurpleAir (custom).
 
-set -euo pipefail
+set -Eeuo pipefail
 
 cd "$(dirname "$0")/.."
 
 if [[ ! -f config/configuration.yaml ]]; then
     mkdir -p config
-    cat > config/configuration.yaml <<'YAML'
+    cat >config/configuration.yaml <<'YAML'
 # Minimal config for developing the PurpleAir integration in the devcontainer.
 # default_config is omitted on purpose (see scripts/init-config). Add the
 # integration from the UI: Settings -> Devices & Services -> Add Integration.
