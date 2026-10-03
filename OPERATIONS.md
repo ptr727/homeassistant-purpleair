@@ -145,7 +145,7 @@ When reviewing a pull request that touches [`.github/workflows/`](./.github/work
 - **The bump bot uses one rolling branch and runs daily.** Reject a change that splits it back into per-slot branches, which re-introduces the beta-clear race, that switches to per-version branch names, which accumulate stale red pull requests, or that drops the cron back to weekly.
 - **Beta failures do not silently merge.** A failing `test-release` on a bot pull request keeps it open, and `develop`'s pin lags upstream until a human ports the integration. That is the intended outcome, so do not suggest skipping or demoting the beta slot.
 - **Dependabot auto-merges every tier, and the required checks are the gate rather than the bump magnitude.** The merge bot enables auto-merge on every Dependabot pull request, semver-major included, and a bump that breaks a covered path reds the required checks and stays open. Reject a change that re-introduces an `update-type` or `version-update:semver-major` filter on the merge step.
-- **`merge-ha-version-bump` is this repository's upstream-version merge job.** It auto-merges the bundled bump pull request from `ha-version-bump/matrix`, on the same opened and reopened, base-ref-matched model as the Dependabot job.
+- **The merge bot carries an `ha-version-bump/` rule.** The hub's `merge-bot-task.yml` auto-merges App pull requests only for its built-in branch pairs. So [`merge-bot-pull-request.yml`](./.github/workflows/merge-bot-pull-request.yml) passes a `rules` entry for an `ha-version-bump/` head into `develop`, which covers the bundled bump pull request. Reject a change that drops it, since that pull request would then get a warning annotation instead of auto-merge.
 
 ### Workflow Gotchas
 

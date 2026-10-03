@@ -229,7 +229,7 @@ A pull request exercises its own workflow files. No change waits to reach `main`
 - **The HA-version tracker** ([`check-ha-version.yml`](./.github/workflows/check-ha-version.yml)) runs daily,
   resolves the latest stable and beta HA from `pytest-homeassistant-custom-component` on PyPI, and opens
   **one** bundled rolling PR (`ha-version-bump/matrix`) to `develop` via the App, rewriting
-  `.github/ha-test-versions.json`. The merge-bot's `merge-ha-version-bump` job auto-merges it on green. It
+  `.github/ha-test-versions.json`. The merge-bot's `ha-version-bump/` rule auto-merges it on green. It
   **retests** (a breaking HA release reds the bot PR's CI for a human), it does **not** publish. The
   publisher's weekly schedule is the main-side complement, retesting the shipped `main` against the live
   matrix.
@@ -347,7 +347,7 @@ flowchart TD
     end
     DEP(["Dependabot opens PR<br/>main + develop, any ecosystem"]):::trig --> MB
     CPR --> MB
-    subgraph MBT ["merge-bot-pull-request.yml (pull_request_target, App token)"]
+    subgraph MBT ["merge-bot-pull-request.yml calling hub merge-bot-task.yml (pull_request_target, App token)"]
         MB{"event / author"}:::gate
         MB -- "opened/reopened<br/>dependabot[bot]<br/>every tier, semver-major included" --> EN["enable auto-merge<br/>squash develop / merge main"]
         MB -- "opened/reopened<br/>ptr727-codegen[bot]<br/>ha-version-bump/* -> develop" --> ENH["enable auto-merge (squash)"]
@@ -514,7 +514,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D8.3 HA-version tracker.** Output: the tracker runs daily (and on dispatch), resolves the latest stable
   and beta HA from `pytest-homeassistant-custom-component` on PyPI, and opens **one** bundled App-signed
   rolling PR (`ha-version-bump/matrix`) to `develop` rewriting `.github/ha-test-versions.json`; the
-  merge-bot's `merge-ha-version-bump` job auto-merges it on green. It **retests** (a breaking HA release
+  merge-bot's `ha-version-bump/` rule auto-merges it on green. It **retests** (a breaking HA release
   reds the bot PR's CI), it does **not** publish; the publisher's weekly schedule retests the main side.
   This repo has a tracker but no codegen. *Prevents a new HA release silently breaking the integration
   unnoticed.*
@@ -533,7 +533,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   `ensure_ascii=False` to preserve its non-ASCII `$comment` without a noisy diff.
 - **D9.5 No decorative / dropped workflows.** No date-badge, no codegen, no NuGet/Docker task, no
   `PUBLISH_ON_MERGE` variable, no broad `push` publish trigger. The `check-ha-version` tracker and the
-  merge-bot's `merge-ha-version-bump` job are **kept** - this repo uses them.
+  merge-bot's `ha-version-bump/` rule are **kept**, since this repo uses them.
 - **D9.6** Lint/type-checks are enforced in CI (D1.3), from the same config files the editor uses.
 
 ### D10 - Repository configuration
@@ -575,7 +575,7 @@ assert the fact behind each applicable guarantee with a `file:line` citation:
   number; CI/tracker use the standard group; reusable jobs declare permissions; the `build` boolean compares
   both forms.
 - **D8/D9:** the merge-bot runs on `pull_request_target` with the App token, keyed on PR number, merges with
-  `--delete-branch`, and carries `merge-ha-version-bump`; Dependabot auto-merge covers every tier
+  `--delete-branch`, and carries the `ha-version-bump/` rule. Dependabot auto-merge covers every tier
   (semver-major included) and is dual-target; the tracker is daily, App-signed, single rolling PR to develop; no codegen, NuGet/Docker
   task, date-badge, or `PUBLISH_ON_MERGE`; actions SHA-pinned except `dotnet/nbgv@master`; names / shells /
   conditionals per section 2.

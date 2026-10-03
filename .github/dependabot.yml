@@ -6,11 +6,10 @@
 # bumps join the bot-tested develop line; main's bumps keep the shipped branch
 # current without waiting on a develop -> main promotion.
 #
-# Scheduled version updates honor `target-branch`. Dependabot security update
-# PRs (the CVE-driven ones) always open against the default branch (main) and
-# ignore `target-branch`; the merge-bot `case` in
-# merge-bot-pull-request.yml handles either base, and a maintainer can
-# retarget from the PR UI if a one-off needs the other branch.
+# Scheduled version updates honor `target-branch`.
+# Dependabot security update PRs (the CVE-driven ones) always open against the default branch (main) and ignore `target-branch`.
+# The merge bot picks the merge method from the base, so it handles either one.
+# A maintainer can retarget from the PR UI if a one-off needs the other branch.
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
