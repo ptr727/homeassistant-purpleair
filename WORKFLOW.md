@@ -3,7 +3,8 @@
 The single guide for this repo's CI/CD **workflows** (GitHub Actions): **code style**, **architecture**, a
 **behavioral contract** (expected inputs and outputs), and a **test methodology**. Source style lives in
 [`CODESTYLE.md`](./CODESTYLE.md). This file covers everything under
-[`.github/workflows/`](./.github/workflows/).
+[`.github/workflows/`](./.github/workflows/) and the
+[`build-release-asset`](./.github/actions/build-release-asset/action.yml) hook.
 
 It **describes required outcomes, not a required implementation.** A workflow is correct when it satisfies
 the contract (section 4), whatever shape its YAML takes. Section 2 keeps workflows legible. Section 3 is
@@ -467,7 +468,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   `ptr727-codegen[bot]` or `dependabot[bot]`, it dispatches `publish-release.yml` on that branch and
   cancels its own run before creating any release. Otherwise the run fails. The dispatched run is an
   ordinary dispatch of the new head, so it retests before publishing. *Prevents a bot's workflow bump
-  stranding a dispatched release.* Two races stay open. A push landing between the check and the dispatch
+  stranding a dispatched release.* Three gaps stay open. A push landing between the check and the dispatch
   reaches the new run unchecked. The new run also replaces any run pending in the global concurrency
   group. A run queued before the cancel lands replaces the new run in turn. Either way, confirm the
   release appeared.
@@ -562,7 +563,8 @@ required-but-missing construct is a FAIL.
 
 ### 5A. Static audit (no execution)
 
-Read the workflow files plus `version.json`, `hacs.json`, `manifest.json`, and `ha-test-versions.json` and
+Read the workflow files, the `build-release-asset` hook, and the hub's `build-release-task.yml` at the
+pinned commit. Add `version.json`, `hacs.json`, `manifest.json`, and `ha-test-versions.json`, then
 assert the fact behind each applicable guarantee with a `file:line` citation:
 
 - **D0:** CI has no branch matrix; the publisher's `gate` restricts dispatch to `main`/`develop`; NBGV
@@ -581,6 +583,8 @@ assert the fact behind each applicable guarantee with a `file:line` citation:
   `fail_on_unmatched_files: true`, and the `build-release-asset` hook asserts the files-at-root HACS layout.
 - **D5:** the hub task's `release-asset-*` upload sets `retention-days: 1`. Its delete step is
   `continue-on-error: true`, deletes by name, and is independent of any required check.
+- **D4.8:** the hub task's supersede step checks the workflow files, the pusher allowlist, and the branch
+  head, then dispatches the publisher and cancels its run before the release-create step.
 - **D6:** CI is `push` on every branch; the aggregator context has exactly one producer; no
   `pull_request`-triggered fallback.
 - **D7:** the publisher group is ref-independent with `cancel-in-progress: false`; the merge-bot keys on PR
@@ -613,11 +617,12 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 | S12 | Dependabot semver-major bump | merge-bot enables auto-merge like any tier -> merges once the required checks pass; no publish | D8.2 |
 | S13 | a branch is **deleted** (push, all-zeros SHA) | the `!github.event.deleted` guard skips both CI jobs -> no failed run, no pending required check | D1.1 |
 | S14 | dispatch against a regressed tip (a failing test) | `test-release` reds -> `create-release` skips (requires `success`) -> no broken release ships | D4.6 |
+| S15 | a bot's workflow bump lands on the dispatched branch during a publish | the run dispatches the publisher on that branch and cancels before any release, then the new run retests and publishes the head | D4.8 |
 
 ### 5C. Live probe (where warranted, never publishing)
 
 - Open a trivial-change PR touching the integration and confirm S1. The suite runs, the zip smoke-builds and
-  asserts its layout, nothing is uploaded or published, and the aggregator is green.
+  asserts its layout, the zip is neither uploaded nor published, and the aggregator is green.
 - After a `main` dispatch confirm a stable release (`isPrerelease == false`, tag plus `purpleair.zip` at the
   archive root) and after a `develop` dispatch a prerelease `X.Y.Z-g<sha>`. Confirm the weekly schedule run
   retests and creates no release. Absent publish rights, record indeterminate and rely on 5A/5B.
