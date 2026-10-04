@@ -83,8 +83,8 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   since a fork cannot push here; or a NuGet/Docker publish, since this repo ships a HACS zip). A construct
   required by an applicable guarantee but absent is a **defect**.
 - **Default branch is `main`.** Guarantees say "default branch" portably. This repo writes the literal
-  `main` in the dispatch gate and the `prerelease` derivation (via `github.ref`), and the anchored
-  `^refs/heads/main$` in `version.json`'s `publicReleaseRefSpec`.
+  `main` in the dispatch gate and the anchored `^refs/heads/main$` in `version.json`'s
+  `publicReleaseRefSpec`. The hub task derives `prerelease` as `branch != 'main'` from the `branch` input.
 - **The verbs.** **Audit** (static 5A, configuration 5D), **Test** (trace, 5B), **Assess** (verdict).
 
 ## 2. Workflow style conventions
@@ -604,7 +604,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 | # | Input | Expected output | Exercises |
 | --- | --- | --- | --- |
 | S1 | push touching `custom_components/**` | `test-release` runs the full suite + the no-publish zip build (layout asserted); **no release**; aggregator success; prerelease version (branch != main) | D0.1, D1 |
-| S2 | push changing only docs | `test-release` runs; lint checks markdown; the no-publish build rebuilds the unchanged zip; nothing publishes | D1, D1.5 |
+| S2 | push changing only docs | `test-release` runs and lint checks markdown. The no-publish build rebuilds the zip with unchanged code and a new stamped version. Nothing publishes | D1, D1.5 |
 | S3 | push changing only `.github/workflows/**` | the changed reusable workflow is exercised head-resolved (self-test); aggregator success | D1.1, D6.1 |
 | S4 | `workflow_dispatch` from `main` | `gate` passes; `test-release` succeeds; `create-release` publishes a **stable** `X.Y.Z`, `prerelease=false`, tag on the dispatched SHA, `purpleair.zip` attached; artifacts cleaned up | D2.1, D3.2, D4 |
 | S5 | `workflow_dispatch` from `develop` | publishes a **prerelease** `X.Y.Z-g<sha>`, `prerelease=true`, `develop` SHA tagged | D2.1, D3.2, D4.2 |
