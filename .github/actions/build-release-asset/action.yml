@@ -3,7 +3,7 @@ description: Stamp the NBGV version into manifest.json and zip the integration a
 
 inputs:
   branch:
-    description: Logical branch the hub task is building. The zip is the same on every branch.
+    description: Logical branch the hub task is building. The hook does not read it, since the branch-specific version arrives as semver2.
     required: true
   smoke:
     description: Smoke mode. The zip builds the same either way, and the hub task skips its upload.

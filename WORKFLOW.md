@@ -691,13 +691,13 @@ the audit asserts the names exist. The App installation is not checked.
 
 <!-- Repo -->
 
-[codestyle]: ./CODESTYLE.md
-[workflows-dir]: ./.github/workflows/
-[build-release-asset]: ./.github/actions/build-release-asset/action.yml
-[integration-dir]: ./custom_components/purpleair/
-[test-pull-request-yml]: ./.github/workflows/test-pull-request.yml
-[publish-release-yml]: ./.github/workflows/publish-release.yml
-[check-ha-version-yml]: ./.github/workflows/check-ha-version.yml
-[test-release-task-yml]: ./.github/workflows/test-release-task.yml
-[editorconfig]: ./.editorconfig
 [audit]: ./AUDIT.md
+[build-release-asset]: ./.github/actions/build-release-asset/action.yml
+[check-ha-version-yml]: ./.github/workflows/check-ha-version.yml
+[codestyle]: ./CODESTYLE.md
+[editorconfig]: ./.editorconfig
+[integration-dir]: ./custom_components/purpleair/
+[publish-release-yml]: ./.github/workflows/publish-release.yml
+[test-pull-request-yml]: ./.github/workflows/test-pull-request.yml
+[test-release-task-yml]: ./.github/workflows/test-release-task.yml
+[workflows-dir]: ./.github/workflows/
