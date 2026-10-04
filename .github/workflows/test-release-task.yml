@@ -142,6 +142,10 @@ jobs:
           done
           shellcheck -s bash "$out"/*.sh
 
+      # The hub release task is each hook's only caller, so no local workflow lets actionlint read the action metadata.
+      - name: Validate composite action schema step
+        run: pipx run check-jsonschema --builtin-schema vendor.github-actions -- .github/actions/*/action.yml
+
       - name: Check shell formatting step
         run: docker run --rm -v "$PWD":/mnt --workdir /mnt mvdan/shfmt@sha256:8c06884a35683d8763fba6c0d9484d11a61a96da65f8d497d6f625825a6043f2 -d scripts/* # shfmt v3.14.1
 

@@ -2,9 +2,9 @@
 
 The single guide for this repo's CI/CD **workflows** (GitHub Actions): **code style**, **architecture**, a
 **behavioral contract** (expected inputs and outputs), and a **test methodology**. Source style lives in
-[`CODESTYLE.md`](./CODESTYLE.md). This file covers everything under
-[`.github/workflows/`](./.github/workflows/) and the
-[`build-release-asset`](./.github/actions/build-release-asset/action.yml) hook.
+[`CODESTYLE.md`][codestyle]. This file covers everything under
+[`.github/workflows/`][workflows-dir] and the
+[`build-release-asset`][build-release-asset] hook.
 
 It **describes required outcomes, not a required implementation.** A workflow is correct when it satisfies
 the contract (section 4), whatever shape its YAML takes. Section 2 keeps workflows legible. Section 3 is
@@ -14,22 +14,22 @@ assumes. Each guarantee names the **failure it prevents**, so the reason survive
 ## 0. The model at a glance
 
 homeassistant-purpleair ships **one target**: a **Home Assistant custom integration** distributed through
-[HACS](https://hacs.xyz/) as a zip release. The integration's Python lives in
-[`custom_components/purpleair/`](./custom_components/purpleair/); there is no compiled artifact. HACS is a
+[HACS][hacs] as a zip release. The integration's Python lives in
+[`custom_components/purpleair/`][integration-dir]. There is no compiled artifact. HACS is a
 **pull** distributor - it installs from a GitHub Release asset - so releasing is **dispatch-only**: a
 maintainer ships on demand, and ordinary merges never publish. Two workflows do the publishing work, plus a
 daily tracker that keeps the test matrix current:
 
-- **CI** ([`test-pull-request.yml`](./.github/workflows/test-pull-request.yml)) runs on **push to every
+- **CI** ([`test-pull-request.yml`][test-pull-request-yml]) runs on **push to every
   branch**: it validates (lint, type-check, the HA-version test matrix) and proves the release zip builds,
   publishing nothing. A pull request merges only when its required check is green.
-- **The publisher** ([`publish-release.yml`](./.github/workflows/publish-release.yml)) is **dispatch-only**,
+- **The publisher** ([`publish-release.yml`][publish-release-yml]) is **dispatch-only**,
   plus a **retest-only weekly schedule**. A `workflow_dispatch` from `main` cuts a **stable** release (clean
   NBGV `X.Y.Z`); a dispatch from `develop` cuts a **prerelease** (`X.Y.Z-g<sha>`). The **weekly schedule**
   re-runs the full test suite against the live HA matrix and **never publishes** - it is the main-side drift
   alarm complementing the tracker. There is **no `push` trigger**: a merge to `main` or `develop` never cuts
   a release.
-- **The HA-version tracker** ([`check-ha-version.yml`](./.github/workflows/check-ha-version.yml)) runs
+- **The HA-version tracker** ([`check-ha-version.yml`][check-ha-version-yml]) runs
   **daily**: it resolves the latest stable and beta Home Assistant versions from
   `pytest-homeassistant-custom-component` on PyPI and records them in `.github/ha-test-versions.json` via an
   App-signed, auto-merged bump PR to `develop`. It **retests**, it does **not** publish - a breaking HA
@@ -46,9 +46,9 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   triggered directly. File ends in `-task.yml`.
 - **Target** - the one shipped output: the **HACS zip** `purpleair.zip`. The hub's `build-release-task.yml`,
   reached by pin, builds it through this repo's
-  [`build-release-asset`](./.github/actions/build-release-asset/action.yml) hook and attaches it to a GitHub
+  [`build-release-asset`][build-release-asset] hook and attaches it to a GitHub
   Release.
-- **Validate task** - [`test-release-task.yml`](./.github/workflows/test-release-task.yml): ruff, mypy
+- **Validate task** - [`test-release-task.yml`][test-release-task-yml]: ruff, mypy
   `--strict`, pyright, the HA-version pytest matrix (Codecov upload), hassfest, HACS validate, and a
   no-publish build of the release zip. The Python analog of a validate-plus-smoke pair. CI runs it on every
   push; the publisher runs the identical task before any release.
@@ -122,15 +122,15 @@ Legibility rules. Necessary but not sufficient: a perfectly styled workflow can 
   `(needs.X.result == 'success' || needs.X.result == 'skipped')`, not `!= 'failure'`. A job that must run
   when an upstream `needs:` was *skipped* (the scheduled retest, whose `gate` is dispatch-only) wraps its
   `if:` in `always() &&` so GitHub's skipped-dependency auto-skip does not suppress it.
-- **Line endings.** Workflow YAML and JSON follow [`.editorconfig`](./.editorconfig) (LF). Preserve on
+- **Line endings.** Workflow YAML and JSON follow [`.editorconfig`][editorconfig] (LF). Preserve on
   every edit.
 
 ## 3. Architecture
 
 ### Two workflows: CI on push, publishing on dispatch
 
-CI ([`test-pull-request.yml`](./.github/workflows/test-pull-request.yml)) and the publisher
-([`publish-release.yml`](./.github/workflows/publish-release.yml)) are separate workflows with separate
+CI ([`test-pull-request.yml`][test-pull-request-yml]) and the publisher
+([`publish-release.yml`][publish-release-yml]) are separate workflows with separate
 concurrency, so they never race. CI re-tests every pushed tree and never publishes; the publisher releases
 only on a maintainer's dispatch (and retests, never publishes, on its weekly schedule). *Prevents a merge
 from silently cutting a release, and a CI run from racing a publish on the same ref.*
@@ -228,7 +228,7 @@ A pull request exercises its own workflow files. No change waits to reach `main`
   `develop`) so both branches stay current and never drift apart; a `develop` bump is sync-only and never
   publishes (merges do not publish here), and a `main` bump likewise ships only when a maintainer next
   dispatches a release. A merged bump does **not** itself publish.
-- **The HA-version tracker** ([`check-ha-version.yml`](./.github/workflows/check-ha-version.yml)) runs daily,
+- **The HA-version tracker** ([`check-ha-version.yml`][check-ha-version-yml]) runs daily,
   resolves the latest stable and beta HA from `pytest-homeassistant-custom-component` on PyPI, and opens
   **one** bundled rolling PR (`ha-version-bump/matrix`) to `develop` via the App, rewriting
   `.github/ha-test-versions.json`. The merge-bot's `ha-version-bump/` rule auto-merges it on green. It
@@ -630,7 +630,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 ### 5D. Configuration audit
 
 From a hub checkout at `main`, run `repo-config/configure.sh check ptr727/homeassistant-purpleair release`
-(section 6), and check secret names as [`AUDIT.md`](./AUDIT.md) section 4 describes, since `configure.sh` does
+(section 6), and check secret names as [`AUDIT.md`][audit] section 4 describes, since `configure.sh` does
 not check secrets. Together they confirm the listed secrets exist, the `main`/`develop` rulesets enforce the
 required merge method, status check, signed commits, and strict-off (with linear history on `develop`, and
 **no** linear-history rule on `main` so the promotion merge commit is allowed), and the repository settings
@@ -682,5 +682,22 @@ merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependab
 updates enabled. The GitHub App installed with the scopes above.
 
 **Validation.** This configuration is applied and audited by the hub's `repo-config/configure.sh` against the
-hub's payloads, with secret names checked separately, per [`AUDIT.md`](./AUDIT.md) section 4. Secret values cannot be read back, so
+hub's payloads, with secret names checked separately, per [`AUDIT.md`][audit] section 4. Secret values cannot be read back, so
 the audit asserts the names exist. The App installation is not checked.
+
+<!-- External -->
+
+[hacs]: https://hacs.xyz/
+
+<!-- Repo -->
+
+[codestyle]: ./CODESTYLE.md
+[workflows-dir]: ./.github/workflows/
+[build-release-asset]: ./.github/actions/build-release-asset/action.yml
+[integration-dir]: ./custom_components/purpleair/
+[test-pull-request-yml]: ./.github/workflows/test-pull-request.yml
+[publish-release-yml]: ./.github/workflows/publish-release.yml
+[check-ha-version-yml]: ./.github/workflows/check-ha-version.yml
+[test-release-task-yml]: ./.github/workflows/test-release-task.yml
+[editorconfig]: ./.editorconfig
+[audit]: ./AUDIT.md
