@@ -469,7 +469,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   ordinary dispatch of the new head, so it retests before publishing. *Prevents a bot's workflow bump
   stranding a dispatched release.* Two races stay open. A push landing between the check and the dispatch
   reaches the new run unchecked. The new run also replaces any run pending in the global concurrency
-  group, and a run queued before the cancel lands replaces the new run in turn. Either way, confirm the
+  group. A run queued before the cancel lands replaces the new run in turn. Either way, confirm the
   release appeared.
 
 ### D5 - Resource cleanup

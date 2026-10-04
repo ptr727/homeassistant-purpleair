@@ -280,7 +280,8 @@ Every repo's GitHub repository details (the About panel) follow a fixed conventi
 - `config/`: the local Home Assistant configuration `scripts/init-config` seeds for `scripts/develop`. Gitignored and never committed.
 - `aiopurpleair/`: the editable client-library checkout `scripts/setup` clones. Gitignored and never committed.
 - [`.github/ha-test-versions.json`](./.github/ha-test-versions.json): the Home Assistant test matrix, per [`OPERATIONS.md`](./OPERATIONS.md) "HA Test Matrix".
-- [`.github/workflows/`](./.github/workflows/): the PR gate, the shared test and build tasks, the HA-version bump bot, the merge bot, and the dispatch-only publisher. [`WORKFLOW.md`](./WORKFLOW.md) is the contract they implement.
+- [`.github/actions/`](./.github/actions/): the `build-release-asset` hook, which the hub's release task runs to stamp `manifest.json` and build the HACS zip.
+- [`.github/workflows/`](./.github/workflows/): the PR gate, the shared test task, the HA-version bump bot, the merge bot, and the dispatch-only publisher. [`WORKFLOW.md`](./WORKFLOW.md) is the contract they implement.
 - [`hacs.json`](./hacs.json): the HACS metadata, including the minimum supported Home Assistant version.
 
 After editing a doc, run the linters (see "Running the Linters Locally (Known-Working Invocations)", a hub-only section read in a hub checkout rather than carried into every fleet repo, and [`OPERATIONS.md`](./OPERATIONS.md) "Local Verification") before commit. The Comments, Character Set, and Line Endings rules above are the frequent regressions, so hold them exactly.
