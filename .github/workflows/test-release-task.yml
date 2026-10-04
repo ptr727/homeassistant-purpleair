@@ -124,6 +124,24 @@ jobs:
       - name: Lint shell scripts step
         run: shellcheck scripts/*
 
+      # actionlint reads no composite action's run: bodies, so each hook's shell is extracted with the preinstalled yq and shellchecked.
+      - name: Lint composite action shell step
+        run: |
+          set -Eeuo pipefail
+          out="$RUNNER_TEMP/action-shell"
+          mkdir -p "$out"
+          for action in .github/actions/*/action.yml; do
+            name=$(basename "$(dirname "$action")")
+            count=$(yq '.runs.steps | length' "$action")
+            for ((i = 0; i < count; i++)); do
+              body=$(yq ".runs.steps[$i].run // \"\"" "$action")
+              if [[ -n "$body" ]]; then
+                printf '%s\n' "$body" > "$out/$name-$i.sh"
+              fi
+            done
+          done
+          shellcheck -s bash "$out"/*.sh
+
       - name: Check shell formatting step
         run: docker run --rm -v "$PWD":/mnt --workdir /mnt mvdan/shfmt@sha256:8c06884a35683d8763fba6c0d9484d11a61a96da65f8d497d6f625825a6043f2 -d scripts/* # shfmt v3.14.1
 

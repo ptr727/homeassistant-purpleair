@@ -584,7 +584,7 @@ assert the fact behind each applicable guarantee with a `file:line` citation:
 - **D5:** the hub task's `release-asset-*` upload sets `retention-days: 1`. Its delete step is
   `continue-on-error: true`, deletes by name, and is independent of any required check.
 - **D4.8:** the hub task's supersede step checks the workflow files, the pusher allowlist, and the branch
-  head, then dispatches the publisher and cancels its run before the release-create step.
+  head. It then dispatches the publisher and cancels its run before the release-create step.
 - **D6:** CI is `push` on every branch; the aggregator context has exactly one producer; no
   `pull_request`-triggered fallback.
 - **D7:** the publisher group is ref-independent with `cancel-in-progress: false`; the merge-bot keys on PR
