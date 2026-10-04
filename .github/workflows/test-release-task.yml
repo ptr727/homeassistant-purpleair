@@ -5,12 +5,8 @@ on:
     inputs:
       # Controls whether the no-publish build-release child job runs.
       # PR-trigger callers (test-pull-request.yml) want it true so the
-      # build path is validated end-to-end on every PR. The
-      # publish-release.yml caller wants it false because create-release
-      # builds the artifact for real immediately after; running both
-      # would double the build cost and produce two purpleair-zip
-      # artifacts in the same workflow run, which only works because of
-      # an undocumented quirk of actions/upload-artifact.
+      # build path is validated end-to-end on every PR.
+      # The publish-release.yml caller wants it false because create-release builds the zip for real immediately after.
       build:
         required: false
         type: boolean
@@ -127,6 +123,28 @@ jobs:
       # shellcheck is preinstalled on ubuntu-latest runners; actionlint above covers embedded workflow shell.
       - name: Lint shell scripts step
         run: shellcheck scripts/*
+
+      # actionlint reads no composite action's run: bodies, so each hook's shell is extracted with the preinstalled yq and shellchecked.
+      - name: Lint composite action shell step
+        run: |
+          set -Eeuo pipefail
+          out="$RUNNER_TEMP/action-shell"
+          mkdir -p "$out"
+          for action in .github/actions/*/action.yml; do
+            name=$(basename "$(dirname "$action")")
+            count=$(yq '.runs.steps | length' "$action")
+            for ((i = 0; i < count; i++)); do
+              body=$(yq ".runs.steps[$i].run // \"\"" "$action")
+              if [[ -n "$body" ]]; then
+                printf '%s\n' "$body" > "$out/$name-$i.sh"
+              fi
+            done
+          done
+          shellcheck -s bash "$out"/*.sh
+
+      # The hub release task is each hook's only caller, so no local workflow lets actionlint read the action metadata.
+      - name: Validate composite action schema step
+        run: pipx run check-jsonschema --builtin-schema vendor.github-actions -- .github/actions/*/action.yml
 
       - name: Check shell formatting step
         run: docker run --rm -v "$PWD":/mnt --workdir /mnt mvdan/shfmt@sha256:8c06884a35683d8763fba6c0d9484d11a61a96da65f8d497d6f625825a6043f2 -d scripts/* # shfmt v3.14.1
@@ -277,8 +295,13 @@ jobs:
     # - so a bare `if: ${{ inputs.build }}` would run this job even on a
     # manual dispatch with build=false. Compare against both forms.
     if: ${{ inputs.build == true || inputs.build == 'true' }}
-    uses: ./.github/workflows/build-release-task.yml
-    secrets: inherit
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6b1b1477752e4998db98cc5af67605d4319e05a2 # 2.0.807
     with:
-      # Validate the build pipeline produces purpleair.zip without publishing.
-      github: false
+      # Smoke mode builds purpleair.zip through the hook and never uploads or publishes it.
+      smoke: true
+      branch: ${{ github.base_ref || github.ref_name }}
+      enable_release_asset: true
+      enable_docker: false
+      enable_nuget: false
+      enable_pypi: false
+      enable_dotnet_publish: false

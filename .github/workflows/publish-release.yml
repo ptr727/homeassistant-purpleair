@@ -58,11 +58,8 @@ jobs:
     # `always()` overrides the auto-skip so the explicit success/skipped
     # allowlist runs and the scheduled retest of main actually executes.
     #
-    # Pass `build: false` so test-release-task skips its no-publish
-    # build-release child. The create-release job below builds the
-    # artifact for real immediately after, and two builds in the same
-    # workflow run would (a) produce two same-named `purpleair-zip`
-    # artifacts and (b) double the build cost for no extra signal.
+    # Pass `build: false` so test-release-task skips its no-publish build-release child.
+    # The create-release job below builds the zip for real immediately after, so a second build adds cost and no signal.
     if: >-
       always() &&
       (needs.gate.result == 'success' || needs.gate.result == 'skipped')
@@ -80,16 +77,25 @@ jobs:
     # - dispatch on develop: gate=success, test-release=success -> prerelease.
     # `test-release` must succeed - never `skipped`/`failure`/`cancelled` - so
     # a broken tip cannot ship.
+    # The hub task's validate-release job then refuses a main version with a prerelease suffix, or a develop one without.
     if: >-
       always() &&
       github.event_name == 'workflow_dispatch' &&
       needs.gate.result == 'success' &&
       needs.test-release.result == 'success'
-    uses: ./.github/workflows/build-release-task.yml
-    secrets: inherit
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6b1b1477752e4998db98cc5af67605d4319e05a2 # 2.0.807
+    # The hub task's release upload, artifact cleanup, and supersede dispatch-and-cancel (WORKFLOW.md D4.8) all write with GITHUB_TOKEN.
     permissions:
       contents: write
       actions: write
     with:
-      # Push to GitHub Releases (no NuGet/Docker Hub equivalents for an HA component).
+      ref: ${{ github.sha }}
       github: true
+      branch: ${{ github.ref_name }}
+      # The one target is the HACS zip, which the build-release-asset hook builds.
+      # Every other enable_* input defaults true on the task, so each is turned off.
+      enable_release_asset: true
+      enable_docker: false
+      enable_nuget: false
+      enable_pypi: false
+      enable_dotnet_publish: false
