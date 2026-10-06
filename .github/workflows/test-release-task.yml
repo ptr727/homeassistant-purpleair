@@ -295,7 +295,7 @@ jobs:
     # - so a bare `if: ${{ inputs.build }}` would run this job even on a
     # manual dispatch with build=false. Compare against both forms.
     if: ${{ inputs.build == true || inputs.build == 'true' }}
-    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6b1b1477752e4998db98cc5af67605d4319e05a2 # 2.0.807
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@0b7cba39577e35929f4a9ece7dcf25a497f89bef # 2.0.810
     with:
       # Smoke mode builds purpleair.zip through the hook and never uploads or publishes it.
       smoke: true
