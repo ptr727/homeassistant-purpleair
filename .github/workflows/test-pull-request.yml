@@ -16,31 +16,87 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# GITHUB_TOKEN gets no scope by default, and each job below grants only what it reads with.
+permissions: {}
+
 jobs:
 
-  test-release:
-    name: Test release job
+  # The hub gate takes its pytest legs as an input, so they are read from .github/ha-test-versions.json at run time.
+  read-versions:
+    name: Read HA test matrix job
     # Skip the phantom run a branch deletion would otherwise fire under push:['**'].
     if: ${{ !github.event.deleted }}
-    uses: ./.github/workflows/test-release-task.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code step
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-  # Wire branch protection's "required status check" to this single job.
-  # When test-release-task contains multiple sibling jobs, the calling
-  # workflow only sees one aggregated `result` per `uses:` invocation -
-  # `success` iff every child job in the called workflow succeeded.
-  # https://github.com/orgs/community/discussions/12395#discussioncomment-12970019
+      - name: Build HA test matrix step
+        id: matrix
+        uses: ./.github/actions/ha-test-matrix
+
+  # The hub lint job runs the doc lint, ruff, and mypy --strict against latest-stable.
+  # Its unit-test job runs one pytest leg per matrix entry through the install-test-deps hook.
+  # Its validate job runs the validate hook's hassfest, HACS, and pyright.
+  # A deleted branch skips read-versions, and this job inherits that skip through needs.
+  validate:
+    name: Validate sources job
+    needs: [read-versions]
+    uses: ptr727/ProjectTemplate/.github/workflows/validate-task.yml@50b6bc3725675c477cf8fa1b3b34e5abd8fa2c01 # 2.0.972
+    permissions:
+      contents: read
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    with:
+      python-directories: |
+        .
+      python-versions: '["3.14"]'
+      test-matrix: ${{ needs.read-versions.outputs.matrix }}
+
+  # Smoke mode builds purpleair.zip through the build-release-asset hook and never uploads or publishes it (WORKFLOW.md D1.4).
+  # It runs on every push rather than behind a paths filter, so the HACS zip build is proven on every change.
+  smoke-build:
+    name: Smoke build job
+    if: ${{ !github.event.deleted }}
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@50b6bc3725675c477cf8fa1b3b34e5abd8fa2c01 # 2.0.972
+    permissions:
+      contents: read
+    with:
+      smoke: true
+      branch: ${{ github.base_ref || github.ref_name }}
+      enable_release_asset: true
+      enable_docker: false
+      enable_nuget: false
+      enable_pypi: false
+      enable_dotnet_publish: false
+
+  # Branch protection's required status check binds this single job by name.
+  # Every job above always runs on a live branch, so anything but success, a skip included, fails the gate.
   check-workflow-status:
     name: Check pull request workflow status job
     runs-on: ubuntu-latest
-    needs: [test-release]
+    needs: [read-versions, validate, smoke-build]
     # always() so the aggregator runs even when a need failed; !deleted skips the branch-deletion phantom run.
     if: ${{ always() && !github.event.deleted }}
     steps:
       - name: Check workflow results step
+        env:
+          READ_VERSIONS: ${{ needs.read-versions.result }}
+          VALIDATE: ${{ needs.validate.result }}
+          SMOKE_BUILD: ${{ needs.smoke-build.result }}
         run: |
           set -Eeuo pipefail
-          if [[ "${{ needs.test-release.result }}" != "success" ]]; then
-              echo "Job 'test-release' result: ${{ needs.test-release.result }}"
-              exit 1
-          fi
+          failed=0
+          for result in "read-versions:$READ_VERSIONS" "validate:$VALIDATE" "smoke-build:$SMOKE_BUILD"; do
+            name="${result%%:*}"
+            value="${result#*:}"
+            if [[ "$value" != "success" ]]; then
+              echo "::error::Job '$name' did not succeed ($value)."
+              failed=1
+            fi
+          done
+          exit "$failed"

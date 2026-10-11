@@ -25,13 +25,15 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # "/" reads only .github/workflows, so the composite actions holding hassfest, HACS, and setup-uv pins are listed too.
+    directories: ["/", "/.github/actions/*"]
     target-branch: "main"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # "/" reads only .github/workflows, so the composite actions holding hassfest, HACS, and setup-uv pins are listed too.
+    directories: ["/", "/.github/actions/*"]
     target-branch: "develop"
     schedule:
       interval: "daily"

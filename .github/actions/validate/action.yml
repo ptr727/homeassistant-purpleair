@@ -1,0 +1,45 @@
+name: Validate repository (Home Assistant integration)
+description: Hassfest, the HACS action, and pyright, the integration checks the hub validate task does not run itself.
+
+# The hub validate task's validate job runs this hook after its checkout.
+# Each check runs even when an earlier one failed, so one run reports every failing check rather than the first.
+
+runs:
+  using: composite
+  steps:
+
+    # https://developers.home-assistant.io/blog/2020/04/16/hassfest
+    - name: Run hassfest validation step
+      uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master
+
+    # https://github.com/hacs/action
+    - name: Run HACS validation step
+      if: ${{ !cancelled() }}
+      uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
+      with:
+        category: integration
+
+    # The hub type check runs one checker, and the [tool.mypy] section in pyproject.toml makes that mypy --strict.
+    # Pyright is the CLI engine behind VS Code's Pylance extension, so running it too keeps the in-editor and CI experience in sync.
+    # The requirements-test.txt file pins homeassistant to latest-stable and pins pyright, so this checks what the mypy run checks, with a reproducible pyright.
+    - name: Setup uv step
+      if: ${{ !cancelled() }}
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        python-version: "3.14"
+
+    - name: Install requirements step
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+        uv venv
+        uv pip install --python .venv/bin/python -r requirements-test.txt
+
+    # Scope, mode, and enabled rules are configured in pyrightconfig.json.
+    - name: Run pyright step
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+        .venv/bin/pyright --pythonpath .venv/bin/python

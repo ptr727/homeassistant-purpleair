@@ -20,7 +20,7 @@ from aiopurpleair.errors import (
 )
 from aiopurpleair.models.keys import GetKeysResponse
 from aiopurpleair.models.sensors import GetSensorsResponse, SensorModel
-import voluptuous as vol
+import probatio as vol
 
 from homeassistant.config_entries import (
     ConfigEntry,
