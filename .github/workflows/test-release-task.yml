@@ -154,9 +154,9 @@ jobs:
     # The matrix is sourced from .github/ha-test-versions.json so that
     # check-ha-version.yml can bump it via PR. `minimum` is hand-maintained
     # and must match hacs.json["homeassistant"] (the user-facing minimum);
-    # currently 2026.8.0, the first release with the per-config-entry
-    # device lookup (`async_get_device_by_identifier`) the integration
-    # uses. requirements.txt's `homeassistant==X`
+    # currently 2026.10.0, the first release using the probatio
+    # flow-schema API (`probatio.Schema`) the config flow builds its
+    # schemas with. requirements.txt's `homeassistant==X`
     # is a dev/CI bootstrap pin tracking `latest-stable` so the devcontainer
     # develops against the release most users run; the pytest step below
     # overrides it per matrix leg with
