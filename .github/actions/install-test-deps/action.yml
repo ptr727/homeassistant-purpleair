@@ -1,0 +1,81 @@
+name: Install HA test leg dependencies
+description: Install one HA test matrix leg's Home Assistant and aiopurpleair over the base requirements, and type-check the legs that test the minimum library.
+
+# The hub validate task's unit-test job calls this hook once per test-matrix leg, after it installs requirements*.txt into .venv and before it runs pytest without re-syncing.
+# The leg comes from the ha-test-matrix action, so its fields are the ones that action writes.
+
+inputs:
+  leg:
+    description: The matrix leg as a JSON object, with ha-version, pytest-hacc-version, and aiopurpleair set to minimum or pin.
+    required: true
+  directories:
+    description: The resolved Python projects, one '<kind><TAB><directory>' line each. Only the root pip project is supported.
+    required: true
+
+runs:
+  using: composite
+  steps:
+
+    # The steps below install into the root .venv, so a later python-directories change must fail here rather than leave a project on the base pins.
+    - name: Check Python directories step
+      shell: bash
+      env:
+        DIRECTORIES: ${{ inputs.directories }}
+      run: |
+        set -Eeuo pipefail
+        projects=$(sed '/^[[:space:]]*$/d' <<<"$DIRECTORIES")
+        if [[ "$projects" != $'pip\t.' ]]; then
+          echo "::error::The install-test-deps hook supports only the root pip project, got: ${projects//$'\n'/, }"
+          exit 1
+        fi
+
+    # The requirements.txt file pins homeassistant to latest-stable for the devcontainer, so every leg reinstalls its own slot, minimum included.
+    - name: Install the leg's Home Assistant step
+      shell: bash
+      env:
+        LEG: ${{ inputs.leg }}
+      run: |
+        set -Eeuo pipefail
+        ha=$(jq -er '."ha-version"' <<<"$LEG")
+        hacc=$(jq -er '."pytest-hacc-version"' <<<"$LEG")
+        uv pip install --python .venv/bin/python \
+          "homeassistant==$ha" \
+          "pytest-homeassistant-custom-component==$hacc"
+        echo "Testing Home Assistant $ha with pytest-homeassistant-custom-component $hacc"
+
+    # HA keeps an installed library while it satisfies the manifest's >= minimum.
+    # A venv install can therefore stay on an old release across HA updates.
+    # Dependabot moves only the requirements-test.txt pin, so the minimum legs test the oldest allowed release.
+    - name: Install the manifest's minimum aiopurpleair step
+      if: ${{ fromJSON(inputs.leg).aiopurpleair == 'minimum' }}
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+        requirement=$(jq -er '
+          [.requirements[] | select(startswith("ptr727-aiopurpleair>="))]
+          | if length == 1 then .[0]
+            else error("expected exactly one ptr727-aiopurpleair>= requirement") end
+        ' custom_components/purpleair/manifest.json)
+        minimum=${requirement#ptr727-aiopurpleair>=}
+        if [[ ! "$minimum" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+          echo "::error::Unsupported manifest requirement: $requirement"
+          exit 1
+        fi
+        uv pip install --python .venv/bin/python "ptr727-aiopurpleair==$minimum"
+        installed=$(.venv/bin/python -c "import importlib.metadata as m; print(m.version('ptr727-aiopurpleair'))")
+        # PEP 440 equality pads with zeros, so 1.1 installs 1.1.0.
+        if ! .venv/bin/python -c "import sys; from packaging.version import Version; sys.exit(Version(sys.argv[1]) != Version(sys.argv[2]))" "$installed" "$minimum"; then
+          echo "::error::Installed ptr727-aiopurpleair $installed, expected $minimum"
+          exit 1
+        fi
+        echo "Testing ptr727-aiopurpleair $installed, the manifest minimum"
+
+    # The tests mock the API client without a spec, so they miss calls the minimum lacks.
+    # The library ships type hints, so mypy against the installed minimum catches them.
+    # It runs here because this leg's environment exists only inside the hub's unit-test job, and the hub type check sees only latest-stable.
+    - name: Type-check against the manifest's minimum aiopurpleair step
+      if: ${{ fromJSON(inputs.leg).aiopurpleair == 'minimum' }}
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+        .venv/bin/python -m mypy
