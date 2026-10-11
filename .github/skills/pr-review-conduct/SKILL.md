@@ -39,7 +39,7 @@ visible comments, routinely still carries a finding nobody has answered. Treatin
    thread, and a missing approval alike, and the response differs by cause.
 2. A review is confirmed on the **current head SHA**. On a pull request into a branch other than the
    default, a head after Copilot's first round can carry an attested local pass instead,
-   `review_on_head=local` in the digest, where the whole review history is in view and no round on
+   `coverage=local` in the digest, where the whole review history is in view and no round on
    record states or appears to state partial coverage, and a pull request into the default branch, a
    promotion among them, always carries a Copilot round on its head. A review is matched by commit
    SHA rather than assumed from a green merge-state. A push makes checks go green *before* the
@@ -81,6 +81,32 @@ visible comments, routinely still carries a finding nobody has answered. Treatin
    unsatisfied item goes to the maintainer, with the coverage the other reviewers gave that head
    read rather than counted and named to them, and their permission under item 5 is what allows
    the merge. Item 2 is never waived, and a merge over an unsatisfied one is theirs to authorize.
+
+   One further case satisfies this item where no coverage reaches the head, and it is the only
+   such case. The maintainer adopted it as a standing rule. It applies to a develop -> main
+   promotion on which `pr_review.py` exits `45`. That promotion satisfies item 2 where all three
+   of these hold on the live head:
+
+   - Every change it carries had full coverage on its own feature -> develop pull request. That
+     pull request met item 2 at its merged head by coverage, not by permission. Failing that,
+     each file it changed has positive evidence of a full read, at the head that last changed
+     the file or a later one. A Copilot table row with no note is such evidence. It counts only
+     where no Copilot round on that pull request, on any commit, states or appears to state
+     partial coverage. A round stating full coverage is evidence for every file. So is a
+     `local-strict-review` pass recorded for that pull request, for every file its diff held.
+   - Every review thread on the promotion is resolved, and every check passes.
+   - Exit `45` is the only reason `pr_review.py` does not report the promotion ready. Read this
+     from the digest's lines rather than from the exit code, since exit `45` returns before the
+     exit `50` check runs. A `VERDICT WITH NO COUNTED FINDING` headline is a second reason until
+     it is answered under item 3, and not after.
+
+   The merge then runs with `--match-head-commit` set to the head those were checked on. The
+   evidence names each constituent pull request and how its coverage was stated. An
+   `unattended-handoff` worker records it on the handoff, and an attended merge reports it to the
+   maintainer. Any other shortfall still goes to the maintainer. One example is a promotion
+   carrying a change whose own pull request lacked that coverage, such as one another lane merged
+   with no review round. The case answers item 2 alone, so item 5's permission is still owed.
+   Every pull request other than a promotion owes this item's coverage in full.
 3. **Every** finding on that head SHA is closed: threads resolved, issue-level comments (which
    have no resolve action) triaged and replied to, **and** the low-confidence findings collapsed
    in the review body investigated and answered. Those appear in no thread, so polling threads
@@ -103,7 +129,12 @@ visible comments, routinely still carries a finding nobody has answered. Treatin
    nothing else does, so read it and dispose of what it holds as this section's outcomes require.
    `T` reads `?` where no total was found, which is a round stating none and equally one the digest
    could not locate, so a `?` leaves this item unsatisfied and sends you to the body exactly as a
-   shortfall does.
+   shortfall does. The digest's `FINDINGS WITH NO THREAD` block also counts an open-findings entry
+   whose title links no thread, whatever the totals say. A round with a verdict other than the
+   clean one that counts no finding prints its headline under `VERDICT WITH NO COUNTED FINDING`,
+   and `status` and `wait` exit `50`. The
+   headline is the one place that round names what it flags, so answer it as a suppressed finding.
+   The exit code repeats on that head after the answer.
    The body read in that format so far carried no `Suppressed comments` heading, so `suppressed=`
    finds nothing in it and there is no collapsed block to quote a count from: the digest's
    shortfall and the body's own prose are what an answer cites instead. A later body that does
@@ -126,6 +157,15 @@ visible comments, routinely still carries a finding nobody has answered. Treatin
    while a finding on an intent unit is filed there too, the carrier adapting its own copy
    meanwhile, since the defect is still fixed at the source. Every other finding, a `style`
    remark on untouched text included, takes its own outcome in that section.
+
+   A finding the pull request's own body lists also needs an outcome before merge, under
+   "Every finding ends in one of five outcomes" below. Per the `local-strict-review` section
+   "Disposing of Findings", the body lists each one still open once a push's edit budget is spent.
+   It needs that outcome whichever head it was found on and whether or not a reviewer raises it
+   again. `pr_review.py status` and `wait` do not read the pull request's body, so read the body
+   live for that list before judging this item. It has no thread, so answer it as
+   "Answering a suppressed finding" below states. Cite the body's list where that section links
+   the review round, and the list's length where it states the block's `(N)` count.
 4. Nothing in the review was a shape the tooling could not read (an unrecognized heading, a moved
    section, an unfamiliar coverage wording). An unrecognized shape blocks the gate on its own.
    File an issue naming it and quoting the body, rather than guessing what the new wording
@@ -244,9 +284,11 @@ After an authorized merge, run the `repo-worktree` post-merge cleanup procedure 
    Disprove a wrong finding with the command and its output, the code path that makes it
    impossible, or the rule that governs it. A finding that is factually correct but not this
    repo's to fix (a verbatim-fidelity manifest entry byte-locking the section, ownership that
-   sits elsewhere) declines the same way: name the boundary and cite what proves it. Either shape
-   closes the thread on its own evidence, and the agent resolves such a thread itself rather than
-   leaving it for the maintainer. What makes that safe is the evidence being checkable by anyone,
+   sits elsewhere) declines the same way: name the boundary and cite what proves it. So does a
+   hardening finding that `GOVERNANCE.md` "Trust Boundaries and Hardening Effort" rules out,
+   citing that section and the input or deployment it turns on. Each shape closes the thread on
+   its own evidence, and the agent resolves such a thread itself rather than leaving it for the
+   maintainer. What makes that safe is the evidence being checkable by anyone,
    a command and its output, the code path, the quoted rule, a byte-identical diff, so a decline
    resting on anything weaker is not one of these. An assertion ("this is fine") does not close a
    finding, and outcome 3's value call is the maintainer's, so that thread stays open until they
@@ -284,6 +326,13 @@ instance's outcome is context for the new one, never a standing answer to reuse 
 never against its confidence label. Classify before responding:
 
 - **Bug**, wrong behavior, missing coverage, a real code or doc divergence. Fix it.
+- **Hardening that `GOVERNANCE.md` "Trust Boundaries and Hardening Effort" rules out**, including
+  a test it says not to write. Decline it under outcome 2, even where it reads as missing coverage.
+- **Design finding that `GOVERNANCE.md` "Design Before Code" backs**, such as logic an existing
+  helper provides or a per-site fix for a class seen elsewhere. It is not an architectural
+  opinion. Fix it, extending the existing helper where this repository holds it, and move the
+  class's sites in the touched files onto it. File the other sites as one issue naming each, and
+  an extension a helper in another repository needs as an issue in that repository.
 - **Style or convention**. If the cited rule matches the existing tree, fix the code. If the rule
   contradicts the tree or industry norm, **fix the rule, not the code**, and take it to the
   maintainer (outcome 5) rather than bouncing the same code across rounds.
@@ -293,12 +342,13 @@ never against its confidence label. Classify before responding:
 ## Answering a suppressed finding
 
 A suppressed finding has no thread and no resolved or unresolved state, so an answer needs to
-carry its own context: quote the finding (with its `file:line` anchor and enough of the
-reviewer's own words to identify it), give one bold verdict per finding (`Fixed in <SHA>`,
-`Disproven`, or `No change needed`), state the `(N)` count the block gave so answers can be
-checked against findings, and link the review round. **Read every round, not only the head.** A
-suppressed finding does not retire when a later push supersedes it, it just stops showing up in a
-head-scoped query while still unanswered. Post the answer with `scripts/pr_review.py comment <number> --repo <owner>/<repo> --body <text>`
+carry its own context. Quote the finding with its `file:line` anchor and enough of the reviewer's
+own words to identify it. Give one bold verdict per finding: `Fixed in <SHA>`, `Disproven`,
+`No change needed`, `Deferred to <issue>`, or `Awaiting maintainer`. An `Awaiting maintainer`
+answer leaves the finding open until a later answer records the maintainer's decision. State the
+`(N)` count the block gave so answers can be checked against findings, and link the review round.
+**Read every round, not only the head.** A suppressed finding does not retire when a later push
+supersedes it, it just stops showing up in a head-scoped query while still unanswered. Post the answer with `scripts/pr_review.py comment <number> --repo <owner>/<repo> --body <text>`
 from a hub checkout. Do not use a provider connector or reconstruct the GitHub mutation.
 
 ## Escalate to the maintainer when
@@ -328,6 +378,7 @@ longer carries. `status` reports coverage, threads, body-only findings, and
 shapes in one call. `wait` requests and polls in-process. `comment` posts a PR-conversation
 answer after it reads the PR node ID. `reply` answers a thread by matching the finding's own
 words instead of a line number a fix push can move, and resolves it only when `--resolve` is
-given. The repository's
+given. A finding posted twice on one file, as two threads with the same text, is answered with
+`--all-identical`, which the refusal names. The repository's
 `.github/copilot-instructions.md` bootstraps Copilot into the `fleet-code-review` skill and its stable
 coverage marker. Do not reconstruct the API operations by hand.

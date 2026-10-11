@@ -358,7 +358,7 @@ Licensed under the [Apache 2.0 License][license] and [NOTICE][notice]\
 [buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-pull-request.yml?logo=github&label=Build%20Status
 [coverage-shield]: https://img.shields.io/codecov/c/github/ptr727/homeassistant-purpleair?logo=codecov&label=Coverage
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
-[haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.8.0%2B-41BDF5?logo=homeassistant
+[haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.10.0%2B-41BDF5?logo=homeassistant
 [lastcommit-shield]: https://img.shields.io/github/last-commit/ptr727/homeassistant-purpleair?logo=github&label=Last%20Commit
 [license-shield]: https://img.shields.io/github/license/ptr727/homeassistant-purpleair?label=License
 [prereleaseversion-shield]: https://img.shields.io/github/v/release/ptr727/homeassistant-purpleair?include_prereleases&label=GitHub%20Pre-Release&logo=github&color=orange

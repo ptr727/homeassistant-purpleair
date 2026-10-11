@@ -2,6 +2,15 @@
 asyncio_mode = "auto"
 testpaths = ["tests"]
 norecursedirs = ["config"]
+# The hub validate task runs pytest with only --cov-report=xml, so the coverage selector lives here.
+addopts = ["-ra", "--cov=custom_components/purpleair", "--cov-branch"]
+
+# The hub validate task type-checks with mypy wherever this section exists, and with no paths of its own.
+# Platinum quality-scale rule "strict-typing" requires a clean strict run.
+[tool.mypy]
+files = ["custom_components/purpleair"]
+strict = true
+follow_imports = "silent"
 
 # Pylint isn't part of the CI gate (scripts/lint runs ruff + mypy --strict),
 # but the VS Code Python extension surfaces pylint diagnostics inline. Most
