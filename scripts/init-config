@@ -9,6 +9,22 @@
 
 set -Eeuo pipefail
 
+usage="Usage: scripts/init-config [-h | --help]
+Seed a minimal config/configuration.yaml if none exists."
+if (($# > 0)); then
+    case "$1" in
+    -h | --help)
+        echo "$usage"
+        exit 0
+        ;;
+    *)
+        echo "Unknown argument: $1" >&2
+        echo "$usage" >&2
+        exit 2
+        ;;
+    esac
+fi
+
 cd "$(dirname "$0")/.."
 
 if [[ ! -f config/configuration.yaml ]]; then

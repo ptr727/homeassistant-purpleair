@@ -2,6 +2,22 @@
 
 set -Eeuo pipefail
 
+usage="Usage: scripts/develop [-h | --help]
+Seed config/ if needed, then start Home Assistant with this integration."
+if (($# > 0)); then
+    case "$1" in
+    -h | --help)
+        echo "$usage"
+        exit 0
+        ;;
+    *)
+        echo "Unknown argument: $1" >&2
+        echo "$usage" >&2
+        exit 2
+        ;;
+    esac
+fi
+
 cd "$(dirname "$0")/.."
 
 # Activate the uv-managed .venv (created by scripts/setup) so `hass` resolves.

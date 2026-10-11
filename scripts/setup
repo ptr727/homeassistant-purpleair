@@ -19,6 +19,22 @@
 
 set -Eeuo pipefail
 
+usage="Usage: scripts/setup [-h | --help]
+Install the dev toolchain: .venv with pinned requirements, editable aiopurpleair, go2rtc, HACS, markdownlint-cli2, and the pre-commit hook."
+if (($# > 0)); then
+    case "$1" in
+    -h | --help)
+        echo "$usage"
+        exit 0
+        ;;
+    *)
+        echo "Unknown argument: $1" >&2
+        echo "$usage" >&2
+        exit 2
+        ;;
+    esac
+fi
+
 cd "$(dirname "$0")/.."
 
 # The dev toolchain is uv-managed. Ensure uv is present, create the .venv, and
