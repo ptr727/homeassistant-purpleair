@@ -446,10 +446,7 @@ def _async_reconcile_entity_defaults(hass: HomeAssistant) -> None:
     wants on by default just delivers the new default.
     """
     # Local import: ``.sensor`` indirectly imports from this module.
-    from .sensor import (  # noqa: PLC0415
-        DESCRIPTIONS_BY_KEY,
-        ORGANIZATION_DESCRIPTIONS_BY_KEY,
-    )
+    from .sensor import DESCRIPTIONS_BY_KEY, ORGANIZATION_DESCRIPTIONS_BY_KEY  # noqa: PLC0415
 
     registry = er.async_get(hass)
     scanned_entities = 0
