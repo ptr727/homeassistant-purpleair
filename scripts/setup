@@ -20,7 +20,9 @@
 set -Eeuo pipefail
 
 usage="Usage: scripts/setup [-h | --help]
-Install the dev toolchain: .venv with pinned requirements, editable aiopurpleair, go2rtc, HACS, markdownlint-cli2, and the pre-commit hook."
+Install the dev toolchain: .venv with pinned requirements and the HA frontend,
+editable aiopurpleair, HACS, markdownlint-cli2, the pre-commit hook, and
+go2rtc and actionlint into /usr/local/bin with sudo."
 if (($# > 0)); then
     case "$1" in
     -h | --help)
