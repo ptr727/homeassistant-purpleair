@@ -1,0 +1,40 @@
+name: Build HA test matrix
+description: Read .github/ha-test-versions.json and emit the pytest legs as the hub validate task's test-matrix input.
+
+# The matrix is sourced from .github/ha-test-versions.json so that check-ha-version.yml can bump it via a pull request.
+# `minimum` is hand-maintained and must match hacs.json's homeassistant field, currently 2026.10.0.
+# That is the first release using the probatio flow-schema API (`probatio.Schema`) the config flow builds its schemas with.
+# `latest-stable` and `latest-beta` are bot-maintained, and the beta slot is null when no pre-release is newer than the stable.
+# Every slot gates merges and publishes equally, so a regression against any one fails the run.
+# Test pull request and publish release both reach the validate task, so the legs are built here once rather than in each caller.
+
+outputs:
+  matrix:
+    description: JSON array of leg objects, each with label, ha-version, pytest-hacc-version, and aiopurpleair, for the install-test-deps hook.
+    value: ${{ steps.build.outputs.matrix }}
+
+runs:
+  using: composite
+  steps:
+
+    # The aiopurpleair field selects the library each leg tests, `pin` keeping requirements-test.txt and `minimum` taking manifest.json's floor.
+    # The latest-stable slot runs twice, once per library, since a venv install keeps an old library while it upgrades Home Assistant.
+    # Each leg runs on the python-versions interpreter the caller names, so no leg carries a python-version of its own.
+    - name: Build matrix legs step
+      id: build
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+        matrix=$(jq -c '
+          def leg($label; $lib): { "label": $label, "ha-version": .ha, "pytest-hacc-version": ."pytest-hacc", "aiopurpleair": $lib };
+          [
+            (.minimum         | leg("minimum"; "minimum")),
+            (."latest-stable" | leg("latest-stable"; "pin")),
+            (."latest-stable" | leg("latest-stable-min-lib"; "minimum"))
+          ]
+          + (if ."latest-beta" then [ ."latest-beta" | leg("latest-beta"; "pin") ] else [] end)
+          | if all(.[]; (."ha-version" | type == "string" and test("\\S")) and (."pytest-hacc-version" | type == "string" and test("\\S")))
+            then . else error("every ha-test-versions.json slot needs a non-empty ha and pytest-hacc string") end
+        ' .github/ha-test-versions.json)
+        echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+        echo "Matrix: $matrix"
