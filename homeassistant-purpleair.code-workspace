@@ -29,7 +29,6 @@
         // rather than the extensions' bundled copies, so the editor and CLI agree.
         "ruff.importStrategy": "fromEnvironment",
         "mypy-type-checker.importStrategy": "fromEnvironment",
-        "mypy-type-checker.args": ["--strict", "--follow-imports=silent"],
         // Format and fix with ruff on save, matching `ruff format` + `ruff check --fix`.
         "[python]": {
             "editor.defaultFormatter": "charliermarsh.ruff",

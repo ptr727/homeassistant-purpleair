@@ -14,7 +14,8 @@ on:
     - cron: '0 2 * * MON'
 
 # Ref-scoped, per WORKFLOW.md D7.1: a main and a develop dispatch build different tags and branch-scoped artifacts, so they need not wait on each other.
-# GitHub keeps one pending run per group and a newer one replaces it, so the retest-only schedule gets a per-run group and never replaces a pending dispatch.
+# GitHub keeps one pending run per group and a newer one replaces it.
+# The retest-only schedule therefore gets a per-run group and never replaces a pending dispatch.
 # Queue instead of cancel: cancelling a publish mid-flight can leave a half-created GitHub release.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'schedule' && format('-{0}', github.run_id) || '' }}
@@ -51,7 +52,8 @@ jobs:
         id: matrix
         uses: ./.github/actions/ha-test-matrix
 
-  # The same hub gate and inputs test-pull-request.yml uses, so a dispatch against a regressed tip cannot publish and a scheduled retest of main cannot pass silently.
+  # This job runs the same hub gate and inputs as test-pull-request.yml.
+  # Therefore a dispatch against a regressed tip cannot publish, and a scheduled retest of main cannot pass silently.
   # It runs on every plan that succeeds, the schedule included, rather than on the plan's publish output.
   validate:
     name: Validate job

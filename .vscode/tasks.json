@@ -71,9 +71,9 @@
             }
         },
         {
-            "label": "Test: pytest + branch coverage",
+            "label": "Test: pytest + missing-line coverage",
             "type": "shell",
-            "command": "python -m pytest -ra --cov=custom_components/purpleair --cov-report=term-missing --cov-branch",
+            "command": "pytest --cov-report=term-missing",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
