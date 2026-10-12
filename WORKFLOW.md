@@ -52,11 +52,11 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
 - **Validate task** - the hub's `validate-task.yml`, reached by pin with this repo's inputs. Its `lint` job
   runs the doc lint, ruff, and `mypy --strict`. Its `unit-test` job runs the HA-version pytest matrix
   (Codecov upload). Its `validate` job runs hassfest, HACS validate, and pyright through this repo's
-  [`validate`][validate-hook] hook. CI runs it on every push, and the publisher runs it with the identical
-  inputs before any release.
+  [`validate`][validate-hook] hook. CI runs the task on every push, and the publisher runs it with the
+  identical inputs before any release.
 - **HA test matrix** - the pytest legs. The [`ha-test-matrix`][ha-test-matrix] action reads them from
-  `.github/ha-test-versions.json` at run time in each caller's `read-versions` job. The caller's `validate`
-  job passes them as the validate task's `test-matrix` input. The task calls the
+  `.github/ha-test-versions.json` at run time. Each caller's `read-versions` job runs it and hands the legs
+  to the validate task as its `test-matrix` input. The task calls the
   [`install-test-deps`][install-test-deps] hook once per leg.
 - **No-publish build** - a build of `purpleair.zip` that proves the release pipeline still produces a valid
   HACS zip, with no upload and no release. CI's `smoke-build` job drives it through the hub task's
@@ -399,9 +399,9 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 
 ### D1 - CI fast feedback
 
-- **D1.1 Every push validates.** Output: on any push, with no paths filter, `test-pull-request` runs three
-  jobs. They are `read-versions`, a `smoke-build` no-publish zip build, and the hub validate task (doc lint,
-  ruff, mypy, pyright, the pytest matrix, hassfest, HACS). The one exception is a branch-deletion push. A
+- **D1.1 Every push validates.** Output: every push runs `test-pull-request` with no paths filter. Its jobs
+  include `read-versions`, a `smoke-build` no-publish zip build, and the hub validate task (doc lint, ruff,
+  mypy, pyright, the pytest matrix, hassfest, HACS). The one exception is a branch-deletion push. A
   `!github.event.deleted` guard skips every job, since `github.sha` is all-zeros and a checkout would fail.
   *Prevents a hook or build break shipping untested, and a branch-deletion push failing CI.*
 - **D1.2 The full quality gate runs.** Output: the hub validate task runs the doc lint, ruff (lint + format
