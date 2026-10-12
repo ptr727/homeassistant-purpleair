@@ -55,9 +55,9 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   [`validate`][validate-hook] hook. CI runs it on every push, and the publisher runs it with the identical
   inputs before any release.
 - **HA test matrix** - the pytest legs. The [`ha-test-matrix`][ha-test-matrix] action reads them from
-  `.github/ha-test-versions.json` at run time in each caller's `read-versions` job. It passes them as the
-  validate task's `test-matrix` input. The task calls the [`install-test-deps`][install-test-deps] hook once
-  per leg.
+  `.github/ha-test-versions.json` at run time in each caller's `read-versions` job. The caller's `validate`
+  job passes them as the validate task's `test-matrix` input. The task calls the
+  [`install-test-deps`][install-test-deps] hook once per leg.
 - **No-publish build** - a build of `purpleair.zip` that proves the release pipeline still produces a valid
   HACS zip, with no upload and no release. CI's `smoke-build` job drives it through the hub task's
   `smoke: true` input. The publisher runs no smoke build, since its `publish` job builds the zip for real.
@@ -399,8 +399,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 
 ### D1 - CI fast feedback
 
-- **D1.1 Every push validates.** Output: on any push, `test-pull-request` runs `read-versions` and a
-  `smoke-build` no-publish zip build, with no paths filter. It also runs the hub validate task (doc lint,
+- **D1.1 Every push validates.** Output: on any push, with no paths filter, `test-pull-request` runs three
+  jobs. They are `read-versions`, a `smoke-build` no-publish zip build, and the hub validate task (doc lint,
   ruff, mypy, pyright, the pytest matrix, hassfest, HACS). The one exception is a branch-deletion push. A
   `!github.event.deleted` guard skips every job, since `github.sha` is all-zeros and a checkout would fail.
   *Prevents a hook or build break shipping untested, and a branch-deletion push failing CI.*
@@ -515,12 +515,13 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D7.1 The publisher does not cancel mid-flight.** Output: the publisher uses a ref-scoped group, `${{
   github.workflow }}-${{ github.ref }}`, with `cancel-in-progress: false`, so two publishes of one branch
   serialize. A `main` and a `develop` publish run side by side, since they build different tags and
-  branch-scoped artifacts. The retest-only schedule appends `github.run_id`. GitHub keeps one pending run
-  per group and a newer one replaces it, so a run that publishes nothing never replaces a pending dispatch.
-  CI and the tracker use a `...github.ref`/workflow group with `cancel-in-progress: true`, and the merge-bot
-  keys on the PR number with `cancel-in-progress: false`. The one self-cancel is D4.8's, which happens
-  before any release is created. *Prevents a cancelled publish leaving a partial release, and the weekly
-  retest replacing a pending dispatch.*
+  branch-scoped artifacts. The retest-only schedule appends `github.run_id`, so it never shares a group with
+  a pending dispatch. GitHub keeps one pending run per group, and a newer one replaces it. A shared group
+  would therefore let a run that publishes nothing replace a pending dispatch. CI and the tracker use a
+  `...github.ref`/workflow group with `cancel-in-progress: true`, and the merge-bot keys on the PR number
+  with `cancel-in-progress: false`. The one self-cancel is D4.8's, which happens before any release is
+  created. *Prevents a cancelled publish leaving a partial release, and the weekly retest replacing a
+  pending dispatch.*
 - **D7.2 Skipped jobs still need valid permissions.** Output: every reusable job runs under valid least-privilege
   `permissions:`. A callee's extra scope (`contents: write` for the release, `actions: write` for cleanup
   and the D4.8 dispatch) is granted by the caller.

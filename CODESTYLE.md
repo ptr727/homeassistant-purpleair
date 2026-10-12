@@ -77,7 +77,7 @@ Use each tool's official casing in prose: `ruff`, `mypy`, `pyright`, `pytest`, `
 | [pyright](https://microsoft.github.io/pyright/) | type checker | `pyrightconfig.json` |
 | [pytest](https://docs.pytest.org/) | test runner | `pyproject.toml` `[tool.pytest.ini_options]` |
 
-Two type checkers run, and **both are gates**. A strict `mypy` run over `custom_components/purpleair/` is required by the platinum quality-scale `strict-typing` rule. Its scope and strictness live in `pyproject.toml`'s `[tool.mypy]` section, so every caller runs a bare `mypy`. `pyright` runs directly (`pyright`, configured by `pyrightconfig.json` at `typeCheckingMode: basic`) and is also the engine behind VS Code's **Pylance** extension, so the in-editor and CI experience stay in sync. Both run in `scripts/lint` and in CI.
+Two type checkers run, and **both are gates**. A strict `mypy` run over `custom_components/purpleair/` is required by the platinum quality-scale `strict-typing` rule. Its scope and strictness live in `pyproject.toml`'s `[tool.mypy]` section, so `scripts/lint` and the `pre-commit` hook run a bare `mypy`. `pyright` runs directly, configured by `pyrightconfig.json` at `typeCheckingMode: basic`. It is also the engine behind VS Code's **Pylance** extension, so the in-editor and CI experience stay in sync. Both run in `scripts/lint` and in CI.
 
 ### Local Development Loop
 
