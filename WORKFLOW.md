@@ -55,8 +55,8 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   [`validate`][validate-hook] hook. CI runs the task on every push, and the publisher runs it with the
   identical inputs before any release.
 - **HA test matrix** - the pytest legs. The [`ha-test-matrix`][ha-test-matrix] action reads them from
-  `.github/ha-test-versions.json` at run time. Each caller's `read-versions` job runs it and hands the legs
-  to the validate task as its `test-matrix` input. The task calls the
+  `.github/ha-test-versions.json` at run time. Each caller's `read-versions` job runs it, and the caller's
+  `validate` job passes the legs to the validate task as its `test-matrix` input. The task calls the
   [`install-test-deps`][install-test-deps] hook once per leg.
 - **No-publish build** - a build of `purpleair.zip` that proves the release pipeline still produces a valid
   HACS zip, with no upload and no release. CI's `smoke-build` job drives it through the hub task's
