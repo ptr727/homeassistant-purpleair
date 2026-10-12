@@ -27,19 +27,15 @@ set -Eeuo pipefail
 usage="Usage: scripts/setup [-h | --help]
 Set up the dev environment: the .venv, the dev tools, and the host tools the dev loop needs.
 Some installs reach outside the checkout, including sudo installs into /usr/local/bin.
-The header comment of scripts/setup lists each one."
+The header comment of scripts/setup lists what it installs."
 if (($# > 0)); then
-    case "$1" in
-    -h | --help)
+    if (($# == 1)) && [[ "$1" == -h || "$1" == --help ]]; then
         echo "$usage"
         exit 0
-        ;;
-    *)
-        echo "Unknown argument: $1" >&2
-        echo "$usage" >&2
-        exit 2
-        ;;
-    esac
+    fi
+    echo "Unexpected arguments: $*" >&2
+    echo "$usage" >&2
+    exit 2
 fi
 
 cd "$(dirname "$0")/.."
