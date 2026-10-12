@@ -4,15 +4,18 @@
 #   2. Editable checkout of aiopurpleair at ./aiopurpleair (gitignored),
 #      replacing the pinned PyPI install with your local checkout for in-container dev.
 #   3. go2rtc binary pinned to GO2RTC_VERSION with per-arch SHA256 verification.
+#      It installs into /usr/local/bin with sudo.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
 #   5. markdownlint-cli2 pinned via npm — same engine the VS Code
 #      davidanson.vscode-markdownlint extension uses, so CLI verification matches
 #      what the IDE shows. Node.js itself is provided by the devcontainer
 #      `node:2` feature.
+#      The install is global, through npm install -g.
 #   6. The pre-commit hook for the local commit gate, enabled in the base clone only.
+#      The hook runner, pre-commit, is a user-level uv tool install.
 #   7. The home-assistant-frontend package HA's own manifest pins, pre-installed into .venv.
-#   8. The actionlint binary pinned to ACTIONLINT_VERSION, SHA256-verified and installed into /usr/local/bin.
+#   8. The actionlint binary pinned to ACTIONLINT_VERSION, SHA256-verified and installed into /usr/local/bin with sudo.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
 # release assets, so the hashes below are computed manually when bumping and
