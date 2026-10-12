@@ -11,6 +11,8 @@
 #      what the IDE shows. Node.js itself is provided by the devcontainer
 #      `node:2` feature.
 #   6. The pre-commit hook for the local commit gate, enabled in the base clone only.
+#   7. The home-assistant-frontend package HA's own manifest pins, pre-installed into .venv.
+#   8. The actionlint binary pinned to ACTIONLINT_VERSION, SHA256-verified and installed into /usr/local/bin.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
 # release assets, so the hashes below are computed manually when bumping and
@@ -20,9 +22,9 @@
 set -Eeuo pipefail
 
 usage="Usage: scripts/setup [-h | --help]
-Install the dev toolchain: .venv with pinned requirements and the HA frontend,
-editable aiopurpleair, HACS, markdownlint-cli2, the pre-commit hook, and
-go2rtc and actionlint into /usr/local/bin with sudo."
+Set up the dev environment: the .venv, the dev tools, and the host tools the dev loop needs.
+Some installs reach outside the checkout, including sudo installs into /usr/local/bin.
+The header comment of scripts/setup lists each one."
 if (($# > 0)); then
     case "$1" in
     -h | --help)
