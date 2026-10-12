@@ -73,11 +73,11 @@ Use each tool's official casing in prose: `ruff`, `mypy`, `pyright`, `pytest`, `
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | dependency install into the dev `.venv` (CI uses pip) | `requirements.txt`, `requirements-test.txt` |
 | [ruff](https://docs.astral.sh/ruff/) | lint + format + import sort | `.ruff.toml` (repo root) |
-| [mypy](https://mypy-lang.org/) | strict type gate | CLI flags in `scripts/lint` (`--strict --follow-imports=silent`) |
+| [mypy](https://mypy-lang.org/) | strict type gate | `[tool.mypy]` in `pyproject.toml` (`strict`, `follow_imports = "silent"`) |
 | [pyright](https://microsoft.github.io/pyright/) | type checker | `pyrightconfig.json` |
 | [pytest](https://docs.pytest.org/) | test runner | `pyproject.toml` `[tool.pytest.ini_options]` |
 
-Two type checkers run, and **both are gates**. `mypy --strict --follow-imports=silent` over `custom_components/purpleair/` is required by the platinum quality-scale `strict-typing` rule. `pyright` runs directly (`pyright`, configured by `pyrightconfig.json` at `typeCheckingMode: basic`) and is also the engine behind VS Code's **Pylance** extension, so the in-editor and CI experience stay in sync. Both run in `scripts/lint` and in CI.
+Two type checkers run, and **both are gates**. A strict `mypy` run over `custom_components/purpleair/` is required by the platinum quality-scale `strict-typing` rule. Its scope and strictness live in `pyproject.toml`'s `[tool.mypy]` section, so `scripts/lint` and the `pre-commit` hook run a bare `mypy`. `pyright` runs directly, configured by `pyrightconfig.json` at `typeCheckingMode: basic`. It is also the engine behind VS Code's **Pylance** extension, so the in-editor and CI experience stay in sync. Both run in `scripts/lint` and in CI.
 
 ### Local Development Loop
 
@@ -93,7 +93,7 @@ pytest              # run tests (after scripts/setup, in the uv .venv)
 scripts/develop     # launch Home Assistant against ./config with the integration loaded
 ```
 
-The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy --strict --follow-imports=silent custom_components/purpleair/` + `pyright`. Run it (plus `pytest`) before committing. These commands are also wired as VS Code tasks (`Fix:`, `Lint:`, `Test:`, `Develop:`) in [`.vscode/tasks.json`](./.vscode/tasks.json) for convenience. CI runs the same checks as the authoritative backstop. A `pre-commit` hook runs the four checks on every commit, from [`.pre-commit-config.yaml`][pre-commit-config], and `scripts/setup` enables it. The hook does not run `pytest`, so the suite still runs by hand before a push, per [OPERATIONS.md][operations-local-verification].
+The Python clean-compile (see [Clean-Compile Verification](#clean-compile-verification)) is exactly what `scripts/lint` runs: `ruff format . --check` + `ruff check .` + `mypy` + `pyright`. Run it (plus `pytest`) before committing. These commands are also wired as VS Code tasks (`Fix:`, `Lint:`, `Test:`, `Develop:`) in [`.vscode/tasks.json`](./.vscode/tasks.json) for convenience. CI runs the same checks as the authoritative backstop. A `pre-commit` hook runs the four checks on every commit, from [`.pre-commit-config.yaml`][pre-commit-config], and `scripts/setup` enables it. The hook does not run `pytest`, so the suite still runs by hand before a push, per [OPERATIONS.md][operations-local-verification].
 
 ### Layout
 
