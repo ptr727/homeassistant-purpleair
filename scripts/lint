@@ -5,6 +5,18 @@
 
 set -Eeuo pipefail
 
+usage="Usage: scripts/lint [-h | --help]
+Run ruff, mypy and pyright in verify-only mode, as CI does."
+if (($# > 0)); then
+    if (($# == 1)) && [[ "$1" == -h || "$1" == --help ]]; then
+        echo "$usage"
+        exit 0
+    fi
+    echo "Unexpected arguments: $*" >&2
+    echo "$usage" >&2
+    exit 2
+fi
+
 cd "$(dirname "$0")/.."
 
 # Activate the uv-managed .venv (created by scripts/setup) so ruff/mypy/pyright

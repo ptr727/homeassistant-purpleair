@@ -113,7 +113,7 @@ Development is **Linux only**: native Linux, WSL2, or the devcontainer. This is 
 
 ### Bash Dev Loop
 
-The `scripts/*` dev loop (`setup`, `fix`, `lint`, `develop`, `init-config`) stays Bash. This departs from the fleet default in [`CODESTYLE.md`](./CODESTYLE.md) "Shell", which allows Bash only where a program cannot be Python. It is the Home Assistant integration-scaffold convention, which integration contributors already know. The devcontainer's `postCreateCommand` and the VS Code tasks also call these paths. The scripts otherwise meet the fleet's shell rules: each opens with `set -Eeuo pipefail`, and the hub validate task's `Lint sources job` runs `shellcheck` and `shfmt -d` over them. A script outside this dev loop follows the fleet default.
+The `scripts/*` dev loop (`setup`, `fix`, `lint`, `develop`, `init-config`) stays Bash. This departs from the fleet default in [`CODESTYLE.md`](./CODESTYLE.md) "Shell", which allows Bash only where a program cannot be Python. It is the Home Assistant integration-scaffold convention, which integration contributors already know. The devcontainer's `postCreateCommand` and the VS Code tasks also call these paths. The scripts otherwise meet the fleet's shell rules. Each opens with `set -Eeuo pipefail`, answers `-h` and `--help`, and refuses any other argument before doing work. The hub validate task's `Lint sources job` runs `shellcheck` and `shfmt -d` over them. A script outside this dev loop follows the fleet default.
 
 ### Branching Facts
 
