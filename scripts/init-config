@@ -9,6 +9,18 @@
 
 set -Eeuo pipefail
 
+usage="Usage: scripts/init-config [-h | --help]
+Seed a minimal config/configuration.yaml if none exists."
+if (($# > 0)); then
+    if (($# == 1)) && [[ "$1" == -h || "$1" == --help ]]; then
+        echo "$usage"
+        exit 0
+    fi
+    echo "Unexpected arguments: $*" >&2
+    echo "$usage" >&2
+    exit 2
+fi
+
 cd "$(dirname "$0")/.."
 
 if [[ ! -f config/configuration.yaml ]]; then
