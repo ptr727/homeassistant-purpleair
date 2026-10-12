@@ -1,7 +1,8 @@
 name: Install HA test leg dependencies
 description: Install one HA test matrix leg's Home Assistant and aiopurpleair over the base requirements, and type-check the legs that test the minimum library.
 
-# The hub validate task's unit-test job calls this hook once per test-matrix leg, after it installs requirements*.txt into .venv and before it runs pytest without re-syncing.
+# The hub validate task's unit-test job calls this hook once per test-matrix leg.
+# It runs after the job installs requirements*.txt into .venv and before pytest runs without re-syncing.
 # The leg comes from the ha-test-matrix action, so its fields are the ones that action writes.
 
 inputs:

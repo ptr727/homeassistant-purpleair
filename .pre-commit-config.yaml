@@ -24,8 +24,8 @@ repos:
         language: system
         pass_filenames: false
       - id: mypy
-        name: mypy --strict
-        entry: .venv/bin/mypy --strict --follow-imports=silent custom_components/purpleair/
+        name: mypy
+        entry: .venv/bin/mypy
         language: system
         pass_filenames: false
       - id: pyright
