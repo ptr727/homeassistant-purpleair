@@ -58,7 +58,7 @@ jobs:
   validate:
     name: Validate job
     needs: [plan, read-versions]
-    uses: ptr727/ProjectTemplate/.github/workflows/validate-task.yml@50b6bc3725675c477cf8fa1b3b34e5abd8fa2c01 # 2.0.972
+    uses: ptr727/ProjectTemplate/.github/workflows/validate-task.yml@098016c83723e384c9da0088c13a00ca14e02fd5 # 2.0.1004
     permissions:
       contents: read
     secrets:
