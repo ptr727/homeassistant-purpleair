@@ -30,7 +30,7 @@ jobs:
   # It reports publish=true for the schedule too, so the publish job below also requires a dispatch.
   plan:
     name: Plan release job
-    uses: ptr727/ProjectTemplate/.github/workflows/publish-plan-task.yml@0c933694ed15bdc57ea24b9ab58a8f8651951ec0 # 2.0.983
+    uses: ptr727/ProjectTemplate/.github/workflows/publish-plan-task.yml@ae63f7bf971dfac46c727d1005a822f0a957dd1e # 2.0.1020
     with:
       event_name: ${{ github.event_name }}
       actor: ${{ github.actor }}
