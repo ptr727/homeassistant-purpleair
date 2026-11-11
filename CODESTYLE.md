@@ -79,7 +79,7 @@ These rules apply repo-wide, in every directory. Markdown lints clean via `markd
 
 *This section applies only to the .NET side. A repo with no .NET projects still carries it (the file is carried whole) and ignores it.*
 
-The style guide for any .NET projects in this repo covers the zero-warnings build policy and its clean-compile task chain. It covers central `Directory.Build.props`/`Directory.Packages.props` configuration, C# language and naming conventions, XML documentation, and analyzer suppression scope. It covers the library-versus-application logging split, async and error-handling patterns, and xUnit v3 + AwesomeAssertions testing conventions. It covers the runner declaration, package references and version floor that an MTP-based test project needs under `WORKFLOW.md` D1.6. With them it covers the local diagnostic for a run that reports no tests. It also covers AOT-compatible project configuration.
+The style guide for any .NET projects in this repo covers the zero-warnings build policy and its clean-compile task chain. It covers central `Directory.Build.props`/`Directory.Packages.props` configuration, C# language and naming conventions, XML documentation, and analyzer suppression scope. It covers the library-versus-application logging split, async and error-handling patterns, and xUnit v3 + AwesomeAssertions testing conventions. It covers the runner declaration, package references and version floor that an MTP-based test project needs under the hub's `WORKFLOW.md` D1.6. With them it covers the local diagnostic for a run that reports no tests. It also covers AOT-compatible project configuration.
 
 This is packaged as the `dotnet-codestyle` Skill at `.agents/skills/dotnet-codestyle/SKILL.md` in the hub. That is not a repo-relative link, since the path is hub-local and not carried into every fleet repo. The summary above sketches the scope. Read the skill for the full rules, code examples, and mechanics.
 
@@ -87,22 +87,22 @@ This is packaged as the `dotnet-codestyle` Skill at `.agents/skills/dotnet-codes
 
 *This section is the style guide for the Python code this repo ships.*
 
-The style guide for any Python project(s) in this repo covers the build-versus-lint-only profile split, the uv/ruff/pyright/mypy/pytest toolchain, and `src` layout. It covers formatting and linting, comment and docstring conventions, type hints, naming, imports, and patterns to avoid. It covers test conventions, including the `pytest-cov` dependency and coverage selector a Python directory running pytest owes under `WORKFLOW.md` D1.6. It also covers versioning.
+The style guide for any Python project(s) in this repo covers the build-versus-lint-only profile split, the uv/ruff/pyright/mypy/pytest toolchain, and `src` layout. It covers formatting and linting, comment and docstring conventions, type hints, naming, imports, and patterns to avoid. It covers test conventions, including the `pytest-cov` dependency and coverage selector a Python directory running pytest owes under the hub's `WORKFLOW.md` D1.6. It also covers versioning.
 
-A profile belongs to a declared directory, not to the repository. Each deliverable takes one build-profile directory of its own, except that a uv workspace is declared once, by its root. A repository declaring no Python directory has its root gated only where it tracks a root `pyproject.toml`, as `WORKFLOW.md` D1.2 states. Lint-only Python may sit beside the component it serves. Only a split by purpose alone, within one place, is forbidden, since the file name carries the purpose. One place means directories serving the same component, or serving none.
+A profile belongs to a declared directory, not to the repository. Each deliverable takes one build-profile directory of its own, except that a uv workspace is declared once, by its root. A repository declaring no Python directory has its root gated only where it tracks a root `pyproject.toml`, as the hub's `WORKFLOW.md` D1.2 states. Lint-only Python may sit beside the component it serves. Only a split by purpose alone, within one place, is forbidden, since the file name carries the purpose. One place means directories serving the same component, or serving none.
 
 This is packaged as the `python-codestyle` Skill at `.agents/skills/python-codestyle/SKILL.md` in the hub. That is not a repo-relative link, since the path is hub-local and not carried into every fleet repo. The summary above sketches the scope. Read the skill for the full rules and the profile-adaptation guidance.
-
-### Tests and Script Dependencies
-
-- **A test lives in a `tests/` directory, never inside the production file it tests.** A deployed script may keep a `--selftest` that runs a small smoke check in seconds, and the case matrix lives in `tests/`. A self-test shipped inside the file it tests grows the file every reviewer reads, and its cases can come to outweigh the code they test.
-- **A hub-hosted standalone script that needs a third-party library declares it in PEP 723 inline script metadata, and runs as `uv run --no-project --script <path>`.** The block opens on `# /// script`, closes on `# ///`, and carries `dependencies` and `requires-python`. The fleet already installs uv on hosts and in CI. `--no-project` keeps uv from syncing the project around a script that has no block yet, where it would write a lockfile and a virtual environment. A script with no such block runs under `python3` and uv alike. A hook an agent harness runs on every tool call stays standard-library only, since it runs before any toolchain is guaranteed.
 
 The rest of this section adapts that skill to this repo.
 
 This repo ships a **Home Assistant custom integration** (`custom_components/purpleair/`), not an installable package or wheel. The dev environment is a `uv`-managed `.venv` (`scripts/setup` runs `uv venv` + `uv pip install` from `requirements*.txt`), but there is no `uv.lock`, no build backend, and no `src/` layout - deal in the actual integration tree and the `scripts/*` dev loop described below.
 
 Use each tool's official casing in prose: `ruff`, `mypy`, `pyright`, `pytest`, `hassfest`, `HACS` (not `Hacs`), `NBGV`.
+
+### Tests and Script Dependencies
+
+- **A test lives in a `tests/` directory, never inside the production file it tests.** A deployed script may keep a `--selftest` that runs a small smoke check in seconds, and the case matrix lives in `tests/`. A self-test shipped inside the file it tests grows the file every reviewer reads, and its cases can come to outweigh the code they test.
+- **A hub-hosted standalone script that needs a third-party library declares it in PEP 723 inline script metadata, and runs as `uv run --no-project --script <path>`.** The block opens on `# /// script`, closes on `# ///`, and carries `dependencies` and `requires-python`. The fleet already installs uv on hosts and in CI. `--no-project` keeps uv from syncing the project around a script that has no block yet, where it would write a lockfile and a virtual environment. A script with no such block runs under `python3` and uv alike. A hook an agent harness runs on every tool call stays standard-library only, since it runs before any toolchain is guaranteed.
 
 ### Toolchain
 
