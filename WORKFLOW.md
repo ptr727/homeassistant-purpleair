@@ -421,7 +421,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   `read-versions`, `validate`, and `smoke-build`. It blocks on any result but `success`, a skip included,
   since each of them runs on every live push. Its name is ruleset-bound (D6.2) and must not be renamed.
   It stays a literal string on every event, because this workflow has no `pull_request` trigger. So the
-  expression form a `pull_request` workflow takes does not apply here.
+  expression form for a workflow that `pull_request` and another event both trigger does not apply here.
   *Prevents a defect merging unverified.*
 
 ### D2 - Validation at entry
