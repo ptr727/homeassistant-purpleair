@@ -420,6 +420,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   workflow status job`) runs under `always()` and must **succeed** (not merely "not fail"). It `needs:`
   `read-versions`, `validate`, and `smoke-build`. It blocks on any result but `success`, a skip included,
   since each of them runs on every live push. Its name is ruleset-bound (D6.2) and must not be renamed.
+  It stays a literal string on every event, because this workflow has no `pull_request` trigger. So the
+  expression form the hub's D1.5 names does not apply here.
   *Prevents a defect merging unverified.*
 
 ### D2 - Validation at entry
@@ -487,6 +489,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   reaches the new run unchecked. The new run also replaces any dispatch pending in that branch's
   concurrency group. A run queued before the cancel lands replaces the new run in turn. Either way, confirm the
   release appeared.
+  The hub's `WORKFLOW.md` numbers this guarantee D4.7, the number the carried `GOVERNANCE.md` cites.
 
 ### D5 - Resource cleanup
 
