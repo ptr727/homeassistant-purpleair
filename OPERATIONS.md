@@ -72,7 +72,7 @@ Leave the `requirements.txt` `homeassistant==` pin alone, since it tracks `lates
 
 ### Close an Issue From a Pull Request
 
-**Put issue-closing keywords (`Closes #N`) in the `develop -> main` promotion pull request, not in the feature or `develop` one.** GitHub auto-closes an issue only from the pull request, or commit, that merges to the default branch, which is `main`. A `Closes #N` that merges only to `develop` never fires on promotion and leaves the issue open. Tag the promotion pull request's description, or close the issue by hand once the fix reaches `main`.
+**Put issue-closing keywords (`Closes #N`) only in the `develop -> main` promotion pull request's body**, per [`GOVERNANCE.md`](./GOVERNANCE.md) "Branching Model". A squash merge can copy a feature or `develop` pull request's body into its commit. A keyword there then closes the issue once the promotion reaches `main`. So a feature or `develop` pull request names the issues it fixes with the inert `Closes on promotion:` line instead. Tag the promotion pull request's description, or close the issue by hand once the fix reaches `main`.
 
 ### Add a Dependabot Ecosystem
 
