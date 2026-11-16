@@ -67,8 +67,9 @@ skill covers all of it, scoped down by what the maintainer actually asks for.
    open, whose `merge=UNKNOWN` never clears, so stop re-reading it. Confirm its `merge_commit=` per
    step 4, run the ready-report comparison below against its `head=`, and report both. Dispatch
    nothing on the chosen scope alone, since whoever merged it may have released it already. Where
-   a release scope was chosen, look, then ask. Read this repo's `releaseTrigger` as step 5 does,
-   and where it reads `none` report that no release is configured. Otherwise read the publisher's
+   a release scope was chosen, look, then ask. Confirm the publisher exists as step 5 does. Read it
+   at `<merge-sha>` below rather than at a tip step 4 confirmed, since `main` may have moved past
+   the merge. Where it is absent report the missing publisher. Otherwise read the publisher's
    runs on the merge commit, `gh run list --repo owner/repo --workflow publish-release.yml --commit
    <merge-sha> --json databaseId,event,headBranch,status,conclusion,createdAt`. `<merge-sha>` is
    the full 40-character SHA, `gh pr view [number] --repo owner/repo --json mergeCommit --jq
@@ -98,6 +99,13 @@ skill covers all of it, scoped down by what the maintainer actually asks for.
    another session merged meanwhile rides along, as `backlog-burndown` "Away Mode" accepts.
    Where no report named a head, a promotion made ready by hand, the go-ahead covers the head
    this step recorded.
+   Whichever case set it, run the closing-set check `branching-and-release-model` states in its
+   negated-keyword bullet on the head step 3 merges. This step runs from a hub checkout, so read
+   the range's commit messages from the target rather than with a local `git log`:
+   `gh api --paginate repos/owner/repo/compare/main...<sha> --jq '.commits[].commit.message' > <file>`.
+   Run that read on its own and stop the merge on a non-zero exit, since a failed read is not a
+   range with no closure. Then run that bullet's `grep` over `<file>`. Stop and report any closure
+   it prints that the promotion body does not state, rather than merging.
 3. `gh pr merge [number] --merge --match-head-commit <sha> --repo owner/repo`, where `<sha>` is
    the head the go-ahead covers. Attended, that is the head `drive-pr`'s ready report named, or
    the moved head the maintainer approved after step 2's re-ask. Under an away-mode grant, or
@@ -105,20 +113,13 @@ skill covers all of it, scoped down by what the maintainer actually asks for.
    refuses the merge if the head moved past that SHA. Never `--delete-branch`, the promotion
    PR's head is `develop`.
 4. Confirm the merge landed, `mergedAt` set, `main`'s tip matching the merge commit.
-5. When the chosen scope includes a release, first bring the hub checkout used for this procedure
-   current, `git fetch origin main`. Then read this repo's `releaseTrigger` from that fetched tip
-   rather than a possibly-stale working tree copy. That matters when the target repo is the hub itself
-   and this exact promotion changed its own registry entry. Select the one matching entry
-   explicitly, falling back to the registry's own default when that entry sets no
-   `releaseTrigger` of its own. Stop and report rather than guessing when selection is not
-   exactly one match. On a non-1 count exit non-zero rather than returning empty with success. An
-   ambiguous or missing match must fail loud, not read as an empty value still safe to act on: `git
-   show origin/main:registry/repos.json | jq -r --arg name '<repo-name>' '(.repos | map(select(.name
-   == $name))) as $m | if ($m | length) == 1 then ($m[0].releaseTrigger // .defaults.releaseTrigger)
-   else error("expected exactly one registry entry for \($name), got \($m | length)") end'`. Two
-   cases, `none` versus anything else. When it
-   reads `none`, report that no
-   release is configured, dispatch and run-correlation (step 6) do not apply. Otherwise, dispatch
+5. When the chosen scope includes a release, confirm the publisher exists on `main`'s tip from
+   step 4. Every fleet repository releases, so its `releaseTrigger` selects no case here. Read
+   `gh api "repos/owner/repo/contents/.github/workflows/publish-release.yml?ref=<main-sha>" --jq
+   .path`, `<main-sha>` being the full SHA step 4 confirmed. An answer naming the path means the
+   publisher exists. An HTTP 404 means it is absent. That repository owes a publisher the audit
+   reports as drift, so report it, and dispatch and run-correlation (step 6) do not apply. Any
+   other failure is reported with its output, never read as either answer. Where it exists, dispatch
    explicitly, `gh workflow run publish-release.yml --ref main --repo owner/repo`, or `--ref
    develop` only when the maintainer explicitly asked for a prerelease dispatch instead.
 6. Correlate the specific run this dispatch produced rather than assuming the newest one is it.
@@ -180,7 +181,15 @@ skill covers all of it, scoped down by what the maintainer actually asks for.
    the causes, report that to the maintainer rather than working around it. This step only runs
    the installer, and never edits the kit's files or this machine's settings by hand. Where the
    install ran, also report that sessions on this machine need a restart to load the new hooks
-   and `CLAUDE.md`. Then remove the worktree with
+   and `CLAUDE.md`. Run the rules refresh only where the kit read CURRENT in this step, or was
+   installed here and then read CURRENT. From the same worktree, run
+   `python3 host-setup/agent-safety/global_rules.py --report`, the writer of the Codex and opencode
+   global rules. Where the kit was left alone, its commit not an ancestor of `main` or carrying
+   `-dirty`, leave the rules alone too. They come from the same tree. Report both to the
+   maintainer together. Where the rules are not current, run `python3 host-setup/agent-safety/global_rules.py`, then
+   `--report` again. A SHADOWED Codex is reported to the maintainer and not fixed, since the override
+   is theirs. An EDITED file is rewritten after its backup, and that is reported. A failure is reported
+   with its output, never retried. Then remove the worktree with
    `git worktree remove <worktree>`, whatever any report said. Removing it leaves the skills
    snapshot, the installed kit, and their stamps unchanged. A result that does not read current
    is reported to the maintainer. The skills `--report` exits on the snapshot alone. This step runs whether step 5
@@ -192,7 +201,7 @@ skill covers all of it, scoped down by what the maintainer actually asks for.
    failure, an ambiguous run match, a timeout, a failed run, or a hub refresh all still reach
    this step. So does step 2 finding the promotion already merged. The merge already landed
    by then, in step 3 or before step 2 read it. Every part below is required:
-   - The promotion PR's own worktree, where one exists: fetch and prune, remove the worktree, then bring the base
+   - A `develop`-headed promotion PR's own worktree, where one exists: fetch and prune, remove the worktree, then bring the base
      clone to current `develop`. To do so, check `develop` out first only where it sits on another
      branch, and fast-forward it with `git merge --ff-only origin/develop`. Where that checkout
      is needed, removing first, not after, matters. The reason is that the base clone cannot check out `develop`
@@ -200,6 +209,10 @@ skill covers all of it, scoped down by what the maintainer actually asks for.
      in two worktrees at once is refused outright. Never delete `develop`: it is the promotion PR's
      own head. The repo's auto-delete-head-branches setting is kept off fleet-wide for exactly
      this reason, so nothing does this automatically.
+   - A conflicted promotion's own branch, where one exists. That promotion's head is a branch cut
+     from `main` that merges `develop` rather than `develop` itself. Run the `cleanup <number>`
+     command the next bullet names on the promotion PR. It removes that branch's worktree, its local
+     branch, and its remote branch.
    - A defensive sweep for anything drive-pr's own cleanup should already have removed but might
      not have. The causes include an interrupted loop, a fix landed by hand outside that skill, or
      a maintainer merge in the GitHub UI. `git worktree list` for any worktree still registered under this
