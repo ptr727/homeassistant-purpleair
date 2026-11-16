@@ -181,8 +181,10 @@ non-smoke run, and its `github-release` job runs only when `github` is true and 
 
 CI runs on `pull_request`, so GitHub resolves the local `./.github/actions/...` hooks from the pull
 request's merge commit. A pull request that edits a hook therefore tests its own copy. The hub tasks are
-reached by pin, so a change to one arrives as a pin bump that the same pull request exercises. A
-`workflow_dispatch` runs the same jobs on any branch, and builds the zip whatever changed. CI runs four
+reached by pin, so a change to one arrives as a pin bump. Its pull request runs the new `validate-task`
+pin, but the paths filter leaves workflow files out, so a `build-release-task` pin bump is not
+smoke-built. A `workflow_dispatch` runs the same jobs on any branch and builds the zip whatever changed,
+so a dispatch on the bump's branch exercises it. CI runs four
 jobs: the `changes` path filter, `read-versions`, the hub validate task in `validate`, and the no-publish
 zip build in `smoke-build`. `validate` runs on every pull request. `smoke-build` runs only when the filter
 marks the release target. That is a change under `custom_components/**` or `.github/actions/**`, or to
@@ -243,7 +245,7 @@ A pull request exercises its own workflow files. No change waits to reach `main`
 - **A dispatched publish uses that branch's workflows**, so a workflow change is usable on the branch that
   introduces it.
 - **A fork's pull request runs the same gate**, with a read-only token and no repository secrets. Its
-  Codecov upload is skipped, and that best-effort upload never reds the gate. GitHub can hold a first-time
+  Codecov upload is tokenless and best-effort, so it never reds the gate. GitHub can hold a first-time
   contributor's run for a maintainer's approval. See D6.
 
 ### Self-sufficiency: automatic updates and HA-version tracking
@@ -413,7 +415,7 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   target's own paths, `custom_components/**`, `version.json`, and `.github/actions/**`, since the
   `build-release-asset` hook builds the zip. The `smoke-build` no-publish zip build runs only when that
   filter matches, or on a `workflow_dispatch`. A change matching no entry, such as a docs-only or
-  workflow-only one, skips it. *Prevents a hook or build break shipping untested, and a zip rebuilt for a
+  workflow-only one, skips it, so a workflow-only change gets actionlint but no build. *Prevents a hook or build break shipping untested, and a zip rebuilt for a
   change that cannot alter it.*
 - **D1.2 The full quality gate runs.** Output: the hub validate task runs the doc lint, ruff (lint + format
   check), and mypy `--strict` in its `lint` job. It runs the HA-version pytest matrix in its `unit-test`
@@ -518,14 +520,16 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 ### D6 - Self-testing workflows
 
 - **D6.1 A change is testable on its own branch.** Output: a workflow or build change is exercised by CI on
-  the branch that introduces it, no dependency on reaching `main` first. *Prevents the "promote to `main` to
+  the branch that introduces it, no dependency on reaching `main` first. A hook or integration change is
+  smoke-built by its pull request run. A workflow-only change, a `build-release-task` pin bump included, is
+  not, and a `workflow_dispatch` on its branch builds it. *Prevents the "promote to `main` to
   test the fix" trap.*
 - **D6.2 Head-resolution and a single producer.** Output: CI runs on `pull_request`, so the composite
   hooks under `.github/actions/` resolve from the pull request's merge commit. The aggregator's
   ruleset-bound `context:` is produced by that `pull_request` run as the sole producer of that name, since
   a dispatch run's aggregator takes another name. Dependabot, tracker, and fork pull requests are validated
-  the same way. A fork's run has a read-only token and no repository secrets, so its best-effort Codecov
-  upload is skipped. *Prevents a dual-producer context race and a hook change merging untested.*
+  the same way. A fork's run has a read-only token and no repository secrets, so its Codecov upload is
+  tokenless and best-effort, and never reds the gate. *Prevents a dual-producer context race and a hook change merging untested.*
 
 ### D7 - Concurrency, permissions, safety
 
@@ -653,7 +657,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 | --- | --- | --- | --- |
 | S1 | pull request touching `custom_components/**` | `validate` runs the full suite and `smoke-build` the no-publish zip build (layout asserted). **No release**, aggregator success, prerelease version (branch != main) | D0.1, D1 |
 | S2 | pull request changing only docs | `validate` runs and lint checks markdown. The filter matches nothing, so `smoke-build` skips and the aggregator passes the skip. Nothing publishes | D1.1, D1.5 |
-| S3 | pull request changing only `.github/workflows/**` or `.github/actions/**` | the changed workflow or hook is exercised head-resolved (self-test). A `.github/actions/**` change also runs `smoke-build`, and a workflow-only one skips it. Aggregator success | D1.1, D6.1 |
+| S3 | pull request changing only `.github/workflows/**` or `.github/actions/**` | the changed workflow or hook is exercised head-resolved (self-test). A `.github/actions/**` change also runs `smoke-build`. A workflow-only one, a `build-release-task` pin bump included, skips it until a `workflow_dispatch` on the branch builds it. Aggregator success | D1.1, D6.1 |
 | S4 | `workflow_dispatch` from `main` | `plan` passes, `validate` succeeds, `publish` publishes a **stable** `X.Y.Z`, `prerelease=false`, tag on the dispatched SHA, `purpleair.zip` attached, artifacts cleaned up | D2.1, D3.2, D4 |
 | S5 | `workflow_dispatch` from `develop` | publishes a **prerelease** `X.Y.Z-g<sha>`, `prerelease=true`, `develop` SHA tagged | D2.1, D3.2, D4.2 |
 | S6 | weekly `schedule` | `plan` succeeds, `validate` runs (retests main against the HA matrix) under a per-run concurrency group, `publish` **skipped** (dispatch-only) -> **no release**, and no pending dispatch replaced | D4.1, D4.5, D7.1 |
@@ -666,7 +670,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 | S13 | a branch is **deleted** | no `pull_request` event fires, so CI does not run -> no failed run, no pending required check | D1.1 |
 | S14 | dispatch against a regressed tip (a failing test) | `validate` reds -> `publish` skips (requires `success`) -> no broken release ships | D4.6 |
 | S15 | a bot's workflow bump lands on the dispatched branch during a publish | the run dispatches the publisher on that branch and cancels before any release, then the new run retests and publishes the head | D4.8 |
-| S16 | pull request from a fork | the gate runs with a read-only token and no repository secrets. The best-effort Codecov upload is skipped. The aggregator gates the merge as for any pull request | D1.5, D6.2 |
+| S16 | pull request from a fork | the gate runs with a read-only token and no repository secrets. The Codecov upload is tokenless and best-effort. The aggregator gates the merge as for any pull request | D1.5, D6.2 |
 
 ### 5C. Live probe (where warranted, never publishing)
 

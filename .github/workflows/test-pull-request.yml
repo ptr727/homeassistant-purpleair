@@ -63,7 +63,7 @@ jobs:
   # The hub lint job runs the doc lint, ruff, and mypy --strict against latest-stable.
   # Its unit-test job runs one pytest leg per matrix entry through the install-test-deps hook.
   # Its validate job runs the validate hook's hassfest, HACS, and pyright.
-  # CODECOV_TOKEN is mapped by name, per D1.6.
+  # CODECOV_TOKEN is mapped by name, per the hub's coverage rule.
   validate:
     name: Validate sources job
     needs: [read-versions]
@@ -79,7 +79,7 @@ jobs:
       python-versions: '["3.14"]'
       test-matrix: ${{ needs.read-versions.outputs.matrix }}
 
-  # Never publishes and never uploads (D1.3): smoke: true disables every publish path in build-release-task.
+  # Never publishes and never uploads (D1.4): smoke: true disables every publish path in build-release-task.
   # Smoke mode builds purpleair.zip through the build-release-asset hook.
   smoke-build:
     name: Smoke build job
