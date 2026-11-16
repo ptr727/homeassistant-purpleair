@@ -296,7 +296,7 @@ The Read Key can also be added at sensor-add time for new sensors. See [3. Add S
 
 - **Branching workflow**:
   - Feature branch -> `develop` via **squash merge**; `develop` -> `main` via **merge commit**. Both methods are pinned in the branch rulesets.
-  - CI runs on every pull request, a fork's included. The release zip is smoke-built only when the integration or its build inputs change.
+  - CI runs on every pull request, including pull requests from forks. The release zip is smoke-built only when the integration or its build inputs change.
   - Dependabot and the HA-version-bump bot target `develop` and auto-merge once the required check passes.
   - See [`WORKFLOW.md`][workflow] and [`OPERATIONS.md`][operations] for the full release flow and HA-version-bump process.
 - **Code style**:

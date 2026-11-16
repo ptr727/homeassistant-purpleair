@@ -184,9 +184,9 @@ request's merge commit. A pull request that edits a hook therefore tests its own
 reached by pin, so a change to one arrives as a pin bump. Its pull request runs the new `validate-task`
 pin, but the paths filter leaves workflow files out, so a `build-release-task` pin bump is not
 smoke-built. A `workflow_dispatch` runs the same jobs on any branch and builds the zip whatever changed,
-so a dispatch on the bump's branch exercises it. CI runs four
-jobs: the `changes` path filter, `read-versions`, the hub validate task in `validate`, and the no-publish
-zip build in `smoke-build`. `validate` runs on every pull request. `smoke-build` runs only when the filter
+so a dispatch on the bump's branch exercises it. CI runs the
+`changes` path filter, `read-versions`, the hub validate task in `validate`, and the no-publish zip build in
+`smoke-build`, with an aggregator after them. `validate` runs on every pull request. `smoke-build` runs only when the filter
 marks the release target. That is a change under `custom_components/**` or `.github/actions/**`, or to
 `version.json`, since the `build-release-asset` hook builds the zip. One aggregator job is the
 ruleset-bound required check and gates the merge. A `pull_request` run names it `Check pull request
@@ -655,7 +655,7 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 | # | Input | Expected output | Exercises |
 | --- | --- | --- | --- |
-| S1 | pull request touching `custom_components/**` | `validate` runs the full suite and `smoke-build` the no-publish zip build (layout asserted). **No release**, aggregator success, prerelease version (branch != main) | D0.1, D1 |
+| S1 | pull request touching `custom_components/**` | `validate` runs the full suite and `smoke-build` the no-publish zip build (layout asserted). **No release**, aggregator success, prerelease version, since a smoke build versions the pull request's merge ref whatever its base branch | D0.1, D1 |
 | S2 | pull request changing only docs | `validate` runs and lint checks markdown. The filter matches nothing, so `smoke-build` skips and the aggregator passes the skip. Nothing publishes | D1.1, D1.5 |
 | S3 | pull request changing only `.github/workflows/**` or `.github/actions/**` | the changed workflow or hook is exercised head-resolved (self-test). A `.github/actions/**` change also runs `smoke-build`. A workflow-only one, a `build-release-task` pin bump included, skips it until a `workflow_dispatch` on the branch builds it. Aggregator success | D1.1, D6.1 |
 | S4 | `workflow_dispatch` from `main` | `plan` passes, `validate` succeeds, `publish` publishes a **stable** `X.Y.Z`, `prerelease=false`, tag on the dispatched SHA, `purpleair.zip` attached, artifacts cleaned up | D2.1, D3.2, D4 |
