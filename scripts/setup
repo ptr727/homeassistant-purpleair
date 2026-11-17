@@ -7,7 +7,7 @@
 #      It installs into /usr/local/bin with sudo.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
-#      Both downloads are verified in memory, so neither creates a temporary file.
+#      Both downloads are verified in memory, then staged beside their target and renamed into place.
 #   5. markdownlint-cli2 pinned via npm — same engine the VS Code
 #      davidanson.vscode-markdownlint extension uses, so CLI verification matches
 #      what the IDE shows. Node.js itself is provided by the devcontainer
@@ -40,8 +40,10 @@ fi
 
 cd "$(dirname "$0")/.."
 
-# A long-running child runs in the background, so a signal reaches the traps at once rather than after the child returns.
-# The traps stop that child, print one line naming the signal, and re-raise it, so a caller sees the script die by that signal.
+# The download snippet runs in the background, so a signal reaches the traps at once rather than after it returns.
+# The traps stop it, print one line naming the signal, and re-raise it, so a caller sees the script die by that signal.
+# The uv, npm, and git calls run in the foreground instead, where Ctrl-C reaches their whole process tree.
+# A background uv would leave its build backend running when the traps' SIGTERM ends it.
 # The script itself creates no temporary path, so nothing else needs releasing here.
 # The foreground Python snippets below take SIGINT's default action, so Ctrl-C prints no traceback before the trap's line.
 pids=()
@@ -67,7 +69,7 @@ trap 'on_signal INT 130' INT
 trap 'on_signal TERM 143' TERM
 
 # Downloads into memory and checks the SHA256 before anything is written, so a failed download leaves nothing behind.
-# Mode bin installs the payload as an executable with sudo.
+# Mode bin installs the payload with sudo as an executable beside the target, then renames that over the target.
 # Mode zip extracts it into a staging directory beside the target, then renames that over the target.
 # The snippet removes the staging directory as it unwinds from SIGINT or SIGTERM, then re-raises the signal.
 verify_py="$(
@@ -94,7 +96,13 @@ def main(url: str, expected: str, mode: str, destination: str) -> None:
         sys.exit(f"Checksum mismatch for {destination}: expected {expected}, got {actual}")
     print(f"Verified sha256 {expected}")
     if mode == "bin":
-        subprocess.run(["sudo", "install", "-m", "0755", "/dev/stdin", destination], input=download.stdout, check=True)
+        staged = f"{destination}.new"
+        try:
+            subprocess.run(["sudo", "install", "-m", "0755", "/dev/stdin", staged], input=download.stdout, check=True)
+            subprocess.run(["sudo", "mv", "-f", staged, destination], check=True)
+        finally:
+            if os.path.lexists(staged):
+                subprocess.run(["sudo", "rm", "-f", staged], check=False)
         return
     target = pathlib.Path(destination)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -156,12 +164,12 @@ fi
 # hang the postCreate run).
 if [[ ! -x .venv/bin/python ]] ||
     ! .venv/bin/python -c 'import sys; sys.exit(sys.version_info[:2] != (3, 14))' 2>/dev/null; then
-    run_child uv venv --python 3.14 --clear
+    uv venv --python 3.14 --clear
 fi
 # shellcheck source=/dev/null
 source .venv/bin/activate
-run_child uv pip install --requirement requirements.txt
-run_child uv pip install --requirement requirements-test.txt
+uv pip install --requirement requirements.txt
+uv pip install --requirement requirements-test.txt
 
 # Pre-install the frontend package HA expects. HA installs it at runtime
 # otherwise, which races the frontend component's setup and drops HA into
@@ -180,7 +188,7 @@ PY
 )"
 if [[ -n "${frontend_req}" ]]; then
     echo "Pre-installing ${frontend_req}"
-    run_child uv pip install "${frontend_req}"
+    uv pip install "${frontend_req}"
 fi
 
 # --- pre-commit hook --------------------------------------------------------
@@ -196,7 +204,7 @@ if ! inside_work_tree="$(LC_ALL=C git rev-parse --is-inside-work-tree 2>&1)"; th
 else
     # A commit inside the devcontainer runs the host's hook, which falls back to the pre-commit on PATH.
     if ! command -v pre-commit >/dev/null 2>&1; then
-        run_child uv tool install pre-commit
+        uv tool install pre-commit
     fi
     if ! [[ "$(git rev-parse --git-dir)" -ef "$(git rev-parse --git-common-dir)" ]]; then
         echo "Linked worktree; the base clone enables the pre-commit hook, skipping."
@@ -228,7 +236,7 @@ if command -v npm >/dev/null 2>&1; then
         echo "markdownlint-cli2 ${MARKDOWNLINT_VERSION} already installed, skipping."
     else
         echo "Installing markdownlint-cli2@${MARKDOWNLINT_VERSION} via npm"
-        run_child npm install -g "markdownlint-cli2@${MARKDOWNLINT_VERSION}"
+        npm install -g "markdownlint-cli2@${MARKDOWNLINT_VERSION}"
         # Avoid piping to `head` here; Node 24 can raise EPIPE on closed stdout.
         installed_markdownlint="$(markdownlint-cli2 --version 2>/dev/null)"
         installed_markdownlint="${installed_markdownlint%%$'\n'*}"
@@ -263,7 +271,7 @@ USE_EDITABLE_AIOPURPLEAIR=true
 
 if [[ ! -d "${AIOPURPLEAIR_DIR}" ]]; then
     echo "Cloning ${AIOPURPLEAIR_REPO} (${AIOPURPLEAIR_BRANCH}) into ${AIOPURPLEAIR_DIR}"
-    if ! run_child git clone --branch "${AIOPURPLEAIR_BRANCH}" "${AIOPURPLEAIR_REPO}" "${AIOPURPLEAIR_DIR}"; then
+    if ! git clone --branch "${AIOPURPLEAIR_BRANCH}" "${AIOPURPLEAIR_REPO}" "${AIOPURPLEAIR_DIR}"; then
         echo "Warning: Failed to clone ${AIOPURPLEAIR_REPO}. Continuing without editable aiopurpleair checkout." >&2
         USE_EDITABLE_AIOPURPLEAIR=false
     fi
@@ -295,7 +303,7 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
     # For this workspace we only need aresponses available for aiopurpleair
     # tests; install it directly if missing.
     if ! python3 -c 'import aresponses' >/dev/null 2>&1; then
-        run_child uv pip install "aresponses>=2.1.6,<4.0.0"
+        uv pip install "aresponses>=2.1.6,<4.0.0"
     fi
 
     # Optional escape hatch for contributors who explicitly want to run the
@@ -311,7 +319,7 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
         fi
     fi
 
-    run_child uv pip install --editable "${AIOPURPLEAIR_DIR}"
+    uv pip install --editable "${AIOPURPLEAIR_DIR}"
 
     python3 <<'PYEOF'
 import json, pathlib, signal

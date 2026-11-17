@@ -1,4 +1,4 @@
-"""Interrupt tests for scripts/setup, which holds a background child while it runs."""
+"""Interrupt tests for scripts/setup, which holds a background download child while it runs."""
 
 from __future__ import annotations
 
@@ -18,6 +18,20 @@ pytestmark = pytest.mark.skipif(
     sys.platform == "win32",
     reason="Windows cannot deliver SIGINT or SIGTERM to a script",
 )
+
+# Each stub stands in for a tool the run reaches before the HACS download.
+# The uv stub seeds the .venv the script activates, and the git stub reports no checkout.
+# So the pre-commit and aiopurpleair steps skip.
+# The markdownlint-cli2 and go2rtc stubs report their pinned versions, so their installs skip too.
+# The curl stub records its process ID and blocks, holding the run inside the download snippet until it is stopped.
+STUBS = {
+    "uv": '#!/bin/sh\nif [ "$1" = venv ]; then mkdir -p .venv/bin && : > .venv/bin/activate; fi\n',
+    "python": "#!/bin/sh\nexit 0\n",
+    "git": "#!/bin/sh\necho 'fatal: not a git repository' >&2\nexit 128\n",
+    "markdownlint-cli2": "#!/bin/sh\necho 'markdownlint-cli2 v0.22.1'\n",
+    "go2rtc": "#!/bin/sh\necho 'go2rtc version 1.9.14'\n",
+    "curl": '#!/bin/sh\necho $$ > "$CURL_PID_FILE"\nexec sleep 60\n',
+}
 
 
 def _alive(pid: int) -> bool:
@@ -40,43 +54,50 @@ def _wait_for_file(path: Path, timeout: float) -> str:
 
 
 @pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
-def test_setup_interrupted_stops_its_child_and_dies_by_the_signal(
+def test_setup_interrupted_stops_its_download_and_dies_by_the_signal(
     tmp_path: Path, signum: signal.Signals
 ) -> None:
-    """A signal mid-run stops the running child, prints one line, and re-raises."""
+    """A signal mid-download stops the download, leaves nothing behind, prints one line, and re-raises."""
     checkout = tmp_path / "checkout"
     (checkout / "scripts").mkdir(parents=True)
     shutil.copy2(SETUP, checkout / "scripts" / "setup")
 
-    # The stub stands in for uv, whose first call creates the .venv, and blocks until it is stopped.
     stubs = tmp_path / "stubs"
     stubs.mkdir()
-    child_pid_file = tmp_path / "child.pid"
-    stub = stubs / "uv"
-    stub.write_text(f'#!/bin/sh\necho $$ > "{child_pid_file}"\nexec sleep 60\n')
-    stub.chmod(0o755)
+    for name, body in STUBS.items():
+        stub = stubs / name
+        stub.write_text(body)
+        stub.chmod(0o755)
 
-    env = {**os.environ, "PATH": f"{stubs}{os.pathsep}{os.environ['PATH']}"}
+    curl_pid_file = tmp_path / "curl.pid"
+    env = {
+        **os.environ,
+        "PATH": f"{stubs}{os.pathsep}/usr/bin{os.pathsep}/bin",
+        "CURL_PID_FILE": str(curl_pid_file),
+    }
     process = subprocess.Popen(
         ["bash", str(checkout / "scripts" / "setup")],
+        cwd=tmp_path,
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         text=True,
     )
-    child_pid = 0
+    curl_pid = 0
     try:
-        child_pid = int(_wait_for_file(child_pid_file, timeout=10))
+        curl_pid = int(_wait_for_file(curl_pid_file, timeout=30))
         process.send_signal(signum)
         _, stderr = process.communicate(timeout=10)
-        child_survived = _alive(child_pid)
+        curl_survived = _alive(curl_pid)
     finally:
         if process.poll() is None:
             process.kill()
             process.wait()
-        if child_pid and _alive(child_pid):
-            os.kill(child_pid, signal.SIGKILL)
+        if curl_pid and _alive(curl_pid):
+            os.kill(curl_pid, signal.SIGKILL)
 
     assert process.returncode == -signum
-    assert stderr.splitlines() == [f"scripts/setup: interrupted by {signum.name}"]
-    assert not child_survived
+    assert stderr.splitlines()[-1:] == [f"scripts/setup: interrupted by {signum.name}"]
+    assert "Traceback" not in stderr
+    assert not curl_survived
+    assert not (checkout / "config" / "custom_components").exists()
