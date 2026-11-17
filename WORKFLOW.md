@@ -708,12 +708,12 @@ A misconfiguration surfaces only as a failed run, so the configuration is part o
 **Secrets.**
 
 - `CODECOV_TOKEN` is the Codecov upload token the pytest matrix uses, since tokenless OIDC uploads are rejected
-  on protected-branch runs. Required in **both** the Actions and Dependabot stores, because the PR gate runs on
-  Dependabot's pushes too and a Dependabot-triggered run reads the Dependabot store.
+  on protected-branch runs such as the publisher's. Required in the Actions and Dependabot stores,
+  because a Dependabot pull request's gate run reads the Dependabot store rather than Actions secrets.
 - `CODEGEN_APP_CLIENT_ID` / `CODEGEN_APP_PRIVATE_KEY` - the GitHub App credentials the merge-bot and the
-  HA-version tracker mint the App token from. Required in **both** the Actions and Dependabot secret stores:
-  the tracker reads them from Actions, but the merge-bot reads them from the Dependabot store when it acts on
-  a Dependabot PR (a Dependabot-triggered run gets the Dependabot store, not Actions secrets). The App must
+  HA-version tracker mint the App token from. Required in the Actions and Dependabot secret stores. The
+  tracker reads them from Actions. The merge-bot reads them from the Dependabot store when it acts on a
+  Dependabot PR, since a Dependabot-triggered run gets no Actions secrets. The App must
   be installed on the repo with `contents: write` and `pull_requests: write`.
 - The built-in `GITHUB_TOKEN` needs no setup. **No `PUBLISH_ON_MERGE` variable and no publish API key** -
   the HACS zip release is a dispatch-gated GitHub Release, which is keyless.
