@@ -70,6 +70,21 @@ Bumping the matrix `minimum` is intentional and rare. Do it in one pull request 
 
 Leave the `requirements.txt` `homeassistant==` pin alone, since it tracks `latest-stable` rather than the minimum. Consider raising the base `major.minor` in [`version.json`](./version.json) in the same change. Dropping older Home Assistant versions breaks users still on them.
 
+### Test Against the Live API
+
+The unit tests mock the client, so a check against real accounts and real sensors runs through the dev loop instead. Its credentials live in one host file outside every checkout, `~/.secrets/aiopurpleair_live_test.env`, which the client library's live tests read too. The file follows the library's [`.env.test.example`](https://github.com/ptr727/aiopurpleair/blob/develop/.env.test.example). This integration uses `PURPLEAIR_API_KEY`, a read key, and `PURPLEAIR_API_KEY_2`, an optional read key from a second account. It also uses `PURPLEAIR_SENSOR_INDEX_1` and `PURPLEAIR_SENSOR_INDEX_2`, two owned sensors, with their `PURPLEAIR_SENSOR_READ_KEY_1` and `PURPLEAIR_SENSOR_READ_KEY_2`. The write key and the owner email serve only the library's own tests.
+
+**Nothing in this repository reads the file by itself.** No script, test, or hook loads it, so a contributor without it sees no change. The dev loop still takes the key through the UI. An agent reads it only when the maintainer asks for a live check, and only to run the steps below. It never copies a value from the file into a commit, an issue, a pull request, or a log. The values do land in `config/.storage/` once an entry is added, which "Configuration Layout" already covers.
+
+An agent runs a live check against the Home Assistant REST API at `http://localhost:8123`:
+
+1. Start Home Assistant with `scripts/develop` in the background, from a worktree whose `config/` is new or already onboarded.
+2. On a new `config/`, finish onboarding with `/api/onboarding/users`, then trade the returned code for an access token at `/auth/token`.
+3. Post `{"handler": "purpleair"}` to `/api/config/config_entries/flow`, then answer the flow's `api_key` step with `PURPLEAIR_API_KEY`.
+4. Add each sensor as a subentry. Post `{"handler": ["<entry_id>", "sensor"]}` to `/api/config/config_entries/subentries/flow`, choose `add_sensor_index` at the menu, then answer with `sensor_index` and `sensor_read_key`.
+5. Read the new entities from `/api/states`, and read the integration's debug log from the `scripts/develop` output, since `scripts/init-config` turns it on.
+6. Stop Home Assistant when done. Keep `config/` for the next check, since it holds the onboarded user and the entry.
+
 ### Close an Issue From a Pull Request
 
 **Put issue-closing keywords (`Closes #N`) only in the `develop -> main` promotion pull request's body**, per [`GOVERNANCE.md`](./GOVERNANCE.md) "Branching Model". A feature or `develop` pull request's body carries none. A squash merge can copy that body into its commit, and a keyword there would close the issue once the promotion reaches `main`. Name the issues such a pull request fixes on an inert `Closes on promotion:` line instead. Tag the promotion pull request's description, or close the issue by hand once the fix reaches `main`.
