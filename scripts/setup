@@ -72,7 +72,7 @@ trap 'on_signal TERM 143' TERM
 # Mode bin installs the payload with sudo as an executable beside the target, then renames that over the target.
 # Mode zip extracts it into a staging directory beside the target, then renames that over the target.
 # An existing target is moved aside only once the new tree is extracted, so a failed download or extraction keeps it.
-# The snippet removes the staging directory as it unwinds from SIGINT or SIGTERM, then re-raises the signal.
+# The snippet removes the staging directory as it unwinds from the traps' SIGTERM, then re-raises it.
 verify_py="$(
     cat <<'VERIFY'
 import contextlib
@@ -98,10 +98,10 @@ def run(command: list[str], payload: bytes | None = None) -> tuple[int, bytes]:
     return child.returncode, output
 
 
-def sudo(command: list[str], payload: bytes | None = None) -> None:
+def sudo(command: list[str], target: str, payload: bytes | None = None) -> None:
     status, _ = run(["sudo", *command], payload)
     if status != 0:
-        sys.exit(f"sudo {command[0]} exited {status}. Fix what it printed above, then rerun scripts/setup.")
+        sys.exit(f"sudo {command[0]} for {target} exited {status}. Fix what it printed above, then rerun scripts/setup.")
 
 
 def main(url: str, expected: str, mode: str, destination: str) -> None:
@@ -115,14 +115,16 @@ def main(url: str, expected: str, mode: str, destination: str) -> None:
     if actual != expected:
         sys.exit(
             f"Checksum mismatch for {destination}: expected {expected}, got {actual}. "
-            "Rerun scripts/setup, and if it repeats, recompute the pinned hash as the header of scripts/setup describes."
+            "After a deliberate version bump, recompute the pinned hash as the header of scripts/setup describes. "
+            "Otherwise check the upstream release asset before changing the pin, then rerun scripts/setup."
         )
-    print(f"Verified sha256 {expected}")
+    print(f"Verified sha256 {expected}", flush=True)
     if mode == "bin":
         staged = f"{destination}.new"
+        sudo(["-v"], destination)
         try:
-            sudo(["install", "-m", "0755", "/dev/stdin", staged], payload)
-            sudo(["mv", "-f", staged, destination])
+            sudo(["install", "-m", "0755", "/dev/stdin", staged], destination, payload)
+            sudo(["mv", "-f", staged, destination], destination)
         except BaseException:
             run(["sudo", "-n", "rm", "-f", staged])
             raise
