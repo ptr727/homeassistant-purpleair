@@ -31,6 +31,15 @@ docker run --rm -v "$PWD:/mnt" -w /mnt mvdan/shfmt:v3.14.1 -d scripts/*
 uvx check-jsonschema --builtin-schema vendor.github-actions -- .github/actions/*/action.yml
 ```
 
+The devcontainer has no Docker, so run these there instead. `markdownlint-cli2` and `shellcheck` are already installed there.
+
+```sh
+npx -y cspell@9 --no-progress --config cspell.json README.md HISTORY.md
+uvx --from actionlint-py actionlint
+uvx --from editorconfig-checker ec
+uvx --from shfmt-py shfmt -d scripts/*
+```
+
 The composite-action shellcheck has no one-line form of its own. Run the hub's repository gate from a fresh hub checkout, `python3 <hub>/.github/actions/repo-gate/repo_gate.py --root . --check composite-actions`, which runs both halves the CI step runs.
 
 **What CI cannot exercise is the integration running inside Home Assistant.** `scripts/develop` boots a local Home Assistant against the gitignored `config/` directory with this integration loaded, on port 8123. A change to the config flow, entity naming, translations, or device registry behavior is worth a manual pass through the UI before merge, since the test harness mocks the parts a user sees. [`DEVCONTAINER.md`](./DEVCONTAINER.md) covers running and debugging it.
@@ -69,6 +78,21 @@ Bumping the matrix `minimum` is intentional and rare. Do it in one pull request 
 - Any code that needs the newer API.
 
 Leave the `requirements.txt` `homeassistant==` pin alone, since it tracks `latest-stable` rather than the minimum. Consider raising the base `major.minor` in [`version.json`](./version.json) in the same change. Dropping older Home Assistant versions breaks users still on them.
+
+### Test Against the Live API
+
+The unit tests mock the client, so a check against real accounts and real sensors runs through the dev loop instead. Its credentials live in one host file outside every checkout, `~/.secrets/aiopurpleair_live_test.env`, which the client library's live tests read too. The file follows the library's [`.env.test.example`](https://github.com/ptr727/aiopurpleair/blob/develop/.env.test.example). This integration uses `PURPLEAIR_API_KEY`, a read key. It also uses `PURPLEAIR_SENSOR_INDEX_1` and `PURPLEAIR_SENSOR_INDEX_2`, two owned sensors, with their `PURPLEAIR_SENSOR_READ_KEY_1` and `PURPLEAIR_SENSOR_READ_KEY_2`. The other keys serve only the library's own tests.
+
+**Nothing in this repository reads the file by itself.** No script, test, or hook loads it, so a contributor without it sees no change. The dev loop still takes the key through the UI. An agent reads it only when the maintainer asks for a live check, and only to run the steps below. It never copies a value from the file into a commit, an issue, a pull request, or a log. The values do land in `config/.storage/` once an entry is added, which "Configuration Layout" already covers.
+
+An agent runs a live check against the Home Assistant REST API at `http://localhost:8123`:
+
+1. Start Home Assistant with `scripts/develop` in the background, from a task worktree whose `config/` has never been onboarded. Each check starts that way, so no token or entry is carried from one check to the next.
+2. Finish onboarding with `/api/onboarding/users`, then trade the returned code for an access token at `/auth/token`.
+3. Post `{"handler": "purpleair"}` to `/api/config/config_entries/flow`, then answer the flow's `api_key` step with `PURPLEAIR_API_KEY`.
+4. Add each sensor as a subentry. Post `{"handler": ["<entry_id>", "sensor"]}` to `/api/config/config_entries/subentries/flow`, choose `add_sensor_index` at the menu, then answer with `sensor_index` and `sensor_read_key`.
+5. Read the new entities from `/api/states`, and read the integration's debug log from the `scripts/develop` output, since `scripts/init-config` turns it on.
+6. Stop Home Assistant by posting to `/api/services/homeassistant/stop` with the token, and wait for the `hass` process to exit. Then delete that worktree's `config/`, since it now holds the API key and the throwaway user.
 
 ### Close an Issue From a Pull Request
 

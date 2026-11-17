@@ -7,6 +7,7 @@
 #      It installs into /usr/local/bin with sudo.
 #   4. HACS pinned to HACS_VERSION, downloaded as a GitHub release artifact and
 #      SHA256-verified before being extracted into config/custom_components/hacs/.
+#      Both downloads are verified in memory, then staged beside their target and renamed into place.
 #   5. markdownlint-cli2 pinned via npm — same engine the VS Code
 #      davidanson.vscode-markdownlint extension uses, so CLI verification matches
 #      what the IDE shows. Node.js itself is provided by the devcontainer
@@ -15,7 +16,6 @@
 #   6. The pre-commit hook for the local commit gate, enabled in the base clone only.
 #      The hook runner, pre-commit, is a user-level uv tool install.
 #   7. The home-assistant-frontend package HA's own manifest pins, pre-installed into .venv.
-#   8. The actionlint binary pinned to ACTIONLINT_VERSION, SHA256-verified and installed into /usr/local/bin with sudo.
 #
 # Neither the go2rtc upstream nor HACS publish checksum files alongside their
 # release assets, so the hashes below are computed manually when bumping and
@@ -39,6 +39,135 @@ if (($# > 0)); then
 fi
 
 cd "$(dirname "$0")/.."
+
+# The download snippet runs in the background, so a signal reaches the traps at once rather than after it returns.
+# The traps stop it, print one line naming the signal, and re-raise it, so a caller sees the script die by that signal.
+# The uv, npm, and git calls run in the foreground instead, where Ctrl-C reaches their whole process tree.
+# A background uv would leave its build backend running when the traps' SIGTERM ends it.
+# The script itself creates no temporary path, so nothing else needs releasing here.
+# The foreground Python snippets below take SIGINT's default action, so Ctrl-C prints no traceback before the trap's line.
+pids=()
+run_child() {
+    local status=0
+    "$@" <&0 &
+    pids=("$!")
+    wait "${pids[0]}" || status=$?
+    pids=()
+    return "${status}"
+}
+on_signal() {
+    if ((${#pids[@]} > 0)); then
+        kill -s TERM "${pids[@]}" 2>/dev/null || :
+        wait "${pids[@]}" || :
+    fi
+    echo "scripts/setup: interrupted by SIG$1" >&2
+    trap - "$1"
+    kill -s "$1" "$$"
+    exit "$2"
+}
+trap 'on_signal INT 130' INT
+trap 'on_signal TERM 143' TERM
+
+# Downloads into memory and checks the SHA256 before anything is written, so a failed download leaves nothing behind.
+# Mode bin installs the payload with sudo as an executable beside the target, then renames that over the target.
+# Mode zip extracts it into a staging directory beside the target, then renames that over the target.
+# An existing target is moved aside only once the new tree is extracted, so a failed download or extraction keeps it.
+# The snippet removes the staging directory as it unwinds from the traps' SIGTERM, then re-raises it.
+verify_py="$(
+    cat <<'VERIFY'
+import contextlib
+import hashlib
+import io
+import os
+import pathlib
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import zipfile
+
+
+def run(command: list[str], payload: bytes | None = None) -> tuple[int, bytes]:
+    child = subprocess.Popen(command, stdin=subprocess.PIPE if payload is not None else None, stdout=subprocess.PIPE)
+    try:
+        output, _ = child.communicate(payload)
+    finally:
+        child.terminate()
+        child.wait()
+    return child.returncode, output
+
+
+def sudo(command: list[str], target: str, payload: bytes | None = None) -> None:
+    status, _ = run(["sudo", *command], payload)
+    if status != 0:
+        sys.exit(f"sudo {command[0]} for {target} exited {status}. Fix what it printed above, then rerun scripts/setup.")
+
+
+def main(url: str, expected: str, mode: str, destination: str) -> None:
+    status, payload = run(["curl", "-fsSL", url])
+    if status != 0:
+        sys.exit(
+            f"Download of {url} failed, curl exited {status}. "
+            "Fix what it printed above, such as the network or a mistyped pinned version, then rerun scripts/setup."
+        )
+    actual = hashlib.sha256(payload).hexdigest()
+    if actual != expected:
+        sys.exit(
+            f"Checksum mismatch for {destination}: expected {expected}, got {actual}. "
+            "After a deliberate version bump, recompute the pinned hash as the header of scripts/setup describes. "
+            "Otherwise check the upstream release asset before changing the pin, then rerun scripts/setup."
+        )
+    print(f"Verified sha256 {expected}", flush=True)
+    if mode == "bin":
+        staged = f"{destination}.new"
+        sudo(["-v"], destination)
+        try:
+            sudo(["install", "-m", "0755", "/dev/stdin", staged], destination, payload)
+            sudo(["mv", "-f", staged, destination], destination)
+        except BaseException:
+            run(["sudo", "-n", "rm", "-f", staged])
+            raise
+        return
+    target = pathlib.Path(destination)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent)
+    retired = tempfile.mkdtemp(prefix=f".{target.name}.old.", dir=target.parent)
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            archive.extractall(staging)
+        with contextlib.suppress(FileNotFoundError):
+            os.replace(target, retired)
+        os.replace(staging, target)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        shutil.rmtree(retired, ignore_errors=True)
+
+
+received = signal.SIGINT
+
+
+def on_term(signum: int, frame: object) -> None:
+    global received
+    received = signal.SIGTERM
+    raise KeyboardInterrupt
+
+
+signal.signal(signal.SIGTERM, on_term)
+try:
+    main(*sys.argv[1:])
+except KeyboardInterrupt:
+    with contextlib.suppress(OSError):
+        sys.stdout.flush()
+        sys.stderr.flush()
+    signal.signal(received, signal.SIG_DFL)
+    os.kill(os.getpid(), received)
+    sys.exit(128 + received)
+VERIFY
+)"
+install_verified() {
+    run_child python3 -c "${verify_py}" "$@"
+}
 
 # The dev toolchain is uv-managed. Ensure uv is present, create the .venv, and
 # install the pinned dependencies into it. requirements*.txt stay the single
@@ -75,7 +204,8 @@ uv pip install --requirement requirements-test.txt
 # recovery mode on first launch. Pin to the version HA's own manifest declares.
 frontend_req="$(
     python - <<'PY'
-import json, pathlib
+import json, pathlib, signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 try:
     import homeassistant.components.frontend as f
     m = json.loads((pathlib.Path(f.__file__).parent / "manifest.json").read_text())
@@ -220,7 +350,8 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
     uv pip install --editable "${AIOPURPLEAIR_DIR}"
 
     python3 <<'PYEOF'
-import json, pathlib
+import json, pathlib, signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 from importlib.metadata import version
 from packaging.requirements import Requirement
 from packaging.version import Version
@@ -282,85 +413,10 @@ else
         ;;
     esac
     url="https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${arch}"
-    tmp=$(mktemp)
-    trap 'rm -f "$tmp"' EXIT
     echo "Downloading go2rtc ${GO2RTC_VERSION} (${arch}) from ${url}"
-    curl -fsSL "${url}" -o "${tmp}"
-
-    actual_sha=$(sha256sum "${tmp}" | awk '{print $1}')
-    if [[ "${actual_sha}" != "${expected_sha}" ]]; then
-        echo "go2rtc checksum mismatch!" >&2
-        echo "  expected: ${expected_sha}" >&2
-        echo "  actual:   ${actual_sha}" >&2
-        exit 1
-    fi
-    echo "Verified sha256 ${expected_sha}"
-
-    sudo install -m 0755 "${tmp}" /usr/local/bin/go2rtc
-    # Explicit cleanup before clearing the trap so an interruption (SIGINT)
-    # or failed rm during this window still falls back to the trap.
-    rm -f "${tmp}"
-    trap - EXIT
+    install_verified "${url}" "${expected_sha}" bin /usr/local/bin/go2rtc
     installed_version="$(go2rtc --version | head -n1)"
     echo "Installed: ${installed_version}"
-fi
-
-# --- actionlint -----------------------------------------------------------
-# Workflow linter — same tool used by `actionlint -color .github/workflows/*.yml`
-# in CI advice. Pinned with per-arch SHA256 from upstream's checksums.txt.
-ACTIONLINT_VERSION=1.7.7
-
-installed_actionlint="$(actionlint -version 2>/dev/null | head -n1 || true)"
-if [[ "${installed_actionlint}" = "${ACTIONLINT_VERSION}" ]]; then
-    echo "actionlint ${ACTIONLINT_VERSION} already installed, skipping."
-else
-    machine="$(uname -m)"
-    case "${machine}" in
-    x86_64)
-        arch=amd64
-        actionlint_sha=023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
-        ;;
-    aarch64)
-        arch=arm64
-        actionlint_sha=401942f9c24ed71e4fe71b76c7d638f66d8633575c4016efd2977ce7c28317d0
-        ;;
-    armv7l)
-        arch=armv6
-        actionlint_sha=82e98d7252341b83fa557764824f225fa50431801b8e3d8e99f70dc1efc317b2
-        ;;
-    *)
-        echo "Unsupported architecture for actionlint: ${machine}" >&2
-        exit 1
-        ;;
-    esac
-    url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${arch}.tar.gz"
-    tmp=$(mktemp)
-    extract_dir=$(mktemp -d)
-    # Trap covers both the download tarball and the extract dir so a failure
-    # in tar / install / sha-verify doesn't leak temp directories.
-    trap 'rm -rf "$extract_dir"; rm -f "$tmp"' EXIT
-    echo "Downloading actionlint ${ACTIONLINT_VERSION} (${arch}) from ${url}"
-    curl -fsSL "${url}" -o "${tmp}"
-
-    actual_sha=$(sha256sum "${tmp}" | awk '{print $1}')
-    if [[ "${actual_sha}" != "${actionlint_sha}" ]]; then
-        echo "actionlint checksum mismatch!" >&2
-        echo "  expected: ${actionlint_sha}" >&2
-        echo "  actual:   ${actual_sha}" >&2
-        exit 1
-    fi
-    echo "Verified sha256 ${actionlint_sha}"
-
-    tar -xzf "${tmp}" -C "${extract_dir}" actionlint
-    sudo install -m 0755 "${extract_dir}/actionlint" /usr/local/bin/actionlint
-    # Explicit cleanup runs before disabling the trap so that an interruption
-    # (SIGINT) or a failed rm during this window still falls back to the trap
-    # as a safety net. trap is only cleared after both resources are gone.
-    rm -rf "${extract_dir}"
-    rm -f "${tmp}"
-    trap - EXIT
-    installed_actionlint="$(actionlint -version | head -n1)"
-    echo "Installed: actionlint ${installed_actionlint}"
 fi
 
 # --- HACS -----------------------------------------------------------------
@@ -373,25 +429,7 @@ if [[ -f config/custom_components/hacs/manifest.json ]]; then
     echo "HACS already installed, skipping."
 else
     url="https://github.com/hacs/integration/releases/download/${HACS_VERSION}/hacs.zip"
-    tmp=$(mktemp)
-    trap 'rm -f "$tmp"' EXIT
     echo "Downloading HACS ${HACS_VERSION} from ${url}"
-    curl -fsSL "${url}" -o "${tmp}"
-
-    actual_sha=$(sha256sum "${tmp}" | awk '{print $1}')
-    if [[ "${actual_sha}" != "${HACS_SHA256}" ]]; then
-        echo "HACS checksum mismatch!" >&2
-        echo "  expected: ${HACS_SHA256}" >&2
-        echo "  actual:   ${actual_sha}" >&2
-        exit 1
-    fi
-    echo "Verified sha256 ${HACS_SHA256}"
-
-    mkdir -p config/custom_components/hacs
-    python3 -m zipfile -e "${tmp}" config/custom_components/hacs/
-    # Explicit cleanup before clearing the trap so an interruption (SIGINT)
-    # or failed rm during this window still falls back to the trap.
-    rm -f "${tmp}"
-    trap - EXIT
+    install_verified "${url}" "${HACS_SHA256}" zip config/custom_components/hacs
     echo "Installed HACS ${HACS_VERSION}"
 fi
