@@ -683,11 +683,11 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 ### 5D. Configuration audit
 
 From a hub checkout at `main`, run `repo-config/configure.sh check ptr727/homeassistant-purpleair release`
-(section 6), and check secret names as [`AUDIT.md`][audit] section 4 describes, since `configure.sh` does
-not check secrets. Together they confirm the listed secrets exist, the `main`/`develop` rulesets enforce the
-required merge method, status check, signed commits, and strict-off (with linear history on `develop`, and
-**no** linear-history rule on `main` so the promotion merge commit is allowed), and the repository settings
-(auto-merge, allowed merge methods, auto-delete-on-merge off) are in place. `check` exits non-zero on drift.
+(section 6), and check secret names as [`AUDIT.md`][audit] "Secrets" describes. Together they confirm the
+listed secrets exist and the repository settings (auto-merge, allowed merge methods, auto-delete-on-merge off)
+are in place. They also confirm the `main`/`develop` rulesets enforce the required merge method, status check,
+signed commits, and strict-off. `develop` also requires linear history. `main` has **no** linear-history rule,
+so the promotion merge commit is allowed. `check` exits non-zero on drift.
 Secret *values* cannot be read back, so only the names are asserted. The App installation is not
 checked by either. The HACS zip release is dispatch-gated and keyless, so there is no external publish policy
 to verify, which is a noted manual item.
@@ -735,7 +735,7 @@ merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependab
 updates enabled. The GitHub App installed with the scopes above.
 
 **Validation.** This configuration is applied and audited by the hub's `repo-config/configure.sh` against the
-hub's payloads, with secret names checked separately, per [`AUDIT.md`][audit] section 4. Secret values cannot be read back, so
+hub's payloads, and it checks secret names too, per [`AUDIT.md`][audit] "Secrets". Secret values cannot be read back, so
 the audit asserts the names exist. The App installation is not checked.
 
 <!-- External -->
