@@ -71,6 +71,7 @@ trap 'on_signal TERM 143' TERM
 # Downloads into memory and checks the SHA256 before anything is written, so a failed download leaves nothing behind.
 # Mode bin installs the payload with sudo as an executable beside the target, then renames that over the target.
 # Mode zip extracts it into a staging directory beside the target, then renames that over the target.
+# An existing target is moved aside first and put back if the rename fails, so a failed install keeps it.
 # The snippet removes the staging directory as it unwinds from SIGINT or SIGTERM, then re-raises the signal.
 verify_py="$(
     cat <<'VERIFY'
@@ -87,33 +88,54 @@ import tempfile
 import zipfile
 
 
+def sudo(command: list[str], payload: bytes | None = None) -> None:
+    result = subprocess.run(["sudo", *command], input=payload, check=False)
+    if result.returncode != 0:
+        sys.exit(f"sudo {command[0]} exited {result.returncode}. Check that this account can run sudo, then rerun scripts/setup.")
+
+
 def main(url: str, expected: str, mode: str, destination: str) -> None:
     download = subprocess.run(["curl", "-fsSL", url], stdout=subprocess.PIPE, check=False)
     if download.returncode != 0:
-        sys.exit(f"Download of {url} failed, curl exited {download.returncode}")
+        sys.exit(f"Download of {url} failed, curl exited {download.returncode}. Check the network, then rerun scripts/setup.")
     actual = hashlib.sha256(download.stdout).hexdigest()
     if actual != expected:
-        sys.exit(f"Checksum mismatch for {destination}: expected {expected}, got {actual}")
+        sys.exit(
+            f"Checksum mismatch for {destination}: expected {expected}, got {actual}. "
+            "Rerun scripts/setup, and if it repeats, recompute the pinned hash as the header of scripts/setup describes."
+        )
     print(f"Verified sha256 {expected}")
     if mode == "bin":
         staged = f"{destination}.new"
         try:
-            subprocess.run(["sudo", "install", "-m", "0755", "/dev/stdin", staged], input=download.stdout, check=True)
-            subprocess.run(["sudo", "mv", "-f", staged, destination], check=True)
-        finally:
-            if os.path.lexists(staged):
-                subprocess.run(["sudo", "rm", "-f", staged], check=False)
+            sudo(["install", "-m", "0755", "/dev/stdin", staged], download.stdout)
+            sudo(["mv", "-f", staged, destination])
+        except BaseException:
+            subprocess.run(["sudo", "rm", "-f", staged], check=False)
+            raise
         return
     target = pathlib.Path(destination)
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent)
+    retired = tempfile.mkdtemp(prefix=f".{target.name}.old.", dir=target.parent)
+    moved = False
     try:
         with zipfile.ZipFile(io.BytesIO(download.stdout)) as archive:
             archive.extractall(staging)
-        shutil.rmtree(target, ignore_errors=True)
+        try:
+            os.replace(target, retired)
+            moved = True
+        except FileNotFoundError:
+            pass
         os.replace(staging, target)
+        moved = False
+    except BaseException:
+        if moved:
+            os.replace(retired, target)
+        raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+        shutil.rmtree(retired, ignore_errors=True)
 
 
 received = signal.SIGINT

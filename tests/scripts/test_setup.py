@@ -72,7 +72,9 @@ def test_setup_interrupted_stops_its_download_and_dies_by_the_signal(
     curl_pid_file = tmp_path / "curl.pid"
     env = {
         **os.environ,
-        "PATH": f"{stubs}{os.pathsep}/usr/bin{os.pathsep}/bin",
+        "PATH": os.pathsep.join(
+            [str(stubs), str(Path(sys.executable).parent), "/usr/bin", "/bin"]
+        ),
         "CURL_PID_FILE": str(curl_pid_file),
     }
     process = subprocess.Popen(

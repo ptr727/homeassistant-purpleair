@@ -238,7 +238,7 @@ tests/
 ### Tests
 
 - `pytest` with the configuration in `pyproject.toml` `[tool.pytest.ini_options]` (`asyncio_mode = "auto"`, `testpaths = ["tests"]`). Install `requirements-test.txt` first, then invoke `pytest`. Tests build on `pytest-homeassistant-custom-component`.
-- Tests live under `tests/components/purpleair/`, one test file per module under test, named `test_<module>.py`.
+- Tests live under `tests/components/purpleair/`, one test file per module under test, named `test_<module>.py`. The dev-loop script tests live under `tests/scripts/`, one file per script, named `test_<script>.py`.
 - Test functions named `test_<scenario>_<expected_behavior>` - descriptive, not numbered.
 - Use fixtures (defined in `conftest.py` for shared ones, or per-test for narrowly-scoped) instead of setup/teardown methods.
 - **Avoid mocking when fakes work.** Hand-rolled fakes that implement the protocol you depend on are usually clearer and break less than `unittest.mock` magic.

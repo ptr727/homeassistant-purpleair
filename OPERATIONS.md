@@ -31,7 +31,14 @@ docker run --rm -v "$PWD:/mnt" -w /mnt mvdan/shfmt:v3.14.1 -d scripts/*
 uvx check-jsonschema --builtin-schema vendor.github-actions -- .github/actions/*/action.yml
 ```
 
-The devcontainer has no Docker, so run `actionlint` there as `uvx --from actionlint-py actionlint`.
+The devcontainer has no Docker, so run these there instead. `markdownlint-cli2` and `shellcheck` are already installed there.
+
+```sh
+npx -y cspell@9 --no-progress --config cspell.json README.md HISTORY.md
+uvx --from actionlint-py actionlint
+uvx --from editorconfig-checker ec
+uvx --from shfmt-py shfmt -d scripts/*
+```
 
 The composite-action shellcheck has no one-line form of its own. Run the hub's repository gate from a fresh hub checkout, `python3 <hub>/.github/actions/repo-gate/repo_gate.py --root . --check composite-actions`, which runs both halves the CI step runs.
 
