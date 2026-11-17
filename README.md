@@ -296,7 +296,7 @@ The Read Key can also be added at sensor-add time for new sensors. See [3. Add S
 
 - **Branching workflow**:
   - Feature branch -> `develop` via **squash merge**; `develop` -> `main` via **merge commit**. Both methods are pinned in the branch rulesets.
-  - CI runs on every branch push (there is no `pull_request` trigger); a fork PR's pushes don't run the base-repo check, so a maintainer lands the change on an in-repo branch before merge.
+  - CI runs on every pull request, including pull requests from forks. The release zip is smoke-built only when the integration or its build inputs change.
   - Dependabot and the HA-version-bump bot target `develop` and auto-merge once the required check passes.
   - See [`WORKFLOW.md`][workflow] and [`OPERATIONS.md`][operations] for the full release flow and HA-version-bump process.
 - **Code style**:
@@ -304,7 +304,7 @@ The Read Key can also be added at sensor-add time for new sensors. See [3. Add S
 - **Development**:
   - See [`DEVCONTAINER.md`][devcontainer] for devcontainer development setup.
 - **Repository setup**:
-  - See [`AUDIT.md`][audit] section 4 for repository configuration.
+  - See [`AUDIT.md`][audit] "General Settings and Rulesets" and "Secrets" for repository configuration.
 
 ## 3rd Party Tools
 
@@ -355,7 +355,7 @@ Licensed under the [Apache 2.0 License][license] and [NOTICE][notice]\
 
 <!-- Shields -->
 
-[buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/test-pull-request.yml?logo=github&label=Build%20Status
+[buildstatus-shield]: https://img.shields.io/github/actions/workflow/status/ptr727/homeassistant-purpleair/publish-release.yml?event=schedule&logo=github&label=Build%20Status
 [coverage-shield]: https://img.shields.io/codecov/c/github/ptr727/homeassistant-purpleair?logo=codecov&label=Coverage
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?logo=homeassistantcommunitystore&label=HACS
 [haversion-shield]: https://img.shields.io/badge/Home_Assistant-2026.10.0%2B-41BDF5?logo=homeassistant

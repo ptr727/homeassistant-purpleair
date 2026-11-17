@@ -103,6 +103,8 @@ this skill exists to prevent. So is forgetting to loop back to the promotion PR 
    one per "Disposing of Every Finding" and wait again. Read `state=` in every digest `wait` or `status` prints.
    A peer can merge or close the pull request mid-drive. A digest carrying `state=MERGED` on a feature PR into develop means the merge has landed.
    Skip the merge in step 4 and go on to its post-merge path.
+   A finding still open there keeps its outcome owed. That covers an unresolved thread and every finding step 4 names, whether or not `merge` would refuse on it.
+   Give each one per "Disposing of Every Finding" before that path's cleanup, a fix landing as a fresh feature -> develop pass.
    On a promotion PR it means the drive's end state is passed, so stop and report it merged.
    A digest carrying `state=CLOSED` is a stop to report, with its `closed_at=`.
    On such a PR `state=` decides the next step over any exit code `wait` or `status` returns. A promotion re-reviews content its feature PRs already carried.
@@ -112,7 +114,8 @@ this skill exists to prevent. So is forgetting to loop back to the promotion PR 
 4. Merge the feature PR into
    develop with `uv run --no-project --script scripts/pr_review.py merge <number> --repo <owner>/<repo> --cleanup --checkout <base-clone>`,
    run from a hub checkout outside the task's worktree, `<base-clone>` being the repository's
-   primary clone. It reads the Merge Gate's mechanically readable items in code, through `wait`'s
+   primary clone. Spell it as `pr-review-conduct` "Expected review loop" says, or on Claude Code the auto-mode
+   classifier judges the merge and refuses it. It reads the Merge Gate's mechanically readable items in code, through `wait`'s
    own decision and a fresh read after it. It merges nothing while one reads unmet. The items no
    code reads stay this seat's per pr-review-conduct's Merge Gate. A finding the pull request's
    body lists is one. A no-thread finding on an earlier round is one too, since `FINDINGS WITH NO
@@ -130,9 +133,10 @@ this skill exists to prevent. So is forgetting to loop back to the promotion PR 
    line's route here. The hub's `scripts/README.md` "`pr_merge.py`" gives each route in full.
 
    - `next=done` is merged and cleaned up.
-   - `next=cleanup` is a merge that landed with its cleanup still owed. Run the `cleanup` command
-     below. Report a pull request another hand merged as a merge this run cannot vouch for. The
-     head that merged may be one the gate never read.
+   - `next=cleanup` is a merge that landed with its cleanup still owed. Give its open findings the
+     outcome step 3 owes after a peer merge, then run the `cleanup` command below. Report a pull
+     request another hand merged as a merge this run cannot vouch for. The head that merged may be
+     one the gate never read.
    - `next=readback` is a merge that may have landed. Read it back with `gh pr view <number> --repo
      <owner>/<repo> --json state`. `MERGED` means run `cleanup`, and `OPEN` means treat it as
      `redrive`. Only a read that still cannot answer is reported, saying the merge may have landed.
@@ -154,17 +158,20 @@ this skill exists to prevent. So is forgetting to loop back to the promotion PR 
    around, and it hands the maintainer no command to run instead.
    A harness refusing the `merge` call itself is a refused write
    rather than a gate refusal. That happens on a machine with no allow rule for it, or under
-   another provider. Raise it as a blocked decision per `GOVERNANCE.md` "Repository Boundaries and
-   Write Safety". Name the maintainer's routes, adding the permission rule or running the command
-   themselves. Once the merge is
+   another provider. It also happens on Claude Code for a call the rule does not match, per
+   `pr-review-conduct` "Expected review loop". Raise it as a blocked decision per `GOVERNANCE.md`
+   "Repository Boundaries and Write Safety". Name the maintainer's routes. One is adding the
+   permission rule where it is missing. Another is the change that paragraph names, a hub checkout
+   inside the session's working directories or a writable uv cache. The last is running the
+   command themselves. Once the merge is
    confirmed, `--cleanup` runs repo-worktree's post-merge cleanup,
    `uv run --no-project --script scripts/pr_review.py cleanup <number> --repo <owner>/<repo> --checkout <base-clone>`,
    and its exit is the command's. It deletes the remote branch, then removes the task's worktree and local branch.
    It decides its local refusals before the remote delete. `repo-worktree` "Listing and
    Cleanup" says what a refusal after the remote delete and a `base=kept` line each leave to do.
    It takes the pull request rather than a branch name and does the verify-then-delete in
-   code. It refuses unless the pull request merged into `develop` from a head in that same
-   repository. It also refuses a permanent branch or one any ruleset or branch protection covers. It
+   code. It refuses unless the pull request merged into `develop`, or is a conflicted promotion
+   merged into `main`, from a head in that same repository. It also refuses a permanent branch or one any ruleset or branch protection covers. It
    checks the tip is still at the pull request's `headRefOid` before deleting, and reads the ref
    back to confirm.
    These exits are `cleanup`'s, read once a `status=MERGED` line printed or a standalone `cleanup`
@@ -173,7 +180,8 @@ this skill exists to prevent. So is forgetting to loop back to the promotion PR 
    answer or a delete it could not confirm. `64` is a target under an owner other than the hub
    checkout's own `origin`, or that `origin` unreadable. A registry refusal is a `1`. It runs
    under the host-safety installer's `Bash(uv run --no-project --script scripts/pr_review.py:*)` allow rule,
-   which is what lets auto mode complete it.
+   which is what lets auto mode complete it. That holds where the call is
+   spelled as `pr-review-conduct` "Expected review loop" says.
    It also refuses while another open pull request in the repository has the branch as its head or base.
    It names each, since the delete would close or retarget it.
    Where this seat cannot run `cleanup`, report the delete to the maintainer instead of deleting by hand.
@@ -184,7 +192,9 @@ this skill exists to prevent. So is forgetting to loop back to the promotion PR 
    repo's auto-delete-head-branches setting is kept off fleet-wide (to protect `develop` and
    `main` from it, GitHub has no per-branch exception). So nothing deletes an ordinary feature
    branch automatically. Stop here and report the merged PR when the target is develop only.
-5. Open the develop -> main promotion PR if it does not exist yet, or find the existing one.
+5. Open the develop -> main promotion PR if it does not exist yet, or find the existing one. Its
+   body carries the closing keywords, checked as `branching-and-release-model`'s closing-keyword
+   bullets state.
 6. Drive its review loop the same way. A finding that needs a code change never gets pushed to
    the promotion PR directly, since its head is develop. So land the fix as a fresh pass through
    steps 1 to 4 in its own worktree and branch. Then return here.
@@ -207,7 +217,10 @@ maintainer when".
 
 A finding that committed text holds observed data takes outcome 4's observed-data bullet,
 whatever its class, ahead of every other outcome. That applies once the data is confirmed as
-observed. A value the repository constructed is disproved under outcome 2 instead.
+observed. A value the repository constructed is disproved under outcome 2 instead. So is a
+value outside the rule's scope, such as a date, an amount, a balance, or a private-range IP
+address. `GOVERNANCE.md` "Representative Data in Agent-Authored Text" bounds only what its first
+bullet calls identifying data.
 
 1. **Real, so fix it, and fix the class rather than the instance.** A reviewer samples rather
    than enumerates, so sweep for the finding's siblings before replying. Fix each one sitting

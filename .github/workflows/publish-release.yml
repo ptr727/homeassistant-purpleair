@@ -30,7 +30,7 @@ jobs:
   # It reports publish=true for the schedule too, so the publish job below also requires a dispatch.
   plan:
     name: Plan release job
-    uses: ptr727/ProjectTemplate/.github/workflows/publish-plan-task.yml@9afb02a85c5a2fd59806e5c7fa5d7bf964d56e7a # 2.0.1401
+    uses: ptr727/ProjectTemplate/.github/workflows/publish-plan-task.yml@6e05308f8267088a4055607aaae7310548232bdb # 2.0.1479
     with:
       event_name: ${{ github.event_name }}
       actor: ${{ github.actor }}
@@ -47,6 +47,8 @@ jobs:
     steps:
       - name: Checkout code step
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build HA test matrix step
         id: matrix
@@ -58,7 +60,7 @@ jobs:
   validate:
     name: Validate job
     needs: [plan, read-versions]
-    uses: ptr727/ProjectTemplate/.github/workflows/validate-task.yml@9afb02a85c5a2fd59806e5c7fa5d7bf964d56e7a # 2.0.1401
+    uses: ptr727/ProjectTemplate/.github/workflows/validate-task.yml@6e05308f8267088a4055607aaae7310548232bdb # 2.0.1479
     permissions:
       contents: read
     secrets:
@@ -79,7 +81,7 @@ jobs:
       github.event_name == 'workflow_dispatch' &&
       needs.plan.outputs.publish == 'true' &&
       needs.validate.result == 'success'
-    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@009d3e5ec0d0e94b308142ab9d61589fcfd57787 # 2.0.1421
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6e05308f8267088a4055607aaae7310548232bdb # 2.0.1479
     # The hub task's release upload, artifact cleanup, and supersede dispatch-and-cancel (WORKFLOW.md D4.8) all write with GITHUB_TOKEN.
     permissions:
       contents: write
