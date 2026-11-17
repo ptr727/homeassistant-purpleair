@@ -69,6 +69,7 @@ def test_setup_interrupted_stops_its_child_and_dies_by_the_signal(
         child_pid = int(_wait_for_file(child_pid_file, timeout=10))
         process.send_signal(signum)
         _, stderr = process.communicate(timeout=10)
+        child_survived = _alive(child_pid)
     finally:
         if process.poll() is None:
             process.kill()
@@ -78,4 +79,4 @@ def test_setup_interrupted_stops_its_child_and_dies_by_the_signal(
 
     assert process.returncode == -signum
     assert stderr.splitlines() == [f"scripts/setup: interrupted by {signum.name}"]
-    assert not _alive(child_pid)
+    assert not child_survived

@@ -42,7 +42,8 @@ cd "$(dirname "$0")/.."
 
 # A long-running child runs in the background, so a signal reaches the traps at once rather than after the child returns.
 # The traps stop that child, print one line naming the signal, and re-raise it, so a caller sees the script die by that signal.
-# Nothing else needs releasing, since the script creates no temporary path.
+# The script itself creates no temporary path, so nothing else needs releasing here.
+# The foreground Python snippets below take SIGINT's default action, so Ctrl-C prints no traceback before the trap's line.
 pids=()
 run_child() {
     local status=0
@@ -65,35 +66,71 @@ on_signal() {
 trap 'on_signal INT 130' INT
 trap 'on_signal TERM 143' TERM
 
-# Reads a download from stdin into memory and checks its SHA256 before anything is written.
-# A failed or interrupted download therefore leaves no partial file and no temporary path behind.
-# Mode bin installs the payload as an executable with sudo, and mode zip extracts it into a directory.
-# SIGINT takes its default action, so Ctrl-C ends the snippet without a traceback and the traps report it.
+# Downloads into memory and checks the SHA256 before anything is written, so a failed download leaves nothing behind.
+# Mode bin installs the payload as an executable with sudo.
+# Mode zip extracts it into a staging directory beside the target, then renames that over the target.
+# The snippet removes the staging directory as it unwinds from SIGINT or SIGTERM, then re-raises the signal.
 verify_py="$(
     cat <<'VERIFY'
+import contextlib
 import hashlib
 import io
+import os
+import pathlib
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import zipfile
 
-signal.signal(signal.SIGINT, signal.SIG_DFL)
-expected, mode, destination = sys.argv[1:]
-payload = sys.stdin.buffer.read()
-actual = hashlib.sha256(payload).hexdigest()
-if actual != expected:
-    sys.exit(f"Checksum mismatch for {destination}: expected {expected}, got {actual}")
-print(f"Verified sha256 {expected}")
-if mode == "bin":
-    subprocess.run(["sudo", "install", "-m", "0755", "/dev/stdin", destination], input=payload, check=True)
-else:
-    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        archive.extractall(destination)
+
+def main(url: str, expected: str, mode: str, destination: str) -> None:
+    download = subprocess.run(["curl", "-fsSL", url], stdout=subprocess.PIPE, check=False)
+    if download.returncode != 0:
+        sys.exit(f"Download of {url} failed, curl exited {download.returncode}")
+    actual = hashlib.sha256(download.stdout).hexdigest()
+    if actual != expected:
+        sys.exit(f"Checksum mismatch for {destination}: expected {expected}, got {actual}")
+    print(f"Verified sha256 {expected}")
+    if mode == "bin":
+        subprocess.run(["sudo", "install", "-m", "0755", "/dev/stdin", destination], input=download.stdout, check=True)
+        return
+    target = pathlib.Path(destination)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent)
+    try:
+        with zipfile.ZipFile(io.BytesIO(download.stdout)) as archive:
+            archive.extractall(staging)
+        shutil.rmtree(target, ignore_errors=True)
+        os.replace(staging, target)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+received = signal.SIGINT
+
+
+def on_term(signum: int, frame: object) -> None:
+    global received
+    received = signal.SIGTERM
+    raise KeyboardInterrupt
+
+
+signal.signal(signal.SIGTERM, on_term)
+try:
+    main(*sys.argv[1:])
+except KeyboardInterrupt:
+    with contextlib.suppress(OSError):
+        sys.stdout.flush()
+        sys.stderr.flush()
+    signal.signal(received, signal.SIG_DFL)
+    os.kill(os.getpid(), received)
+    sys.exit(128 + received)
 VERIFY
 )"
 install_verified() {
-    curl -fsSL "$1" | python3 -c "${verify_py}" "$2" "$3" "$4"
+    run_child python3 -c "${verify_py}" "$@"
 }
 
 # The dev toolchain is uv-managed. Ensure uv is present, create the .venv, and
@@ -131,7 +168,8 @@ run_child uv pip install --requirement requirements-test.txt
 # recovery mode on first launch. Pin to the version HA's own manifest declares.
 frontend_req="$(
     python - <<'PY'
-import json, pathlib
+import json, pathlib, signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 try:
     import homeassistant.components.frontend as f
     m = json.loads((pathlib.Path(f.__file__).parent / "manifest.json").read_text())
@@ -276,7 +314,8 @@ if [[ "${USE_EDITABLE_AIOPURPLEAIR}" = true ]] && [[ -d "${AIOPURPLEAIR_DIR}" ]]
     run_child uv pip install --editable "${AIOPURPLEAIR_DIR}"
 
     python3 <<'PYEOF'
-import json, pathlib
+import json, pathlib, signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 from importlib.metadata import version
 from packaging.requirements import Requirement
 from packaging.version import Version
@@ -355,7 +394,6 @@ if [[ -f config/custom_components/hacs/manifest.json ]]; then
 else
     url="https://github.com/hacs/integration/releases/download/${HACS_VERSION}/hacs.zip"
     echo "Downloading HACS ${HACS_VERSION} from ${url}"
-    mkdir -p config/custom_components/hacs
-    install_verified "${url}" "${HACS_SHA256}" zip config/custom_components/hacs/
+    install_verified "${url}" "${HACS_SHA256}" zip config/custom_components/hacs
     echo "Installed HACS ${HACS_VERSION}"
 fi
