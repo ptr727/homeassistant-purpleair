@@ -88,19 +88,30 @@ import tempfile
 import zipfile
 
 
+def run(command: list[str], payload: bytes | None = None) -> tuple[int, bytes]:
+    child = subprocess.Popen(command, stdin=subprocess.PIPE if payload is not None else None, stdout=subprocess.PIPE)
+    try:
+        output, _ = child.communicate(payload)
+    finally:
+        child.terminate()
+        child.wait()
+    return child.returncode, output
+
+
 def sudo(command: list[str], payload: bytes | None = None) -> None:
-    result = subprocess.run(["sudo", *command], input=payload, check=False)
-    if result.returncode != 0:
-        sys.exit(f"sudo {command[0]} exited {result.returncode}. Check that this account can run sudo, then rerun scripts/setup.")
+    status, _ = run(["sudo", *command], payload)
+    if status != 0:
+        sys.exit(f"sudo {command[0]} exited {status}. Fix what it printed above, then rerun scripts/setup.")
 
 
 def main(url: str, expected: str, mode: str, destination: str) -> None:
-    download = subprocess.run(["curl", "-fsSL", url], stdout=subprocess.PIPE, check=False)
-    if download.returncode == 22:
-        sys.exit(f"Download of {url} failed with an HTTP error. Check the pinned version in scripts/setup, then rerun it.")
-    if download.returncode != 0:
-        sys.exit(f"Download of {url} failed, curl exited {download.returncode}. Check the network, then rerun scripts/setup.")
-    actual = hashlib.sha256(download.stdout).hexdigest()
+    status, payload = run(["curl", "-fsSL", url])
+    if status != 0:
+        sys.exit(
+            f"Download of {url} failed, curl exited {status}. "
+            "Fix what it printed above, such as the network or a mistyped pinned version, then rerun scripts/setup."
+        )
+    actual = hashlib.sha256(payload).hexdigest()
     if actual != expected:
         sys.exit(
             f"Checksum mismatch for {destination}: expected {expected}, got {actual}. "
@@ -109,11 +120,11 @@ def main(url: str, expected: str, mode: str, destination: str) -> None:
     print(f"Verified sha256 {expected}")
     if mode == "bin":
         staged = f"{destination}.new"
-        sudo(["install", "-m", "0755", "/dev/stdin", staged], download.stdout)
         try:
+            sudo(["install", "-m", "0755", "/dev/stdin", staged], payload)
             sudo(["mv", "-f", staged, destination])
         except BaseException:
-            subprocess.run(["sudo", "rm", "-f", staged], check=False)
+            run(["sudo", "-n", "rm", "-f", staged])
             raise
         return
     target = pathlib.Path(destination)
@@ -121,7 +132,7 @@ def main(url: str, expected: str, mode: str, destination: str) -> None:
     staging = tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent)
     retired = tempfile.mkdtemp(prefix=f".{target.name}.old.", dir=target.parent)
     try:
-        with zipfile.ZipFile(io.BytesIO(download.stdout)) as archive:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
             archive.extractall(staging)
         with contextlib.suppress(FileNotFoundError):
             os.replace(target, retired)

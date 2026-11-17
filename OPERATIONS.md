@@ -92,7 +92,7 @@ An agent runs a live check against the Home Assistant REST API at `http://localh
 3. Post `{"handler": "purpleair"}` to `/api/config/config_entries/flow`, then answer the flow's `api_key` step with `PURPLEAIR_API_KEY`.
 4. Add each sensor as a subentry. Post `{"handler": ["<entry_id>", "sensor"]}` to `/api/config/config_entries/subentries/flow`, choose `add_sensor_index` at the menu, then answer with `sensor_index` and `sensor_read_key`.
 5. Read the new entities from `/api/states`, and read the integration's debug log from the `scripts/develop` output, since `scripts/init-config` turns it on.
-6. Stop Home Assistant when done, then delete that worktree's `config/`, since it now holds the API key and the throwaway user.
+6. Stop Home Assistant by posting to `/api/services/homeassistant/stop` with the token, and wait for the `hass` process to exit. Then delete that worktree's `config/`, since it now holds the API key and the throwaway user.
 
 ### Close an Issue From a Pull Request
 
