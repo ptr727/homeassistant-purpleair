@@ -21,9 +21,10 @@ homeassistant-purpleair ships **one target**: a **Home Assistant custom integrat
 maintainer ships on demand, and ordinary merges never publish. Two workflows do the publishing work, plus a
 daily tracker that keeps the test matrix current:
 
-- **CI** ([`test-pull-request.yml`][test-pull-request-yml]) runs on **push to every
-  branch**: it validates (lint, type-check, the HA-version test matrix) and proves the release zip builds,
-  publishing nothing. A pull request merges only when its required check is green.
+- **CI** ([`test-pull-request.yml`][test-pull-request-yml]) runs on **every pull request** and publishes
+  nothing. It validates (lint, type-check, the HA-version test matrix). When the integration or its build
+  inputs changed, it also proves the release zip builds. A pull request merges only when its required check
+  is green.
 - **The publisher** ([`publish-release.yml`][publish-release-yml]) is **dispatch-only**,
   plus a **retest-only weekly schedule**. A `workflow_dispatch` from `main` cuts a **stable** release (clean
   NBGV `X.Y.Z`); a dispatch from `develop` cuts a **prerelease** (`X.Y.Z-g<sha>`). The **weekly schedule**
@@ -41,7 +42,7 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
 
 ### Glossary
 
-- **Entry workflow** - has `push` / `schedule` / `workflow_dispatch` / `pull_request_target` triggers. The
+- **Entry workflow** - has `pull_request` / `schedule` / `workflow_dispatch` / `pull_request_target` triggers. The
   orchestrator that an event or a person starts.
 - **Reusable workflow (task)** - a `workflow_call` workflow invoked through a `uses:` reference, never
   triggered directly. File ends in `-task.yml`.
@@ -52,7 +53,7 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
 - **Validate task** - the hub's `validate-task.yml`, reached by pin with this repo's inputs. Its `lint` job
   runs the doc lint, ruff, and `mypy --strict`. Its `unit-test` job runs the HA-version pytest matrix
   (Codecov upload). Its `validate` job runs hassfest, HACS validate, and pyright through this repo's
-  [`validate`][validate-hook] hook. CI runs the task on every push, and the publisher runs it with the
+  [`validate`][validate-hook] hook. CI runs the task on every pull request, and the publisher runs it with the
   identical inputs before any release.
 - **HA test matrix** - the pytest legs. The [`ha-test-matrix`][ha-test-matrix] action reads them from
   `.github/ha-test-versions.json` at run time. Each caller's `read-versions` job runs it, and the caller's
@@ -85,8 +86,8 @@ publishes exactly its own trigger ref. Dependabot pull requests merge themselves
   guarantee holds, every applicable section-5B scenario's observed output equals its expected output
   (corroborated by a 5C live probe where a live signal exists), and the section-6 configuration is in place.
   Anything else is **not operational**.
-- **Defect vs N/A.** An item is **N/A** only when this repo has no such concern (e.g. a fork-PR scenario,
-  since a fork cannot push here; or a NuGet/Docker publish, since this repo ships a HACS zip). A construct
+- **Defect vs N/A.** An item is **N/A** only when this repo has no such concern. A NuGet/Docker publish is
+  one, since this repo ships a HACS zip. A construct
   required by an applicable guarantee but absent is a **defect**.
 - **Default branch is `main`.** Guarantees say "default branch" portably. The hub's `publish-plan-task.yml`
   writes the literal `main` in its dispatch gate, and this repo writes the anchored `^refs/heads/main$` in
@@ -132,11 +133,11 @@ Legibility rules. Necessary but not sufficient: a perfectly styled workflow can 
 
 ## 3. Architecture
 
-### Two workflows: CI on push, publishing on dispatch
+### Two workflows: CI on pull request, publishing on dispatch
 
 CI ([`test-pull-request.yml`][test-pull-request-yml]) and the publisher
 ([`publish-release.yml`][publish-release-yml]) are separate workflows with separate
-concurrency, so they never race. CI re-tests every pushed tree and never publishes; the publisher releases
+concurrency, so they never race. CI re-tests every pull request and never publishes. The publisher releases
 only on a maintainer's dispatch (and retests, never publishes, on its weekly schedule). *Prevents a merge
 from silently cutting a release, and a CI run from racing a publish on the same ref.*
 
@@ -178,17 +179,22 @@ non-smoke run, and its `github-release` job runs only when `github` is true and 
 
 ### Fast CI feedback, head-resolved
 
-CI runs on push to every branch (`push: ['**']`), so GitHub head-resolves the local `./.github/actions/...`
-hooks from the pushed head. A pull request that edits a hook therefore tests its own copy. The hub tasks are
-reached by pin, so a change to one arrives as a pin bump that the same push exercises. CI runs the
-`read-versions` job, the hub validate task in its `validate` job, and the no-publish zip build in its
-`smoke-build` job. One aggregator job, `Check pull request workflow status job`, is the ruleset-bound
-required check and gates the merge. It `needs:` all three and fails on any result but `success`. A
-branch-deletion push (all-zeros `github.sha`) is skipped by a `!github.event.deleted` guard on
-`read-versions`, `smoke-build`, and the aggregator. The `validate` job inherits the skip through `needs:`,
-so a deletion never runs a failing build or leaves the required check pending. The publisher runs the
-**same** hub validate task with the same inputs before any release, so the CI gate and the publish gate are
-identical.
+CI runs on `pull_request`, so GitHub resolves the local `./.github/actions/...` hooks from the pull
+request's merge commit. A pull request that edits a hook therefore tests its own copy. The hub tasks are
+reached by pin, so a change to one arrives as a pin bump. Its pull request runs the new `validate-task`
+pin, but the paths filter leaves workflow files out, so a `build-release-task` pin bump is not
+smoke-built. A `workflow_dispatch` runs the same jobs on any branch and builds the zip whatever changed,
+so a dispatch on the bump's branch exercises it. CI runs the
+`changes` path filter, `read-versions`, the hub validate task in `validate`, and the no-publish zip build in
+`smoke-build`, with an aggregator after them. `validate` runs on every pull request. `smoke-build` runs only when the filter
+marks the release target. That is a change under `custom_components/**` or `.github/actions/**`, or to
+`version.json`, since the `build-release-asset` hook builds the zip. One aggregator job is the
+ruleset-bound required check and gates the merge. A `pull_request` run names it `Check pull request
+workflow status job`, and a dispatch names it `Check workflow status job`. So a dispatch on a pull
+request's head never posts the required context. It runs under `always()` and `needs:` every other
+job. It fails on any result but `success` from `changes`, `read-versions`, and `validate`, and it passes a
+skipped `smoke-build`. The publisher runs the **same** hub validate task with the same inputs before any
+release, so the CI gate and the publish gate are identical.
 
 ### The validate suite
 
@@ -230,15 +236,17 @@ created, best-effort, so diagnostic artifacts survive. See D5.
 
 A pull request exercises its own workflow files. No change waits to reach `main` first.
 
-- **CI runs on `push` to every branch.** GitHub head-resolves the local `./.github/actions/...` hooks from
-  the pushed head, so a PR that edits a hook tests its own copy. The push run is the **sole producer** of the
-  aggregator's ruleset-bound `context:`, on the head SHA branch protection evaluates. CI never publishes.
-- **Dependabot and tracker PRs are in-repo branches**, validated head-resolved by their push the same way
-  (Dependabot with a read-only token and the Dependabot secret store, enough for the gate).
+- **CI runs on `pull_request`.** GitHub resolves the local `./.github/actions/...` hooks from the pull
+  request's merge commit, so a PR that edits a hook tests its own copy. The `pull_request` run is the **sole
+  producer** of the aggregator's ruleset-bound `context:`. A dispatch run takes another name. CI never
+  publishes.
+- **Dependabot and tracker PRs** are validated by their `pull_request` run the same way. Dependabot's run has
+  a read-only token and the Dependabot secret store, which is enough for the gate.
 - **A dispatched publish uses that branch's workflows**, so a workflow change is usable on the branch that
   introduces it.
-- **Forks are the documented exception.** A fork cannot push here, so its PR produces no run and no
-  aggregator check, and a maintainer lands the change on an in-repo branch before merging. See D6.
+- **A fork's pull request runs the same gate**, with a read-only token and no repository secrets. Its
+  Codecov upload is tokenless and best-effort, so it never reds the gate. GitHub can hold a first-time
+  contributor's run for a maintainer's approval. See D6.
 
 ### Self-sufficiency: automatic updates and HA-version tracking
 
@@ -276,26 +284,28 @@ weekly retest tripwire, and the bot automation. They depict the same outcomes th
 from the workflow YAML; if a diagram and a guarantee disagree, one of them is a defect. Triggers are
 blue, gates yellow, durable/published outputs green, and stop/skip outcomes red.
 
-**Pull request (CI), `test-pull-request.yml`.** Every push reads the HA matrix and runs the hub validate
-task by pin with this repo's hooks. The task covers the doc lint, ruff, mypy, the HA-version pytest matrix,
-hassfest, HACS, and pyright. A no-publish zip build runs beside it, and a single aggregator produces the
-ruleset-bound required check (D1, D6).
+**Pull request (CI), `test-pull-request.yml`.** Every pull request reads the HA matrix and runs the hub
+validate task by pin with this repo's hooks. The task covers the doc lint, ruff, mypy, the HA-version pytest
+matrix, hassfest, HACS, and pyright. A no-publish zip build runs beside it when the release target changed,
+and a single aggregator produces the ruleset-bound required check (D1, D6).
 
 ```mermaid
 flowchart TD
-    T(["push: every branch ['**']<br/>(or workflow_dispatch)"]):::trig
-    T --> D{"github.event.deleted?"}:::gate
-    D -- "yes: branch deletion" --> X(["every job skips<br/>no failed run, no pending check"]):::stop
-    D -- "no" --> RV["read-versions job<br/>ha-test-matrix action reads<br/>.github/ha-test-versions.json"]
-    D -- "no" --> SB["smoke-build job (hub build-release-task, smoke: true)<br/>hook: stamp manifest, zip at root,<br/>assert HACS layout, no upload or release"]
+    T(["pull_request<br/>(or workflow_dispatch)"]):::trig
+    T --> CH["changes job<br/>paths filter: custom_components/**,<br/>version.json, .github/actions/**"]
+    T --> RV["read-versions job<br/>ha-test-matrix action reads<br/>.github/ha-test-versions.json"]
+    CH --> F{"release target changed,<br/>or workflow_dispatch?"}:::gate
+    F -- "yes" --> SB["smoke-build job (hub build-release-task, smoke: true)<br/>hook: stamp manifest, zip at root,<br/>assert HACS layout, no upload or release"]
+    F -- "no" --> SS(["smoke-build skips"]):::stop
     RV --> VT
     subgraph VT ["validate job: hub validate-task.yml"]
         LT["lint job<br/>doc lint, repo gate,<br/>ruff, mypy --strict"]
         UT["unit-test job (test-matrix)<br/>install-test-deps hook per leg:<br/>minimum, latest-stable,<br/>latest-stable-min-lib,<br/>latest-beta (if non-null)"]
         VH["validate job<br/>validate hook: hassfest,<br/>HACS, pyright"]
     end
-    VT --> A{"Check pull request workflow status job<br/>read-versions, validate, and<br/>smoke-build all succeeded?"}:::gate
+    VT --> A{"Check pull request workflow status job<br/>changes, read-versions, validate succeeded,<br/>smoke-build succeeded or skipped?"}:::gate
     SB --> A
+    SS --> A
     A -- "yes" --> G(["required check passes<br/>merge unblocked"]):::pub
     A -- "no" --> R(["required check fails<br/>merge blocked"]):::stop
     classDef trig fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
@@ -386,8 +396,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 
 ### D0 - Architecture
 
-- **D0.1 CI is one run, one branch.** Input: any push. Output: `test-pull-request` validates exactly
-  `github.ref_name` and publishes nothing. *Prevents cross-branch ref mixing in CI.*
+- **D0.1 CI is one run, one pull request.** Input: any pull request. Output: `test-pull-request` validates
+  exactly that pull request's merge commit and publishes nothing. *Prevents cross-branch ref mixing in CI.*
 - **D0.2 The publisher builds one branch: the dispatch ref.** Output: the `plan` job restricts dispatch to
   `main`/`develop`, and the run versions/builds/tags exactly `github.ref_name`. There is no matrix, and the
   hub task's `branch` input is passed `github.ref_name`, so it cannot disagree with the ref. *Prevents cross-branch ref mixing, since `github.ref` is the branch being
@@ -399,11 +409,14 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 
 ### D1 - CI fast feedback
 
-- **D1.1 Every push validates.** Output: every push runs `test-pull-request` with no paths filter. Its jobs
-  include `read-versions`, a `smoke-build` no-publish zip build, and the hub validate task (doc lint, ruff,
-  mypy, pyright, the pytest matrix, hassfest, HACS). The one exception is a branch-deletion push. A
-  `!github.event.deleted` guard skips every job, since `github.sha` is all-zeros and a checkout would fail.
-  *Prevents a hook or build break shipping untested, and a branch-deletion push failing CI.*
+- **D1.1 Every pull request validates, and only a changed target builds.** Output: every pull request runs
+  `test-pull-request`. Its `read-versions` job and the hub validate task (doc lint, ruff, mypy, pyright, the
+  pytest matrix, hassfest, HACS) run unconditionally. Its `changes` job's paths filter lists the release
+  target's own paths, `custom_components/**`, `version.json`, and `.github/actions/**`, since the
+  `build-release-asset` hook builds the zip. The `smoke-build` no-publish zip build runs only when that
+  filter matches, or on a `workflow_dispatch`. A change matching no entry, such as a docs-only or
+  workflow-only one, skips it, so a workflow-only change gets actionlint but no build. *Prevents a hook or build break shipping untested, and a zip rebuilt for a
+  change that cannot alter it.*
 - **D1.2 The full quality gate runs.** Output: the hub validate task runs the doc lint, ruff (lint + format
   check), and mypy `--strict` in its `lint` job. It runs the HA-version pytest matrix in its `unit-test`
   job, and hassfest, HACS validate, and pyright through the `validate` hook. The matrix legs are `minimum`,
@@ -416,13 +429,16 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 - **D1.4 The no-publish build never publishes.** Output: the hub's `build-release-task` with `smoke: true`
   builds and asserts the zip layout but uploads nothing and creates no release. Its `github-release` job is
   gated `inputs.github && !inputs.smoke`. *Prevents a CI run publishing.*
-- **D1.5 One required aggregator gates merge.** Output: a single aggregator job (`Check pull request
-  workflow status job`) runs under `always()` and must **succeed** (not merely "not fail"). It `needs:`
-  `read-versions`, `validate`, and `smoke-build`. It blocks on any result but `success`, a skip included,
-  since each of them runs on every live push. Its name is ruleset-bound (D6.2) and must not be renamed.
-  It stays a literal string on every event, because this workflow has no `pull_request` trigger. So the
-  expression form for a workflow that `pull_request` and another event both trigger does not apply here.
-  *Prevents a defect merging unverified.*
+- **D1.5 One required aggregator gates merge.** Output: a single aggregator job runs under `always()` and
+  must **succeed** (not merely "not fail"). It `needs:` `changes`, `read-versions`, `validate`, and
+  `smoke-build`. It blocks on any result but `success` from the first three. It treats a **skipped**
+  `smoke-build` as pass and blocks on its `failure` or `cancelled`. The workflow holding it MUST trigger on
+  `pull_request`, since a gate without that trigger never runs the validator's pull-request-only steps, the
+  prose gate among them. Its ruleset-bound name (D6.2), `Check pull request workflow status job`, is
+  yielded only when `github.event_name == 'pull_request'`, through an expression `name:`. A dispatch run
+  is named `Check workflow status job` instead. The job `name:` and the ruleset `context:` are the same
+  string and are renamed together, never independently. *Prevents a defect merging unverified, and a
+  dispatch on a pull request's head posting the required check without that pull request's gates.*
 
 ### D2 - Validation at entry
 
@@ -504,14 +520,16 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
 ### D6 - Self-testing workflows
 
 - **D6.1 A change is testable on its own branch.** Output: a workflow or build change is exercised by CI on
-  the branch that introduces it, no dependency on reaching `main` first. *Prevents the "promote to `main` to
+  the branch that introduces it, no dependency on reaching `main` first. A hook or integration change is
+  smoke-built by its pull request run. A workflow-only change, a `build-release-task` pin bump included, is
+  not, and a `workflow_dispatch` on its branch builds it. *Prevents the "promote to `main` to
   test the fix" trap.*
-- **D6.2 Head-resolution, single producer, fork exception.** Output: CI runs on `push` to every branch so
-  the composite hooks under `.github/actions/` resolve from the head. The aggregator's ruleset-bound
-  `context:` is produced by that push run as the sole producer of that name. Dependabot and tracker PRs are
-  in-repo branches, validated the same way. A fork cannot push, so it has no run and is validated by
-  maintainer action, the one exception. *Prevents a dual-producer context race and a false self-test claim
-  for forks.*
+- **D6.2 Head-resolution and a single producer.** Output: CI runs on `pull_request`, so the composite
+  hooks under `.github/actions/` resolve from the pull request's merge commit. The aggregator's
+  ruleset-bound `context:` is produced by that `pull_request` run as the sole producer of that name, since
+  a dispatch run's aggregator takes another name. Dependabot, tracker, and fork pull requests are validated
+  the same way. A fork's run has a read-only token and no repository secrets, so its Codecov upload is
+  tokenless and best-effort, and never reds the gate. *Prevents a dual-producer context race and a hook change merging untested.*
 
 ### D7 - Concurrency, permissions, safety
 
@@ -532,7 +550,8 @@ Each is a **MUST**, stated as input -> output plus the failure it prevents.
   `workflow_call` and `workflow_dispatch`, since the local validate task that did was retired for the hub's.
   Section 2's rule binds any such input added later.
 - **D7.4 Optional-dependency chaining.** Output: the CI aggregator runs under `always()` so a failed or
-  skipped need cannot skip the gate, and it requires `success` from every need. The publisher has no
+  skipped need cannot skip the gate. It requires `success` from every need except `smoke-build`, whose
+  `success` or `skipped` it allowlists explicitly, so a `cancelled` build still blocks. The publisher has no
   optional dependency, since `plan` runs on every event, so `validate` and `publish` need no `always()`
   guard.
 
@@ -596,11 +615,14 @@ fact behind each applicable guarantee with a `file:line` citation:
 
 - **D0:** CI has no branch matrix. The publisher's `plan` restricts dispatch to `main`/`develop`. NBGV is
   invoked once in `get-version-task`, every consumer reading it via `needs:` (no nested `get-version`).
-- **D1:** CI runs on `push: ['**']` with no paths filter. `read-versions`, `smoke-build`, and the aggregator
-  carry the `!github.event.deleted` guard. The `validate` job calls the hub `validate-task.yml` with
+- **D1:** CI runs on `pull_request` and `workflow_dispatch`. The `changes` job's paths filter lists
+  `custom_components/**`, `version.json`, and `.github/actions/**`, and `smoke-build` runs only on a match or
+  a dispatch. The `validate` job calls the hub `validate-task.yml` with
   `python-directories: .`, `python-versions: ["3.14"]`, and the `read-versions` matrix. The hooks it calls
   run hassfest, HACS, pyright, and the per-leg installs. `smoke-build` calls `build-release-task.yml` with
-  `smoke: true`. The aggregator `needs:` all three and blocks on anything but `success`.
+  `smoke: true`. The aggregator runs under `always()`, `needs:` all four jobs, blocks on anything but
+  `success` from `changes`, `read-versions`, and `validate`, and passes a skipped `smoke-build`. Its `name:`
+  yields `Check pull request workflow status job` only on a `pull_request` run.
 - **D2:** the publisher `plan` asserts the dispatch ref in `main`/`develop`, and the hub task's `validate-release`
   refuses a `SemVer2` whose `-` segment disagrees with the branch.
 - **D3:** `publicReleaseRefSpec` is `^refs/heads/main$`; `version.json` floor is `1.0`; `manifest.json` is
@@ -614,8 +636,8 @@ fact behind each applicable guarantee with a `file:line` citation:
   `continue-on-error: true`, deletes by name, and is independent of any required check.
 - **D4.8:** the hub task's supersede step checks the workflow files, the pusher allowlist, and the branch
   head. It then dispatches the publisher and cancels its run before the release-create step.
-- **D6:** CI is `push` on every branch; the aggregator context has exactly one producer; no
-  `pull_request`-triggered fallback.
+- **D6:** CI is `pull_request`, plus `workflow_dispatch` under another aggregator name. The aggregator
+  context has exactly one producer, the `pull_request` run.
 - **D7:** the publisher group is ref-scoped with `cancel-in-progress: false`, and the schedule's appends
   `github.run_id`. The merge-bot keys on PR number. CI/tracker use the standard group. The CI, publisher, and merge-bot workflows set
   `permissions: {}` at the top and grant each job only what it or its hub task uses. The tracker sets
@@ -633,21 +655,22 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 
 | # | Input | Expected output | Exercises |
 | --- | --- | --- | --- |
-| S1 | push touching `custom_components/**` | `validate` runs the full suite and `smoke-build` the no-publish zip build (layout asserted). **No release**, aggregator success, prerelease version (branch != main) | D0.1, D1 |
-| S2 | push changing only docs | `validate` runs and lint checks markdown. The no-publish build rebuilds the zip with unchanged code and a new stamped version. Nothing publishes | D1, D1.5 |
-| S3 | push changing only `.github/workflows/**` or `.github/actions/**` | the changed workflow or hook is exercised head-resolved (self-test), aggregator success | D1.1, D6.1 |
+| S1 | pull request touching `custom_components/**` | `validate` runs the full suite and `smoke-build` the no-publish zip build (layout asserted). **No release**, aggregator success, prerelease version, since a smoke build versions the pull request's merge ref whatever its base branch | D0.1, D1 |
+| S2 | pull request changing only docs | `validate` runs and lint checks markdown. The filter matches nothing, so `smoke-build` skips and the aggregator passes the skip. Nothing publishes | D1.1, D1.5 |
+| S3 | pull request changing only `.github/workflows/**` or `.github/actions/**` | the changed workflow or hook is exercised head-resolved (self-test). A `.github/actions/**` change also runs `smoke-build`. A workflow-only one, a `build-release-task` pin bump included, skips it until a `workflow_dispatch` on the branch builds it. Aggregator success | D1.1, D6.1 |
 | S4 | `workflow_dispatch` from `main` | `plan` passes, `validate` succeeds, `publish` publishes a **stable** `X.Y.Z`, `prerelease=false`, tag on the dispatched SHA, `purpleair.zip` attached, artifacts cleaned up | D2.1, D3.2, D4 |
 | S5 | `workflow_dispatch` from `develop` | publishes a **prerelease** `X.Y.Z-g<sha>`, `prerelease=true`, `develop` SHA tagged | D2.1, D3.2, D4.2 |
 | S6 | weekly `schedule` | `plan` succeeds, `validate` runs (retests main against the HA matrix) under a per-run concurrency group, `publish` **skipped** (dispatch-only) -> **no release**, and no pending dispatch replaced | D4.1, D4.5, D7.1 |
 | S7 | `workflow_dispatch` from a feature branch | `plan` fails with `::error::` -> `read-versions`, `validate`, and `publish` skip -> no publish | D2.1, D4.2 |
 | S8 | merge of any change to `main`/`develop` | no `push` publish trigger -> **no release**; the change ships on the next dispatch | D4.1 |
-| S9 | tracker merges an HA-matrix bump to `develop` | `ha-test-versions.json` updated; develop CI retests the new matrix; **no publish** | D8.3 |
+| S9 | tracker opens an HA-matrix bump to `develop` | the bump PR's CI retests the new matrix before it merges, `ha-test-versions.json` is updated on merge, and **nothing publishes** | D8.3 |
 | S10 | PR with a ruff / mypy / pyright / pytest failure | `validate` reds -> aggregator blocks the merge | D1.2, D1.5 |
 | S11 | `version.json` floor bump merged | merges don't publish -> no immediate release; the new floor ships on the next dispatch | D3.3, D4.1 |
 | S12 | Dependabot semver-major bump | merge-bot enables auto-merge like any tier -> merges once the required checks pass; no publish | D8.2 |
-| S13 | a branch is **deleted** (push, all-zeros SHA) | the `!github.event.deleted` guard skips every CI job -> no failed run, no pending required check | D1.1 |
+| S13 | a branch is **deleted** | no `pull_request` event fires, so CI does not run -> no failed run, no pending required check | D1.1 |
 | S14 | dispatch against a regressed tip (a failing test) | `validate` reds -> `publish` skips (requires `success`) -> no broken release ships | D4.6 |
 | S15 | a bot's workflow bump lands on the dispatched branch during a publish | the run dispatches the publisher on that branch and cancels before any release, then the new run retests and publishes the head | D4.8 |
+| S16 | pull request from a fork | the gate runs with a read-only token and no repository secrets. The Codecov upload is tokenless and best-effort. The aggregator gates the merge as for any pull request | D1.5, D6.2 |
 
 ### 5C. Live probe (where warranted, never publishing)
 
@@ -660,11 +683,11 @@ run/skip + version + release + artifact-end-state, then compare to expected.
 ### 5D. Configuration audit
 
 From a hub checkout at `main`, run `repo-config/configure.sh check ptr727/homeassistant-purpleair release`
-(section 6), and check secret names as [`AUDIT.md`][audit] section 4 describes, since `configure.sh` does
-not check secrets. Together they confirm the listed secrets exist, the `main`/`develop` rulesets enforce the
-required merge method, status check, signed commits, and strict-off (with linear history on `develop`, and
-**no** linear-history rule on `main` so the promotion merge commit is allowed), and the repository settings
-(auto-merge, allowed merge methods, auto-delete-on-merge off) are in place. `check` exits non-zero on drift.
+(section 6), and check secret names as [`AUDIT.md`][audit] "Secrets" describes. Together they confirm the
+listed secrets exist and the repository settings (auto-merge, allowed merge methods, auto-delete-on-merge off)
+are in place. They also confirm the `main`/`develop` rulesets enforce the required merge method, status check,
+signed commits, and strict-off. `develop` also requires linear history. `main` has **no** linear-history rule,
+so the promotion merge commit is allowed. `check` exits non-zero on drift.
 Secret *values* cannot be read back, so only the names are asserted. The App installation is not
 checked by either. The HACS zip release is dispatch-gated and keyless, so there is no external publish policy
 to verify, which is a noted manual item.
@@ -704,7 +727,7 @@ A misconfiguration surfaces only as a failed run, so the configuration is part o
 - `develop` - squash merges only (keeps history linear, with the linear-history rule); requires the same
   status check; requires signed commits; "up to date" is **off** (so same-batch bot PRs auto-merge in
   parallel).
-- The required check's `context:` matches the aggregator job name verbatim (D6.2, D9.2).
+- The required check's `context:` matches the aggregator's `pull_request` job name verbatim (D6.2, D9.2).
 
 **Repository settings.** Auto-merge enabled; squash and merge-commit both allowed (each ruleset narrows its
 branch to one); rebase off; auto-delete-on-merge **off** (so `main`/`develop` survive a promotion; the
@@ -712,7 +735,7 @@ merge-bot deletes bot/tracker heads explicitly with `--delete-branch`). Dependab
 updates enabled. The GitHub App installed with the scopes above.
 
 **Validation.** This configuration is applied and audited by the hub's `repo-config/configure.sh` against the
-hub's payloads, with secret names checked separately, per [`AUDIT.md`][audit] section 4. Secret values cannot be read back, so
+hub's payloads, and it checks secret names too, per [`AUDIT.md`][audit] "Secrets". Secret values cannot be read back, so
 the audit asserts the names exist. The App installation is not checked.
 
 <!-- External -->

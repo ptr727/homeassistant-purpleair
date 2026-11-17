@@ -21,7 +21,8 @@ review. The axes that commonly vary:
   together in one resolve, per `SKILL.md` "Local development loop".
 - **Versioning / publishing**: a published package or a source-only repo (see Versioning below).
   A published package has `_version.py` plus a version source, `uv build`, and a PyPI publish step.
-  A source-only repo has a static `version` and no publish step.
+  A source-only repo has a static `version` and no PyPI publish step, and NBGV plus `version.json`
+  own its release tag.
 
 ## Two profiles: full specification
 
@@ -83,6 +84,13 @@ Tool configuration alone marks the lint-only one:
   adopted. A
   declared directory with no `tests/` fails that job.
 
+In either profile, the mypy configuration names its target with `files`, `packages`, or
+`modules`. That holds for a `[tool.mypy]` section and for a `mypy.ini`, `.mypy.ini`, or `setup.cfg`
+`[mypy]` section alike. A `[tool.mypy]` section in a project usually names `files = ["src"]`, and
+one in a lint-only directory `files = ["."]`. An INI file writes the list bare, as `files = src`.
+CI passes mypy no path where that config sits in the directory it checks.
+Without a target, mypy then exits 2 with "Missing target module, package, files, or command".
+
 A profile belongs to a declared directory, not to the repository. A repository declaring none has
 its root gated only where it tracks a root `pyproject.toml`, as `WORKFLOW.md` D1.2 states. Each
 deliverable takes one build-profile directory of
@@ -105,7 +113,7 @@ you wire `_version.py` to something that increments (the usual options are `hatc
 version.json bridge, or manual bumps), no new PyPI versions land. Publishing with
 `skip-existing: true` keeps a stuck placeholder version from failing the run.
 
-**Source-only repos** (no PyPI publish, with a source-release on dispatch or no release at all) do
-not need `_version.py`. Keep a static `version` in `pyproject.toml` `[project]`, or let the
-release pipeline's version source (e.g. NBGV plus `version.json`) own the tag. There is no publish
+**Source-only repos** (no PyPI publish, with a source release on dispatch) do
+not need `_version.py`. The release pipeline's version source, NBGV plus `version.json`, owns the
+tag. A static `version` in `pyproject.toml` `[project]` does not replace it. There is no publish
 step to guard, so `skip-existing` does not apply.

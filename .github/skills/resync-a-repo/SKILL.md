@@ -31,15 +31,19 @@ change from one resync to the next.
 
 Read RESYNC.md section 0. A repo with no instruction set at all, or a partial one, is not this
 skill's job. It is STANDUP.md sections 1A and 2 instead, since an absent carried file is a
-baseline that never arrived rather than drift to converge. Run `uv run --no-project --script spec/audit.py <RepoName>`,
+baseline that never arrived rather than drift to converge. First create the hub and target
+worktrees and verify the host, as the next section says, since no hub tool runs before the host gate.
+A stale tool answers `--version`, looks healthy, and produces a wrong answer. Then run
+`uv run --no-project --script spec/audit.py <RepoName>`,
 the target's `registry/repos.json` `name` field rather than an `owner/repo` slug or a checkout
-path. Then read whether the findings are letters (absent) or drift (present but stale). Do both before doing
+path. Then read whether the findings are letters (absent) or drift (present but stale). Do all of this before doing
 anything else. The finding kind names the procedure the repo is owed.
 
 ## Reach the hub and measure before changing anything
 
 Fetch a hub checkout of your own immediately before reading it, since a stale clone
-answers confidently instead of failing. This follows section 1 of the hub-only `RESYNC.md`.
+answers confidently instead of failing. Check out `main`, or `develop` while the target's registry entry has
+merged there but not yet reached `main`. This follows section 1 of the hub-only `RESYNC.md`.
 That file is fetched with the hub rather than present in a carrier. Never do the resync's own work in a checkout another task
 may be using, the maintainer's own primary checkout included, even one that looks current. For the
 hub and for the target repo alike, create a worktree of your own off that base clone and work
@@ -55,8 +59,9 @@ the host with `python3 scripts/host_gate.py --repo <path-to-target-worktree>`, r
 worktree, since `scripts/` is hub-hosted and no carrier holds it. Then run the audit end to end,
 `RESYNC.md` section 2. `uv run --no-project --script spec/audit.py <RepoName>` measures the target's ground-truth
 branch, which the registry's `groundTruthBranch` names and which is `main` for every cataloged
-repo today, never `develop`. That is the invocation "Confirm the procedure before starting"
-already ran, run again here. Convergence lands on a ref `main` does not hold yet, so a run that
+repo today, never `develop`. "Confirm the procedure before starting" already ran that
+invocation after this host gate, so read its findings here. A re-run is still owed before
+acting on one, as below. Convergence lands on a ref `main` does not hold yet, so a run that
 previews in-flight work names that ref: `uv run --no-project --script spec/audit.py --branch <ref> <RepoName>`. Use it
 to check whether a fix landed, since a run against `main` still reports what the in-flight ref
 already fixed. Section 2 carries two further commands that neither of these replaces. A finding is
@@ -73,10 +78,15 @@ repo, or agent memory.
 A repository still on the old CRLF default converts first. Where `docs/eol-lf-rollout.md`
 "Per-Repo Conversion" says the repository needs the conversion, land it as its own merged pull
 request before step 1, carrying `.editorconfig` and `.gitattributes` itself. Once it merges,
-re-measure against `develop` and base the branch for the steps below on `develop`.
+re-measure against `develop` and base the branch for the steps below on `develop`. A needed
+conversion waits on a re-level of `develop` where an audit `branch:` finding names paths
+`develop` is behind on. It waits too where a hand comparison shows `main` content `develop` lacks. That comparison
+covers a finding too large to classify and a path changed on both branches. Use the squash pull request `RESYNC.md`
+section 3 describes.
 
 1. **The instruction set first.** `CLAUDE.md`, then `AGENTS.md` and `GOVERNANCE.md` verbatim sections, then `CODESTYLE.md` and `WORKFLOW.md`. Include the `AGENTS.md` skill-dependency pointer paragraph in this same step, as one more verbatim unit and not a separate pass. The paragraph names `scripts/skills_install.py` and where the fleet's Skills live. `CLAUDE.md` is the single `@AGENTS.md`-import file that gets `AGENTS.md` into a Claude Code session's context at all. It is a separate baseline entry from `AGENTS.md` itself, so carrying one without the other still leaves that provider unconfigured. **Before touching `AGENTS.md`, `GOVERNANCE.md`, `CODESTYLE.md`, or `WORKFLOW.md` in this step, run the `carried-instruction-file-guard` skill's distinctive-phrase probe against the target file, every time, without exception.** **This holds regardless of whether the update is a verbatim re-vendor or an intent-fidelity edit.** This is not advisory language to weigh against how routine the diff looks. A diff that looks routine is exactly the shape the AGENTS.md-overwrite incident took. Do not proceed to the re-vendor until the probe has run and any local addition it finds has a destination. That gate follows that skill's own procedure. `CLAUDE.md` is outside that guard's scope. It carries no mixed or repo-specific content by design, so its re-vendor is an ordinary verbatim-fidelity copy, no probe needed.
-2. **Deletions second, before any re-vendor.** Only a `retire` disposition in
+2. **Deletions second, before any re-vendor**, other than step 3's re-vendor of the manifest-owned
+   trees, which "Ship it" below moves into step 1's pull request. Only a `retire` disposition in
    `spec/divergences.json` authorizes removing a file. The removal is swept tree-wide, per
    RESYNC.md section 4, before the deletion counts as done.
 3. **Verbatim re-vendors** for `CLAUDE.md` and everything else the probe in step 1 cleared. A
@@ -86,8 +96,9 @@ re-measure against `develop` and base the branch for the steps below on `develop
    the artifact-name handoff, rather than copying bytes.
 5. **Settings, rulesets, and secrets.** Run
    `repo-config/configure.sh check "<owner>/<repo>" release` (substitute `operational` for an
-   operational repo) from the hub at `main`, then `apply` for what it reports, never from a
-   carried copy. Run `uv run --no-project --script spec/audit.py <RepoName>` from the same checkout for secrets.
+   operational repo), then `apply` for what it reports, never from a carried copy. Both run from
+   the hub checkout this run fetched, at `main` or at `develop` for a registry entry not yet
+   promoted. Run `uv run --no-project --script spec/audit.py <RepoName>` from the same checkout for secrets.
 6. **Intent files last, and by hand,** since nothing mechanical judges these.
 
 Reconcile the registry entry (`status`, `types`, `releaseTrigger`, `workflowModel`,
@@ -96,7 +107,18 @@ rather than leaving it standing.
 
 ## Ship it
 
-One focused pull request per drift class, branched from the target's `develop`. It is never a direct
+One focused pull request per drift class, branched from the target's `develop`, with one grouping.
+The instruction set (step 1) and step 3's re-vendor of the manifest-owned trees land in one pull
+request. The Skills tree is among those trees, and the `.github/copilot-instructions.md` skill
+paths come too.
+Commit step 1 before that re-vendor's `check` runs, since `carry.py` refuses a target with uncommitted changes
+outside the trees it writes.
+`RESYNC.md` section 3 step 3 gives its command. Each half cites the other's text, so either
+one alone contradicts itself until the other merges. Every other class step 1 does not
+already carry takes its own pull request. Each branches from `develop` only after that one merges, in step order, per `RESYNC.md`
+section 6. Step 5's `apply` writes no file, so it opens no pull request and runs once step 4's has merged.
+Where `RESYNC.md` section 4 requires a pin bump before a retirement, the bump lands in the
+deletions pull request. A pull request is never a direct
 push to a protected branch and never a hand edit outside a pull request. Close the review loop,
 per the `pr-review-conduct` skill, before asking the maintainer for merge permission. The
 maintainer merges, the agent drives to green and stops. Re-run the audit after the merge.
