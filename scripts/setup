@@ -71,7 +71,7 @@ trap 'on_signal TERM 143' TERM
 # Downloads into memory and checks the SHA256 before anything is written, so a failed download leaves nothing behind.
 # Mode bin installs the payload with sudo as an executable beside the target, then renames that over the target.
 # Mode zip extracts it into a staging directory beside the target, then renames that over the target.
-# An existing target is moved aside first and put back if the rename fails, so a failed install keeps it.
+# An existing target is moved aside only once the new tree is extracted, so a failed download or extraction keeps it.
 # The snippet removes the staging directory as it unwinds from SIGINT or SIGTERM, then re-raises the signal.
 verify_py="$(
     cat <<'VERIFY'
@@ -96,6 +96,8 @@ def sudo(command: list[str], payload: bytes | None = None) -> None:
 
 def main(url: str, expected: str, mode: str, destination: str) -> None:
     download = subprocess.run(["curl", "-fsSL", url], stdout=subprocess.PIPE, check=False)
+    if download.returncode == 22:
+        sys.exit(f"Download of {url} failed with an HTTP error. Check the pinned version in scripts/setup, then rerun it.")
     if download.returncode != 0:
         sys.exit(f"Download of {url} failed, curl exited {download.returncode}. Check the network, then rerun scripts/setup.")
     actual = hashlib.sha256(download.stdout).hexdigest()
@@ -107,8 +109,8 @@ def main(url: str, expected: str, mode: str, destination: str) -> None:
     print(f"Verified sha256 {expected}")
     if mode == "bin":
         staged = f"{destination}.new"
+        sudo(["install", "-m", "0755", "/dev/stdin", staged], download.stdout)
         try:
-            sudo(["install", "-m", "0755", "/dev/stdin", staged], download.stdout)
             sudo(["mv", "-f", staged, destination])
         except BaseException:
             subprocess.run(["sudo", "rm", "-f", staged], check=False)
@@ -118,21 +120,12 @@ def main(url: str, expected: str, mode: str, destination: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent)
     retired = tempfile.mkdtemp(prefix=f".{target.name}.old.", dir=target.parent)
-    moved = False
     try:
         with zipfile.ZipFile(io.BytesIO(download.stdout)) as archive:
             archive.extractall(staging)
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.replace(target, retired)
-            moved = True
-        except FileNotFoundError:
-            pass
         os.replace(staging, target)
-        moved = False
-    except BaseException:
-        if moved:
-            os.replace(retired, target)
-        raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
         shutil.rmtree(retired, ignore_errors=True)

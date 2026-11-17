@@ -23,12 +23,14 @@ pytestmark = pytest.mark.skipif(
 # The uv stub seeds the .venv the script activates, and the git stub reports no checkout.
 # So the pre-commit and aiopurpleair steps skip.
 # The markdownlint-cli2 and go2rtc stubs report their pinned versions, so their installs skip too.
+# The npm stub keeps a pin bump from reaching the host's real npm.
 # The curl stub records its process ID and blocks, holding the run inside the download snippet until it is stopped.
 STUBS = {
     "uv": '#!/bin/sh\nif [ "$1" = venv ]; then mkdir -p .venv/bin && : > .venv/bin/activate; fi\n',
     "python": "#!/bin/sh\nexit 0\n",
     "git": "#!/bin/sh\necho 'fatal: not a git repository' >&2\nexit 128\n",
     "markdownlint-cli2": "#!/bin/sh\necho 'markdownlint-cli2 v0.22.1'\n",
+    "npm": "#!/bin/sh\nexit 0\n",
     "go2rtc": "#!/bin/sh\necho 'go2rtc version 1.9.14'\n",
     "curl": '#!/bin/sh\necho $$ > "$CURL_PID_FILE"\nexec sleep 60\n',
 }
