@@ -55,7 +55,19 @@ def _wait_for_file(path: Path, timeout: float) -> str:
     pytest.fail(f"{path.name} was not written within {timeout} seconds")
 
 
-@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
+@pytest.mark.parametrize(
+    "signum",
+    [
+        pytest.param(
+            signal.SIGINT,
+            marks=pytest.mark.skipif(
+                signal.getsignal(signal.SIGINT) is signal.SIG_IGN,
+                reason="the script keeps a SIGINT it inherits as ignored, as a background job's is",
+            ),
+        ),
+        signal.SIGTERM,
+    ],
+)
 def test_setup_interrupted_stops_its_download_and_dies_by_the_signal(
     tmp_path: Path, signum: signal.Signals
 ) -> None:
