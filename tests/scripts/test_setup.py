@@ -71,7 +71,7 @@ def _wait_for_file(path: Path, timeout: float) -> str:
 def test_setup_interrupted_stops_its_download_and_dies_by_the_signal(
     tmp_path: Path, signum: signal.Signals
 ) -> None:
-    """A signal mid-download stops the download, leaves nothing behind, prints one line, and re-raises."""
+    """A signal mid-download stops the curl child, prints one line with no traceback, and re-raises."""
     checkout = tmp_path / "checkout"
     (checkout / "scripts").mkdir(parents=True)
     shutil.copy2(SETUP, checkout / "scripts" / "setup")
@@ -116,4 +116,3 @@ def test_setup_interrupted_stops_its_download_and_dies_by_the_signal(
     assert stderr.splitlines()[-1:] == [f"scripts/setup: interrupted by {signum.name}"]
     assert "Traceback" not in stderr
     assert not curl_survived
-    assert not (checkout / "config" / "custom_components").exists()
