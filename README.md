@@ -304,7 +304,7 @@ The Read Key can also be added at sensor-add time for new sensors. See [3. Add S
 - **Development**:
   - See [`DEVCONTAINER.md`][devcontainer] for devcontainer development setup.
 - **Repository setup**:
-  - See [`AUDIT.md`][audit] section 4 for repository configuration.
+  - See [`AUDIT.md`][audit] "General Settings and Rulesets" and "Secrets" for repository configuration.
 
 ## 3rd Party Tools
 
