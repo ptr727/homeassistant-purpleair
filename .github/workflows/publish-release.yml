@@ -81,7 +81,7 @@ jobs:
       github.event_name == 'workflow_dispatch' &&
       needs.plan.outputs.publish == 'true' &&
       needs.validate.result == 'success'
-    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@6e05308f8267088a4055607aaae7310548232bdb # 2.0.1479
+    uses: ptr727/ProjectTemplate/.github/workflows/build-release-task.yml@884ffbdc7e988b7f37d73e1d84241c8aae1bc399 # 2.0.1492
     # The hub task's release upload, artifact cleanup, and supersede dispatch-and-cancel (WORKFLOW.md D4.8) all write with GITHUB_TOKEN.
     permissions:
       contents: write
